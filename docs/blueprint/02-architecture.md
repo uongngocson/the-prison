@@ -1,5 +1,7 @@
 # 02 — Technical Design Document
 
+**CR-VN-01 / thiết kế 1.2:** Authority theo actor, custody boundaries, saga và kế hoạch save v3 tại [16](16-custody-contracts.md); đây là thiết kế chưa triển khai.
+
 **Tích hợp1.1:** [11 — Full Life contracts](11-prison-life-contracts.md) bổ sung custody/services/economy/casework/support/programs/contact/transitions vào chính runtime này, cùng clock/authority/events. Các luồng đời sống [F33–60](10-prison-life-systems.md) không được triển khai thành game state/ledger/calendar thứ hai. PERF budgets giữ nguyên cho tổng workload, phải qua QA24 phần12.
 
 Mọi tần số và giới hạn dưới đây là **đề xuất**, cần xác nhận bằng Phase 0. Cơ sở công nghệ: S01–S26 ở [sổ nghiên cứu](01-research.md). Mục tiêu là nâng cấp authority mà giữ domain và dữ liệu nội dung; không cam kết multiplayer là thao tác bật cờ.

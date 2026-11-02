@@ -1,5 +1,7 @@
 # 09 — Audit độ đầy đủ mô phỏng đời sống giam giữ
 
+**CR-VN-01 / thiết kế 1.2:** [13](13-vietnam-custody-audit.md) cập nhật audit trên repository đã có code và nguồn Việt Nam; nhận định workspace chỉ có tài liệu bên dưới thuộc lần bàn giao cũ.
+
 Revision 1.1, ngày kiểm tra nguồn 02/11/2026. Đọc cùng [gameplay bổ sung](10-prison-life-systems.md), [dữ liệu/UI bổ sung](11-prison-life-contracts.md) và [kế hoạch tích hợp/nghiệm thu](12-realism-delivery.md). Đây là audit **thiết kế**, không audit một game chạy được: workspace hiện chỉ có tài liệu.
 
 ## Kết luận kiểm tra bản 1.0

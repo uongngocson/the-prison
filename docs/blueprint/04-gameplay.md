@@ -1,5 +1,7 @@
 # 04 — Core Gameplay Specifications / GDD
 
+**CR-VN-01 / thiết kế 1.2:** [14](14-sentence-custody-spec.md) bổ sung F61–F72 và delta về chọn án, quyền di chuyển, kết thúc chương/release cho mode VN mới; chưa code.
+
 **Revision1.1:** F01–F32 là nền tảng; [10 — Full Life systems](10-prison-life-systems.md) là phần tiếp nối bắt buộc khi dùng label Full Life. Quy mô Full Release ở dưới là baseline1.0, chưa bao gồm delta28 tính năng/4 không gian. Audit09 xác định rõ phần trước còn thiếu; phần12 cập nhật phạm vi/effort/Gate L. Không diễn giải32 tính năng cũ là100% đời sống nhà tù.
 
 ## Scope, pacing và quy tắc chung

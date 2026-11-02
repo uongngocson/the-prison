@@ -1,5 +1,7 @@
 # 12 — Full Life: tích hợp, WBS, QA và nghiệm thu độ phủ
 
+**CR-VN-01 / thiết kế 1.2:** [17](17-custody-delivery-qa.md) bổ sung backlog/QA/RTM/Gate VN cho mức án; Gate L không tự chứng minh custody mới đã làm.
+
 Revision1.1,02/11/2026. Bổ sung cho [07](07-delivery-qa.md) và [08](08-traceability.md), **không thay số liệu lịch sử baseline1.0 thành bằng chứng đã triển khai**. Đọc [audit09](09-realism-audit.md) trước khi dùng từ “đầy đủ/100%”.
 
 ## Definition of Complete cho hồ sơ và game

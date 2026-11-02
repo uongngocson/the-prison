@@ -1,5 +1,7 @@
 # 03 — World & Level Design / Asset Production Pipeline
 
+**CR-VN-01 / thiết kế 1.2:** [15](15-custody-ui-mapping.md) bổ sung L19–L22 và contract room/boundary/service; L01–L18 dưới đây vẫn là baseline cũ.
+
 **Bổ sung1.1:** L01–L14 là campus baseline ban đầu; [audit09](09-realism-audit.md) và [F33–F60](10-prison-life-systems.md) bổ sung gameplay còn thiếu. L15–L18 cuối file mở rộng thành18 khu/chức năng không gian cho Full Life, có thể đặt trong phòng tái sử dụng thay xây4 tòa nhà. Số này không đồng nghĩa đã có asset hoặc phải render toàn bộ cùng lúc.
 
 ## GDD: bối cảnh và nguyên tắc không gian

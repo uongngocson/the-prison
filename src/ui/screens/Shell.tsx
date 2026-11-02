@@ -38,17 +38,15 @@ export function Landing() {
       <header className="home-bar">
         <div className="home-brand"><span className="brand-mark">★</span><b>MỘT NGÀY MỚI</b></div>
         <nav className="home-nav">
-          <button onClick={() => setModal('law')}>Tuyên truyền pháp luật</button>
           <button onClick={() => setModal('about')}>Giới thiệu</button>
           <button onClick={() => set({ screen: 'auth' })}>Đăng nhập</button>
         </nav>
       </header>
       <section className="home-hero">
         <h1>Một ngày mới</h1>
-        <p className="home-lead">Sống có kỷ luật · Học tập · Lao động · Trở về với gia đình</p>
+        <p className="home-lead">Kỷ luật · Học tập · Lao động · Trở về với gia đình</p>
         <div className="home-cta" id="cta">
           <button className="btn primary lg" disabled={!cap.ok} onClick={() => set({ screen: 'menu' })} data-autofocus>▶ Chơi ngay</button>
-          <button className="btn lg ghost-light" onClick={() => setModal('law')}>Châm ngôn pháp luật</button>
         </div>
         {!cap.ok && <p className="home-warn" role="alert">Trình duyệt không hỗ trợ WebGL2 — hãy cập nhật trình duyệt để chơi.</p>}
       </section>
@@ -132,7 +130,7 @@ export function Menu() {
         </nav>
         <div className="poster"><Poster /></div>
       </div>
-      <footer className="muted small">Bản dựng 1.1.0 · nội dung {`nd-1.1.0`} · {POLICY_PROFILE.jurisdictionLabel}</footer>
+      <footer className="muted small mobile-hide">Bản dựng 1.1.0 · nội dung {`nd-1.1.0`} · {POLICY_PROFILE.jurisdictionLabel}</footer>
     </div></main>
   );
 }

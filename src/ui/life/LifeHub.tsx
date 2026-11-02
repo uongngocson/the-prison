@@ -64,7 +64,8 @@ function Journey({ s }: { s: GameState }) {
   const finish = () => { controller.session!.exec(() => undefined); const cell = CELL_ROOMS.find((c) => c.beds.includes(L.currentBed(s) ?? '')); if (cell) { s.player.pos = { x: cell.door.x, y: 0, z: cell.door.z - cell.inward * 0.85 }; s.player.zone = 'L02'; s.player.lastSafe = { ...s.player.pos }; if (!s.discoveredZones.includes('L02')) s.discoveredZones.push('L02'); } controller.bump(); close(); };
   if (cur) return (
     <div className="split">
-      <ol className="col" aria-label="Các bước tiếp nhận">{steps.map((x) => <li key={x.id} className="small" style={{ color: ep.admissionSteps[x.id] ? 'var(--positive)' : x.id === cur.id ? 'var(--accent)' : undefined }}>{ep.admissionSteps[x.id] ? '✓ ' : ''}{x.label}</li>)}</ol>
+      <div className="adm-progress" aria-hidden>Bước {steps.findIndex((x) => x.id === cur.id) + 1}/{steps.length}<i><b style={{ width: `${(steps.findIndex((x) => x.id === cur.id) / steps.length) * 100}%` }} /></i></div>
+      <ol className="col adm-steps" aria-label="Các bước tiếp nhận">{steps.map((x) => <li key={x.id} className="small" style={{ color: ep.admissionSteps[x.id] ? 'var(--positive)' : x.id === cur.id ? 'var(--accent)' : undefined }}>{ep.admissionSteps[x.id] ? '✓ ' : ''}{x.label}</li>)}</ol>
       <div className="card">
         <p className="small muted">Thông tin trong thế giới hư cấu · Cán bộ tiếp nhận: {NPC_BY_ID.tam.name}</p>
         {cur.id === 'identity' && <>

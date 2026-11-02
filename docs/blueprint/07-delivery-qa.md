@@ -1,5 +1,7 @@
 # 07 — Performance, QA, Infrastructure, Roadmap, WBS & Cost
 
+**CR-VN-01 / thiết kế 1.2:** [17](17-custody-delivery-qa.md) bổ sung T11-01–10, QA25–32 và Gate VN; estimate cũ không bao gồm custody 1.2.
+
 **Phạm vi estimate:** các số103–170PW/36 task và mốc MVP ở file này thuộc baseline1.0. [12 — Full Life delivery](12-realism-delivery.md) thêm47–78PW/12 task và cập nhật tổng SP Full Life150–248PW trước reserve, MP increment riêng. Không dùng rates/lịch/quote giả định cũ để cam kết toàn60 feature. PERF01–21 và QA01–16 ở đây vẫn áp dụng, bổ sung QA17–24/Gate L khi mở rộng.
 
 ## Performance budget — mục tiêu cần đo, không phải benchmark

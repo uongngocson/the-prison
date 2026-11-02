@@ -4,6 +4,8 @@ Game mô phỏng đời sống 3D góc nhìn thứ ba trong một cơ sở giam 
 
 Trạng thái chi tiết của từng tính năng (F01–F60), màn hình (U01–U35) và khu (L01–L18), cùng các điểm lệch so với blueprint: [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
+Đặc tả mở rộng **chưa triển khai**: [chọn mức án và mô phỏng giam giữ tham chiếu Việt Nam](docs/blueprint/13-vietnam-custody-audit.md), gồm setup, phân khu/buồng, quyền đi lại, giam riêng/kỷ luật, mapping UI và kế hoạch kiểm thử. Đọc theo [mục lục blueprint 1.2](docs/blueprint/README.md); tài liệu này không đổi hành vi game hiện tại.
+
 ## Chạy game
 
 Yêu cầu: Node.js 20 trở lên, trình duyệt desktop có WebGL2.

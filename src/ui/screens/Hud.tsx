@@ -5,6 +5,8 @@ import { useSettings } from '../settings';
 import { Bar, Key } from '../components';
 import { controller } from '../../app/controller';
 import { useTouchUI } from './TouchControls';
+import { MobileHud } from './MobileHud';
+import { Icon } from '../icons';
 
 export function Hud() {
   const hud = useUI((s) => s.hud);
@@ -26,6 +28,7 @@ export function Hud() {
     return () => clearInterval(t);
   }, []);
   if (!hud) return null;
+  if (touch) return <MobileHud />;
   const hidden = !!overlay;
   return (
     <div className="hud" aria-hidden={hidden}>
@@ -142,16 +145,17 @@ export function Dialogue() {
   return (
     <section className="dialogue box panel" data-touch={touchD || undefined} role="dialog" aria-label={`Hội thoại với ${d.speaker}`} style={{ ['--ss' as string]: subScale } as React.CSSProperties}>
       <div className="panel-body">
-        <details className="small muted" style={{ marginBottom: 6 }}>
+        {touchD && <button className="icon-btn dlg-x" onClick={() => controller.endDialogue()} aria-label="Kết thúc hội thoại"><Icon name="close" size={18} /></button>}
+        <details className="small muted dlg-hist" style={{ marginBottom: 6 }}>
           <summary>Lịch sử hội thoại</summary>
           <div style={{ maxHeight: 140, overflow: 'auto' }}>{history.slice(0, -1).map((h, i) => <div key={i}><b>{h.speaker || '—'}:</b> {h.text}</div>)}</div>
         </details>
         <div className="speaker">{d.speaker}</div>
         <div className="line">{d.text}</div>
         <div className="choices">
-          {d.choices.map((c, i) => <button key={c.id} className="btn" onClick={() => controller.choose(c.id)} autoFocus={i === 0}><span className="kbd">{i + 1}</span> {c.text}</button>)}
-          {d.canContinue && <button className="btn primary" onClick={() => controller.continueDialogue()} autoFocus>Tiếp tục <span className="kbd">Enter</span></button>}
-          <button className="btn ghost sm" onClick={() => controller.endDialogue()}>Kết thúc hội thoại <span className="kbd">Esc</span></button>
+          {d.choices.map((c, i) => <button key={c.id} className="btn" onClick={() => controller.choose(c.id)} autoFocus={i === 0}>{!touchD && <span className="kbd">{i + 1}</span>} {c.text}</button>)}
+          {d.canContinue && <button className="btn primary" onClick={() => controller.continueDialogue()} autoFocus>Tiếp tục {!touchD && <span className="kbd">Enter</span>}</button>}
+          {!touchD && <button className="btn ghost sm" onClick={() => controller.endDialogue()}>Kết thúc hội thoại <span className="kbd">Esc</span></button>}
         </div>
       </div>
     </section>

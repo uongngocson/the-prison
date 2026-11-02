@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../store';
 import { useSettings } from '../settings';
-import { useDevice, enterFullscreen, fullscreenSupported } from '../device';
+import { useDevice } from '../device';
+import { Icon } from '../icons';
 import { controller } from '../../app/controller';
 import { audio } from '../../audio/audio';
 
@@ -85,62 +86,63 @@ export function TouchControls() {
   const focus = useUI((s) => s.focus);
   const overlay = useUI((s) => s.overlay);
   const dialogue = useUI((s) => s.dialogue);
-  const open = useUI((s) => s.open);
-  const set = useUI((s) => s.set);
   const size = useSettings((s) => s.s.controls.joystickSize);
   const left = useSettings((s) => s.s.controls.leftHanded);
   const [crouch, setCrouch] = useState(false);
   if (!touch || !hud || overlay || dialogue) return null;
-  const first = focus?.verbs.find((v) => v.enabled);
-  const acting = !!hud.action;
+  const verbs = focus?.verbs ?? [];
+  const first = verbs.find((v) => v.enabled);
+  const blocked = !first && verbs[0];
+  const acting = hud.action;
   const seated = hud.mode === 'seated';
   const tap = (fn: () => void) => () => { audio.resume(); fn(); };
+  const targetName = focus?.label.split(' · ')[0];
   return (
     <div className={`touch-layer ${left ? 'lefty' : ''}`}>
       <LookZone side={left ? 'left' : 'right'} />
       <Joystick size={size} side={left ? 'right' : 'left'} />
-      <nav className="touch-menu" aria-label="Menu nhanh">
-        <button onClick={tap(() => open('pause'))} aria-label="Tạm dừng">☰</button>
-        <button onClick={tap(() => controller.openScreen('schedule'))} aria-label="Lịch sinh hoạt">📅</button>
-        <button onClick={tap(() => open('journal'))} aria-label="Nhiệm vụ">📋</button>
-        <button onClick={tap(() => open('map'))} aria-label="Bản đồ">🗺️</button>
-        <button onClick={tap(() => open('inventory'))} aria-label="Túi đồ">🎒</button>
-        <button onClick={tap(() => set({ overlay: 'life' }))} aria-label="Đời sống">🏠{hud.lifeBadges ? <span className="badge">{hud.lifeBadges}</span> : null}</button>
-        <button onClick={tap(() => set({ overlay: 'profile', profileTab: 'profile' }))} aria-label="Hồ sơ">👤</button>
-        {fullscreenSupported() && !document.fullscreenElement && <button onClick={tap(() => void enterFullscreen())} aria-label="Toàn màn hình">⛶</button>}
-      </nav>
-      <div className={`touch-actions ${left ? 'left' : 'right'}`}>
-        {acting ? <>
-          <button className="ta big" onClick={tap(() => controller.onKeyAction('skip'))}>⏩<span>Tua nhanh</span></button>
-          <button className="ta" onClick={tap(() => controller.onKeyAction('cancel'))}>✕<span>Hủy</span></button>
-        </> : <>
-          <button className="ta big primary" disabled={!first} onClick={tap(() => controller.onKeyAction('interact'))} aria-label={first ? first.label : 'Không có gì để tương tác'}>
-            ✋<span>{first ? (first.label.length > 18 ? `${first.label.slice(0, 17)}…` : first.label) : 'Tương tác'}</span>
-          </button>
-          {seated && <button className="ta" onClick={tap(() => controller.session?.standUp())}>⬆<span>Đứng dậy</span></button>}
-          <button className={`ta ${crouch ? 'on' : ''}`} aria-pressed={crouch} onClick={tap(() => { controller.view?.toggleCrouch(); setCrouch(!!controller.view?.crouching); })}>⤓<span>Cúi</span></button>
-          <button className="ta" onClick={tap(() => controller.view?.toggleShoulder())}>↔<span>Vai camera</span></button>
-        </>}
+      <div className={`m-actions ${left ? 'left' : 'right'}`}>
+        {acting ? (
+          <>
+            <div className="m-label"><b>{acting.label}</b><span>{Math.round(acting.progress * 100)}%</span></div>
+            <div className="m-act-row">
+              <button className="m-small" onClick={tap(() => controller.onKeyAction('cancel'))} aria-label="Hủy (không nhận kết quả)"><Icon name="close" /></button>
+              <button className="m-main" onClick={tap(() => controller.onKeyAction('skip'))} aria-label="Tua nhanh" style={{ ['--p' as string]: acting.progress } as React.CSSProperties}>
+                <Icon name="forward" size={30} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {focus && (
+              <div className="m-label">
+                <b>{targetName}</b>
+                <span>{first ? first.label : blocked ? blocked.reason ?? 'Chưa dùng được' : ''}</span>
+              </div>
+            )}
+            {verbs.filter((v) => v.enabled && v !== first).slice(0, 2).map((v) => (
+              <button key={v.verb} className="m-chip" onClick={tap(() => controller.doVerb(focus!.id, v.verb))}>{v.label}</button>
+            ))}
+            <div className="m-act-row">
+              <div className="m-small-col">
+                {seated
+                  ? <button className="m-small" onClick={tap(() => controller.session?.standUp())} aria-label="Đứng dậy"><Icon name="stand" /></button>
+                  : <button className={`m-small ${crouch ? 'on' : ''}`} aria-pressed={crouch} aria-label="Cúi" onClick={tap(() => { controller.view?.toggleCrouch(); setCrouch(!!controller.view?.crouching); })}><Icon name="crouch" /></button>}
+                <button className="m-small" onClick={tap(() => controller.view?.toggleShoulder())} aria-label="Đổi vai camera"><Icon name="camera" /></button>
+              </div>
+              <button className={`m-main ${first ? 'ready' : ''}`} disabled={!first} onClick={tap(() => controller.onKeyAction('interact'))} aria-label={first ? first.label : 'Không có gì để tương tác'}>
+                <Icon name={focus?.kind === 'npc' ? 'talk' : 'hand'} size={30} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-/** Orientation hint for phones held upright (game still playable). */
-export function RotateHint() {
-  const touch = useTouchUI();
-  const portrait = useDevice((d) => d.portrait && d.form === 'phone');
-  const [dismissed, setDismissed] = useState(false);
-  if (!touch || !portrait || dismissed) return null;
-  return (
-    <div className="rotate-hint" role="status">
-      <span style={{ fontSize: 28 }}>📱↻</span>
-      <span>Xoay ngang điện thoại để có tầm nhìn rộng hơn.</span>
-      <button className="btn sm" onClick={() => { setDismissed(true); void enterFullscreen(); }}>Toàn màn hình</button>
-      <button className="btn sm ghost" onClick={() => setDismissed(true)}>Chơi dọc</button>
-    </div>
-  );
-}
+/** Kept for API compatibility; orientation hint now lives in the mobile HUD as a small pill. */
+export function RotateHint() { return null; }
 
 /** Gamepad navigation inside menus/overlays: D-pad/left stick moves focus, A activates, B closes. */
 export function useGamepadUI() {

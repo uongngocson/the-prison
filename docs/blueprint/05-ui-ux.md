@@ -1,5 +1,7 @@
 # 05 — UI/UX Design Specification
 
+**CR-VN-01 / thiết kế 1.2:** [15](15-custody-ui-mapping.md) có delta cho U01–U35 và contracts U36–U38; U03 sang setup mức án trước khi tạo game ở mode mới.
+
 **Revision1.1:** [11 — Full Life contracts](11-prison-life-contracts.md) bổ sung U26–U35 và screen flow đời sống. Design tokens/C-UI ở đây áp dụng cho toàn35 màn hình. Các tab mới dùng một hub Đời sống trong pause/profile và contextual links, không tăng clutter HUD bằng10 hotkeys.
 
 ## Design system [D]

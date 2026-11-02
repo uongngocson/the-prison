@@ -84,7 +84,7 @@ export function Inventory() {
       { id: 'bag', label: 'Túi' }, { id: 'locker', label: atLocker ? 'Tủ cá nhân' : 'Tủ cá nhân (xem)' }, { id: 'mailbox', label: 'Hộp nhận đồ', badge: s.inventory.mailbox.length }, { id: 'stored', label: 'Tài sản ký gửi' },
     ]} />} footer={<>Phím mũi tên chọn ô · Enter hành động · Không cần kéo thả. {tab === 'stored' && 'Tài sản ký gửi chỉ xem — nhận lại khi rời cơ sở (biên nhận ở Đời sống › Tài sản).'}</>}>
       <div className="split3">
-        <div className="small muted">
+        <div className="small muted mobile-hide">
           <p>{tab === 'bag' && 'Đồ mang theo. 12 ô.'}{tab === 'locker' && (atLocker ? 'Tủ trong phòng của bạn — chuyển đồ qua lại tự do.' : 'Đến tủ cá nhân trong phòng để chuyển đồ.')}{tab === 'mailbox' && 'Phần thưởng/đồ khi túi đầy được giữ ở đây, không bị mất.'}{tab === 'stored' && 'Đồ ký gửi khi tiếp nhận.'}</p>
           <p>Đang mặc: {s.equipped.outfit ? ITEM_BY_ID[s.inventory.bag.find((x) => x?.uid === s.equipped.outfit)?.itemId ?? '']?.name ?? 'đồng phục' : 'Đồng phục được cấp'}</p>
         </div>
@@ -225,7 +225,7 @@ export function SchedulePanel() {
   const bookings = s.life.bookings.filter((b) => ['booked', 'waiting'].includes(b.state)).sort((a, b) => a.start - b.start);
   return (
     <Panel title={`Lịch sinh hoạt — ${WEEKDAY_LABEL[dayOfWeek(s.minute)]}, Ngày ${day}`} onClose={close} footer="Giờ trong game. Một ngày game ≈ 48 phút thực (đổi trong Cài đặt). Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.">
-      <table className="tbl">
+      <table className="tbl sched">
         <thead><tr><th>Giờ</th><th>Hoạt động</th><th>Nơi</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
         <tbody>
           {DAILY.map((r) => { const [label, kind] = status(r.from, r.to); return (

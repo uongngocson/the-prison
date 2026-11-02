@@ -10,6 +10,7 @@ import { ProfilePanel } from './ui/screens/Profile';
 import { SavesPanel, SettingsPanel } from './ui/screens/SavesSettings';
 import { LifeHub } from './ui/life/LifeHub';
 import { TouchControls, RotateHint, useGamepadUI } from './ui/screens/TouchControls';
+import { QuickMenu } from './ui/screens/MobileHud';
 import { startDeviceWatch } from './ui/device';
 import { audio } from './audio/audio';
 
@@ -51,6 +52,7 @@ export default function App() {
       {inGame && <Hud />}
       {inGame && <RotateHint />}
       {inGame && <Dialogue />}
+      {inGame && overlay === 'quickmenu' && <QuickMenu />}
       {inGame && overlay === 'pause' && <Pause />}
       {inGame && overlay === 'inventory' && <Inventory />}
       {inGame && overlay === 'journal' && <Journal />}

@@ -33,7 +33,7 @@ export function Panel({ title, onClose, children, width, footer, tabs, labelledB
         <div className="panel-head">
           <h2 id={id}>{title}</h2>
           <div className="spacer" />
-          {onClose && <button className="btn sm ghost" onClick={onClose} aria-label="Đóng">Đóng <span className="kbd">Esc</span></button>}
+          {onClose && <button className="btn sm ghost panel-close" onClick={onClose} aria-label="Đóng"><span className="close-txt">Đóng <span className="kbd">Esc</span></span><span className="close-x" aria-hidden>✕</span></button>}
         </div>
         {tabs}
         <div className="panel-body">{children}</div>

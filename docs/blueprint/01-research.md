@@ -1,5 +1,7 @@
 # 01 — Research Methodology, Technology Evaluation & References
 
+**CR-VN-01 / thiết kế 1.2:** Nguồn pháp luật Việt Nam và giới hạn xác minh bổ sung tại [13](13-vietnam-custody-audit.md); nguồn công nghệ dưới đây không phải bằng chứng về chế độ giam giữ.
+
 **Revision1.1:** sổ nguồn đời sống giam giữ RFS01–13, tình trạng truy cập tài liệu quốc tế và giới hạn jurisdiction nằm tại [09 — realism audit](09-realism-audit.md). S01–35 dưới đây chỉ là nghiên cứu công nghệ, không bằng chứng game mô phỏng đầy đủ đời sống thật.
 
 ## Phương pháp và độ tin cậy

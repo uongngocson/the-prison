@@ -9,6 +9,19 @@ Quy ước cột Tested:
 
 ## Tóm tắt
 
+### Đặc tả mới CR-VN-01 — chưa triển khai, 02/11/2026
+
+Đã bổ sung hồ sơ BA [13–17](blueprint/13-vietnam-custody-audit.md) cho baseline mục tiêu 1.2: chọn mức án có thời hạn/chung thân ngay setup; bản án và tiến độ; phân nhóm/phân buồng; quyền đi lại và giờ về buồng; giam giữ riêng khác buồng kỷ luật; dịch vụ tại buồng; chuyển khu; tách kết thúc chương khỏi release; save v3 dự kiến. Mapping có delta U01–U35 và contracts U36–U38, không gian L19–L22, RTM và 24 kịch bản nghiệm thu. Không sửa source, SQL, cấu hình hoặc tests trong lần bàn giao tài liệu này.
+
+| Hạng mục mới | Documented | Implemented | Tested | RealismReviewed |
+|---|---|---|---|---|
+| F61–F72 / chọn án và custody | Có đặc tả [14](blueprint/14-sentence-custody-spec.md) | Chưa | Chưa | Chưa |
+| U36–U38 và delta U01–U35; L19–L22 | Có mapping [15](blueprint/15-custody-ui-mapping.md) | Chưa | Chưa | Chưa |
+| DB45–DB50 / API14–API17 / save v3 | Có hợp đồng [16](blueprint/16-custody-contracts.md) | Chưa | Chưa | Chưa |
+| QA25–QA32 / VN-SC01–24 | Có test specification [17](blueprint/17-custody-delivery-qa.md) | Chưa tự động hóa | Chưa chạy | Chưa |
+
+Các con số 72 features/38 screens/22 logical spaces/50 data IDs là **target thiết kế cộng dồn**, không thay các số implementation trong bảng cũ bên dưới. Hiện game vẫn dùng profile hư cấu, chưa có chọn mức án hoặc giam buồng theo án; cửa theo lịch/va chạm và hạn chế giải trí đang có không tương đương custody 1.2. Nghiên cứu pháp lý có nguồn và các điểm cần xác minh tại [13](blueprint/13-vietnam-custody-audit.md); chưa có chứng nhận mô phỏng “100% thực tế”.
+
 ### Sửa khôi phục phiên khi reload — 02/11/2026
 
 Đã bổ sung checkpoint phiên đồng bộ theo tab và bootstrap auto-resume (F18/F31): giữ domain state, vị trí NPC/player, camera, action/dialogue và panel đang mở; không khởi tạo lại NPC khi khôi phục checkpoint. Các ô IndexedDB và lựa chọn “Thoát không lưu” vẫn độc lập. Lỗi checkpoint có fallback thế hệ trước hoặc màn recovery, không tự bắt đầu lại. Kết thúc hành trình được khôi phục ở màn Ending và đồng hồ dừng.

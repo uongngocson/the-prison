@@ -1,7 +1,7 @@
 // Procedural blockout world from content (03). Static meshes merged per zone with vertex colors (ít draw call);
 // emissive lights/windows separate; boards/signs use DynamicTexture text (localization không bake vào asset).
 import { Color3, Color4, DynamicTexture, Mesh, MeshBuilder, Scene, StandardMaterial, TransformNode, Vector3, VertexBuffer, type AbstractMesh } from '@babylonjs/core';
-import { PROPS, WALLS, ZONES, ZONE_BY_ID, type PropDef } from '../content/world';
+import { CELL_DOORS, PROPS, WALLS, ZONES, ZONE_BY_ID, type PropDef } from '../content/world';
 import type { ZoneId } from '../domain/types';
 import { hash32 } from '../domain/util';
 
@@ -123,9 +123,33 @@ export function buildWorld(scene: Scene): WorldHandles {
     }
   }
 
-  // ---------- walls (two-tone) ----------
+  // ---------- iron bar grille (song sắt) ----------
+  const STEEL = '#8a9196';
+  const STEEL_DARK = '#5f676c';
+  /** Vertical bars + horizontal flat straps + frame along a segment (local x = along, centred at origin). */
+  const grille = (len: number, h: number, add: (w: number, hh: number, d: number, lx: number, y: number, color: string, mul?: number) => void) => {
+    const n = Math.max(2, Math.round(len / 0.13));
+    for (let i = 0; i <= n; i++) add(0.032, h, 0.032, -len / 2 + (i * len) / n, h / 2, STEEL);
+    for (const y of [0.06, h * 0.33, h * 0.62, h - 0.05]) add(len, 0.05, 0.07, 0, y, STEEL_DARK);
+    add(0.07, h, 0.09, -len / 2, h / 2, STEEL_DARK);
+    add(0.07, h, 0.09, len / 2, h / 2, STEEL_DARK);
+  };
+
+  // ---------- walls (two-tone, or bars for cell fronts) ----------
   for (const w of WALLS) {
     if (w.doorId) continue;
+    if (w.style === 'bars') {
+      const len = Math.hypot(w.x1 - w.x0, w.z1 - w.z0);
+      if (len < 0.01) continue;
+      const cx = (w.x0 + w.x1) / 2, cz = (w.z0 + w.z1) / 2;
+      const yaw = Math.atan2(w.x1 - w.x0, w.z1 - w.z0) + Math.PI / 2;
+      const c = Math.cos(yaw), sn = Math.sin(yaw);
+      const barH = Math.min(2.5, w.h);
+      grille(len, barH, (bw, bh, bd, lx, y, color, mul) => box(w.zone, bw, bh, bd, cx + lx * c, y, cz - lx * sn, color, yaw, mul ?? 1));
+      // painted header beam above the bars (như ảnh: dầm sáng phía trên song)
+      if (w.h > barH) box(w.zone, len + 0.2, w.h - barH, 0.24, cx, barH + (w.h - barH) / 2, cz, '#c9c4b4', yaw);
+      continue;
+    }
     const len = Math.hypot(w.x1 - w.x0, w.z1 - w.z0);
     if (len < 0.01) continue;
     const cx = (w.x0 + w.x1) / 2;
@@ -136,19 +160,37 @@ export function buildWorld(scene: Scene): WorldHandles {
     if (w.h > lower) box(w.zone, len + 0.2, w.h - lower, 0.2, cx, lower + (w.h - lower) / 2, cz, w.color, yaw, 1.08);
   }
 
-  // ---------- doors ----------
+  // ---------- doors: cửa trượt song sắt ----------
   const doors = new Map<string, { mesh: Mesh; closedPos: Vector3; openPos: Vector3; t: number }>();
-  const doorMat = new StandardMaterial('mat_door', scene);
-  doorMat.diffuseColor = Color3.FromHexString('#4f6a74');
-  doorMat.specularColor = new Color3(0.1, 0.1, 0.1);
+  const doorMat = new StandardMaterial('mat_door_iron', scene);
+  doorMat.diffuseColor = new Color3(1, 1, 1);
+  doorMat.specularColor = new Color3(0.35, 0.35, 0.35);
+  doorMat.specularPower = 24;
+  /** Builds one merged barred door leaf centred at origin (local x along opening). */
+  const barDoor = (name: string, len: number, h: number, alongX: boolean, withLock: boolean): Mesh => {
+    const parts: Mesh[] = [];
+    const add = (bw: number, bh: number, bd: number, lx: number, y: number, color: string) => {
+      const m = MeshBuilder.CreateBox(`${name}_p${parts.length}`, { width: alongX ? bw : bd, height: bh, depth: alongX ? bd : bw }, scene);
+      m.position.set(alongX ? lx : 0, y - h / 2, alongX ? 0 : lx);
+      colorize(m, color);
+      parts.push(m);
+    };
+    grille(len, h, add);
+    // diagonal-free cross plate + lock box like real cell doors
+    if (withLock) { add(0.16, 0.28, 0.12, len / 2 - 0.14, h * 0.48, '#4a5156'); add(0.05, 0.05, 0.16, len / 2 - 0.14, h * 0.44, '#c9b25a'); }
+    const merged = Mesh.MergeMeshes(parts, true, true)!;
+    merged.name = name;
+    merged.material = doorMat;
+    merged.isPickable = false;
+    return merged;
+  };
   for (const w of WALLS) {
     if (!w.doorId) continue;
     const len = Math.hypot(w.x1 - w.x0, w.z1 - w.z0);
     const cx = (w.x0 + w.x1) / 2;
     const cz = (w.z0 + w.z1) / 2;
     const alongX = Math.abs(w.x1 - w.x0) > Math.abs(w.z1 - w.z0);
-    const m = MeshBuilder.CreateBox(w.doorId, { width: alongX ? len : 0.08, height: 2.2, depth: alongX ? 0.08 : len }, scene);
-    m.material = doorMat;
+    const m = barDoor(w.doorId, len, 2.2, alongX, true);
     const closedPos = new Vector3(cx, 1.1, cz);
     const openPos = alongX ? new Vector3(cx + len * 0.95, 1.1, cz + 0.15 * Math.sign(cz || 1)) : new Vector3(cx + 0.15, 1.1, cz + len * 0.95);
     m.position.copyFrom(openPos);
@@ -156,6 +198,34 @@ export function buildWorld(scene: Scene): WorldHandles {
     // header above door + door frame
     const zone = w.zone;
     box(zone, alongX ? len + 0.2 : 0.22, 0.25 + (ZONE_BY_ID[zone].height - 2.45), alongX ? 0.22 : len + 0.2, cx, 2.3 + (ZONE_BY_ID[zone].height - 2.45) / 2 + 0.05, cz, '#3f4a4c');
+    // fixed steel jambs + sliding track on the door frame
+    for (const sd of [-1, 1]) box(zone, alongX ? 0.1 : 0.14, 2.3, alongX ? 0.14 : 0.1, cx + (alongX ? sd * len / 2 : 0), 1.15, cz + (alongX ? 0 : sd * len / 2), STEEL_DARK);
+    box(zone, alongX ? len * 2.1 : 0.08, 0.08, alongX ? 0.08 : len * 2.1, cx + (alongX ? len * 0.5 : 0), 2.26, cz + (alongX ? 0 : len * 0.5), STEEL_DARK);
+  }
+
+  // ---------- cell doors: barred sliding doors (slid open) + room number plate ----------
+  for (const d of CELL_DOORS) {
+    const leaf = barDoor(`celldoor_${d.roomId}`, d.width, 2.4, d.alongX, true);
+    // slid open behind the adjacent bar wall, offset toward the cell interior
+    leaf.position.set(d.x + d.slideDir * d.width * 0.95, 1.2, d.z + d.inward * 0.12);
+    leaf.freezeWorldMatrix();
+    for (const sd of [-1, 1]) box('L02', 0.1, 2.5, 0.12, d.x + sd * d.width / 2, 1.25, d.z, STEEL_DARK);
+    const tex = new DynamicTexture(`tx_no_${d.roomId}`, { width: 128, height: 64 }, scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    ctx.fillStyle = '#e9e5d8'; ctx.fillRect(0, 0, 128, 64);
+    ctx.fillStyle = '#2b2b2b'; ctx.font = 'bold 40px "Noto Sans", "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(d.number, 64, 46);
+    tex.update();
+    const mat = new StandardMaterial(`m_no_${d.roomId}`, scene);
+    mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.25, 0.25, 0.25); mat.specularColor = new Color3(0, 0, 0);
+    for (const face of [-1, 1]) {
+      const pl = MeshBuilder.CreatePlane(`no_${d.roomId}_${face}`, { width: 0.42, height: 0.21 }, scene);
+      pl.material = mat;
+      pl.position.set(d.x, 2.85, d.z - d.inward * face * 0.13);
+      pl.rotation.y = face * d.inward > 0 ? 0 : Math.PI;
+      pl.isPickable = false;
+      pl.freezeWorldMatrix();
+    }
   }
 
   // ---------- props ----------

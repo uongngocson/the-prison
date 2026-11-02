@@ -1,9 +1,13 @@
 # MASTER DEVELOPMENT BLUEPRINT
 
 **REALISTIC 3D PRISON LIFE SIMULATOR — WEB EDITION**  
-Bản 1.1 — 02/11/2026, Asia/Saigon — tài liệu thiết kế, chưa triển khai game.
+Bản thiết kế 1.2 — 02/11/2026, Asia/Saigon. Baseline 1.0/1.1 được giữ để truy vết; code hiện tại và tính năng còn thiếu xem [trạng thái triển khai](../IMPLEMENTATION_STATUS.md). Phần mở rộng 1.2 dưới đây **chưa được code**.
 
 ## Cách đọc và trạng thái bàn giao
+
+**Yêu cầu mới CR-VN-01 — chọn mức án và giam giữ có quản lý:** đọc [13 — audit dự án và nguồn Việt Nam](13-vietnam-custody-audit.md) → [14 — nghiệp vụ F61–72](14-sentence-custody-spec.md) → [15 — mapping toàn bộ UI và không gian](15-custody-ui-mapping.md) → [16 — data/runtime/save contracts](16-custody-contracts.md) → [17 — backlog, QA và nghiệm thu](17-custody-delivery-qa.md). Target thiết kế cộng dồn: 72 features, 38 screens, 22 logical spaces, 50 logical data IDs và 17 API contracts. Đây là số ID đặc tả, không phải số chức năng đã triển khai hoặc chứng nhận “100% thực tế”.
+
+Mode tham chiếu Việt Nam cho chọn tù có thời hạn/chung thân, tách phân nhóm, buồng ở, lịch di chuyển, giam riêng, kỷ luật và kết thúc chương khỏi hết án. Nguồn chưa đọc đủ/hiệu lực cần đối chiếu có owner và gate; profile không tự được gắn nhãn chuyên gia đã duyệt. Các câu “workspace chưa có game” trong hồ sơ cũ là thông tin lịch sử tại thời điểm lập thiết kế, không mô tả hiện trạng repository.
 
 Bộ hồ sơ này là đề xuất thiết kế có thể chuyển thành backlog. Không chứa code game, migration thực thi, benchmark tự nhận hoặc cam kết hiệu năng. Quyết định engine là **có điều kiện**, phải qua Phase 0. Chỉ các khả năng có liên kết nguồn chính thức được coi là đã nghiên cứu; mọi con số gameplay, ngân sách và tải là giả định thiết kế. Chưa có phần cứng thử nghiệm, asset thực, báo giá nhân sự hoặc tài khoản cloud để xác nhận.
 
@@ -23,6 +27,11 @@ Bộ hồ sơ này là đề xuất thiết kế có thể chuyển thành backl
 | [10 — Full Life systems](10-prison-life-systems.md) | F33–60,tiếp nhận/tài sản/liên hệ/dịch vụ/care/học/vi phạm/chuyển/ra | Design, gameplay, QA |
 | [11 — Full Life contracts](11-prison-life-contracts.md) | DB28–44,API09–13,U26–35,save v2/runtime/privacy | Backend, client, UI |
 | [12 — Full Life delivery](12-realism-delivery.md) | WBS delta,QA17–24,scenario pack,RTM và Gate L | Producer, QA, toàn đội |
+| [13 — Audit custody Việt Nam](13-vietnam-custody-audit.md) | Hiện trạng code, source ledger, giới hạn nghiên cứu, disposition các loại án | BA, research, legal, product |
+| [14 — Sentence & custody specification](14-sentence-custody-spec.md) | Setup, preset, F61–72, phân nhóm, giam buồng, kỷ luật, release | BA, gameplay, narrative |
+| [15 — Custody UI mapping](15-custody-ui-mapping.md) | Delta U01–35, contracts U36–38, context matrix, L19–22 | UI/UX, level, QA |
+| [16 — Custody contracts](16-custody-contracts.md) | DB45–50, API14–17, quyền theo actor, clock, saga, save v3 mục tiêu | Domain, physics/AI, persistence |
+| [17 — Custody delivery & QA](17-custody-delivery-qa.md) | Change impact, T11-01–10, QA25–32, 24 scenarios, Gate VN | Producer, QA, reviewers |
 
 ## Executive Summary
 

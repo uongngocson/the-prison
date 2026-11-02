@@ -1,5 +1,7 @@
 # 08 — Requirements Traceability, Acceptance & Self Review
 
+**CR-VN-01 / thiết kế 1.2:** RTM F61–F72 và baseline mục tiêu 72F/38U/22L/50DB/17API tại [17](17-custody-delivery-qa.md). Các audit cũ giữ như lịch sử, không mô tả code hiện tại.
+
 **Revision1.1:** RTM phần này giữ baseline kỹ thuật ban đầu F01–32/U01–25/L01–14/DB01–27. [12 — Full Life delivery](12-realism-delivery.md) bổ sung REQ-LIFE-01–28/GAP01–28, F33–60/U26–35/DB28–44 và Gate L; L15–18 ở03. Audit1.0 dưới là ghi nhận lịch sử, không phải tổng count hiện tại. Mọi tuyên bố “full” phải đọc cả hai RTM và phân biệt documented/implemented/tested/realism-reviewed.
 
 ## Trạng thái và quy tắc truy vết

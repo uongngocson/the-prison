@@ -52,7 +52,7 @@ export function Create() {
   return (
     <main className="page"><div className="page-inner">
       <h1>Tạo nhân vật</h1>
-      <p className="muted">Ngoại hình chỉ mang tính thẩm mỹ — không ảnh hưởng chỉ số, cách NPC đối xử hay kết quả xem xét.</p>
+      <p className="muted mobile-hide">Ngoại hình chỉ mang tính thẩm mỹ — không ảnh hưởng chỉ số, cách NPC đối xử hay kết quả xem xét.</p>
       <div className="create-grid">
         <div>
           <Suspense fallback={<div className="preview3d" role="status" style={{ display: 'grid', placeItems: 'center' }}>Đang tải xem trước 3D...</div>}><Preview look={look} rot={rot} /></Suspense>
@@ -73,7 +73,7 @@ export function Create() {
             <input type="text" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} aria-invalid={!!err} aria-describedby="nameerr" onKeyDown={(e) => { if (e.key === 'Enter') void start(); }} />
           </label>
           <p id="nameerr" className="small" style={{ color: 'var(--error)', minHeight: 20 }}>{err ?? ''}</p>
-          <div className="row">
+          <div className="row create-cta">
             <button className="btn" onClick={random}>Ngẫu nhiên</button>
             <button className="btn" disabled={!history.length} onClick={() => { setLook(history[history.length - 1]); setHistory((h) => h.slice(0, -1)); }}>Hoàn tác</button>
             <span className="spacer" />

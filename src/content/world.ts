@@ -36,7 +36,10 @@ export interface PropDef {
 export type SlotKind = 'sleep' | 'eat' | 'sit' | 'read' | 'class' | 'exercise' | 'work' | 'wash' | 'staff' | 'walk' | 'visit' | 'quiet' | 'queue' | 'stand' | 'care';
 export interface SlotDef { id: string; zone: ZoneId; kind: SlotKind; pos: Vec3; yaw: number; pose: 'sit' | 'stand' | 'lie' | 'exercise' | 'work' | 'read'; propId?: string; owner?: string }
 
-export interface WallSeg { x0: number; z0: number; x1: number; z1: number; h: number; zone: ZoneId; color: string; doorId?: string }
+export interface WallSeg { x0: number; z0: number; x1: number; z1: number; h: number; zone: ZoneId; color: string; doorId?: string; style?: 'bars' }
+/** Cửa trượt song sắt của phòng giam (trang trí, mặc định mở). */
+export interface CellDoorDef { roomId: string; number: string; x: number; z: number; alongX: boolean; width: number; slideDir: 1 | -1; inward: 1 | -1 }
+export const CELL_DOORS: CellDoorDef[] = [];
 
 const CORR = 2; // corridor half-width
 
@@ -173,19 +176,19 @@ function absSlot(zoneId: ZoneId, kind: SlotKind, x: number, z: number, yaw: numb
   return s;
 }
 /** Wall segment in local coords. */
-function wallL(zoneId: ZoneId, u0: number, v0: number, u1: number, v1: number, h?: number) {
+function wallL(zoneId: ZoneId, u0: number, v0: number, u1: number, v1: number, h?: number, style?: 'bars') {
   const zone = ZONE_BY_ID[zoneId];
   const a = L(zone, u0, v0);
   const b = L(zone, u1, v1);
-  WALLS.push({ x0: a.x, z0: a.z, x1: b.x, z1: b.z, h: h ?? zone.height, zone: zoneId, color: zone.wall });
+  WALLS.push({ x0: a.x, z0: a.z, x1: b.x, z1: b.z, h: h ?? zone.height, zone: zoneId, color: zone.wall, style });
 }
-function wallWithGaps(zoneId: ZoneId, u0: number, v: number, u1: number, gaps: number[], gapW: number, h?: number) {
+function wallWithGaps(zoneId: ZoneId, u0: number, v: number, u1: number, gaps: number[], gapW: number, h?: number, style?: 'bars') {
   let cur = u0;
   for (const g of gaps) {
-    if (g - gapW / 2 > cur) wallL(zoneId, cur, v, g - gapW / 2, v, h);
+    if (g - gapW / 2 > cur) wallL(zoneId, cur, v, g - gapW / 2, v, h, style);
     cur = g + gapW / 2;
   }
-  if (cur < u1) wallL(zoneId, cur, v, u1, v, h);
+  if (cur < u1) wallL(zoneId, cur, v, u1, v, h, style);
 }
 
 // ---------- Outer walls ----------
@@ -258,11 +261,13 @@ export const CELL_ROOMS: { id: string; label: string; beds: string[]; locker: st
     slot('L02', 'sleep', u0 + cw - 0.6, 11.3, 0, 'lie', b2.id, `${b2.id}`);
     CELL_ROOMS.push({ id: roomId, label: `Phòng ${c + 1}`, beds: [b1.id, b2.id], locker: lk.id, door: L(z, cu, 8), inward: 1 });
   }
-  wallWithGaps('L02', 0, 8, 26, doors, 1.2);
+  wallWithGaps('L02', 0, 8, 26, doors, 1.2, undefined, 'bars');
+  doors.forEach((cu, i) => { const p = L(z, cu, 8); CELL_DOORS.push({ roomId: `cell_${i + 1}`, number: `10${i + 1}`, x: p.x, z: p.z, alongX: true, width: 1.2, slideDir: 1, inward: 1 }); });
   // two south cells (7, 8)
   for (const [idx, u0] of [[7, 0], [8, 20]] as [number, number][]) {
     const roomId = `cell_${idx}`;
-    wallWithGaps('L02', u0, 5, u0 + 6, [u0 + 3], 1.2);
+    wallWithGaps('L02', u0, 5, u0 + 6, [u0 + 3], 1.2, undefined, 'bars');
+    { const p = L(z, u0 + 3, 5); CELL_DOORS.push({ roomId, number: `10${idx}`, x: p.x, z: p.z, alongX: true, width: 1.2, slideDir: idx === 7 ? -1 : 1, inward: -1 }); }
     if (idx === 7) wallL('L02', 6, 0, 6, 5); else wallL('L02', 20, 0, 20, 5);
     const b1 = prop('L02', 'bed', u0 + 0.6, 2.5, 0, { id: `${roomId}_bed_a`, label: `Giường ${idx}A` });
     const b2 = prop('L02', 'bed', u0 + 5.4, 2.5, 0, { id: `${roomId}_bed_b`, label: `Giường ${idx}B` });

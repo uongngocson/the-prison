@@ -1,5 +1,7 @@
 # 06 — Backend, Database, API & Security Architecture
 
+**CR-VN-01 / thiết kế 1.2:** [16](16-custody-contracts.md) bổ sung DB45–DB50, API14–API17, schema v3 mục tiêu và cloud compatibility; không có SQL mới được thực thi.
+
 **Revision1.1:** [11 — Full Life contracts](11-prison-life-contracts.md) nối tiếp DB28–DB44/API09–API13 và save schema2. Quy tắc B/O/V,R0–R5,auth/idempotency/CAS và trust mode ở đây vẫn bắt buộc. Thêm private care/legal/family scopes,financial ledger,service bookings và lifecycle sagas; không cho room membership mặc nhiên đọc hồ sơ riêng.
 
 ## Mô hình domain và nguồn sự thật
