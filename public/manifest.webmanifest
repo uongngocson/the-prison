@@ -1,0 +1,11 @@
+{
+  "name": "Một Ngày Mới — New Day",
+  "short_name": "Một Ngày Mới",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#101719",
+  "theme_color": "#101719",
+  "lang": "vi",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

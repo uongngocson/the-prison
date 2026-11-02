@@ -1,0 +1,66 @@
+// Browser smoke test (QA06 subset): landing → create → admission skip → walk → interact → pause/save. Screenshots + console errors.
+import { chromium } from 'playwright-core';
+const URL = process.argv[2] ?? 'http://localhost:5173/';
+const OUT = process.argv[3] ?? '.';
+const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const errors = [];
+page.on('console', async (m) => { if (m.type() === 'error' || m.type() === 'warning') { const args = await Promise.all(m.args().map((a) => a.evaluate((v) => (v instanceof Error ? v.stack : String(v))).catch(() => ''))); errors.push(`[${m.type()}] ${args.join(' ') || m.text()}`); } });
+page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}\n${e.stack}`));
+const shot = async (n) => page.screenshot({ path: `${OUT}/${n}.png` });
+try {
+await page.goto(URL);
+await page.waitForTimeout(800);
+await shot('01_landing');
+await page.getByRole('button', { name: /Chơi ngay/ }).click();
+await page.waitForTimeout(400);
+await shot('02_menu');
+await page.getByRole('button', { name: /Hành trình mới/ }).click();
+await page.waitForTimeout(1500);
+await page.getByLabel(/Tên hiển thị/).fill('Minh An');
+await shot('03_create');
+await page.getByRole('button', { name: /Bắt đầu hành trình/ }).click();
+await page.waitForSelector('text=Hồ sơ hành trình', { timeout: 60000 });
+await page.waitForTimeout(1500);
+await shot('04_admission');
+await page.getByRole('button', { name: /Xác nhận$/ }).click();
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: /^Tiếp tục$/ }).click();
+await page.waitForTimeout(300);
+await shot('05_property');
+await page.getByRole('button', { name: /Xác nhận và nhận biên nhận/ }).click();
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: /Bỏ qua$/ }).click();
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: /Nhận chỗ ở/ }).click();
+await page.waitForTimeout(2000);
+await shot('06_ingame_cells');
+// walk forward a bit
+await page.mouse.click(720, 450);
+await page.keyboard.down('KeyW'); await page.waitForTimeout(1500); await page.keyboard.up('KeyW');
+await page.waitForTimeout(500);
+await shot('07_walk');
+await page.keyboard.press('KeyK');
+await page.waitForTimeout(2500);
+await shot('08_schedule');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await page.keyboard.press('KeyL');
+await page.waitForTimeout(2500);
+await shot('09_life');
+await page.keyboard.press('Escape');
+await page.keyboard.press('KeyM');
+await page.waitForTimeout(2500);
+await shot('10_map');
+await page.keyboard.press('Escape');
+const state = await page.evaluate(() => {
+  const c = window.__mnm;
+  if (!c?.s) return null;
+  const s = c.s;
+  return { zone: s.player.zone, pos: s.player.pos, minute: s.minute, quests: Object.fromEntries(Object.entries(s.quests).map(([k, v]) => [k, v.state])), npcsVisible: Object.values(s.npcs).filter((n) => !n.absent).length, fps: c.view?.fps() };
+});
+console.log('STATE', JSON.stringify(state));
+} catch (e) { console.log('FAIL', String(e.message).slice(0, 200)); await shot('99_fail'); }
+console.log('ERRORS', errors.length);
+for (const e of errors.slice(0, 30)) console.log(e);
+await browser.close();
