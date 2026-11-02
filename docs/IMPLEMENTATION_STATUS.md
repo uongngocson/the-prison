@@ -3,7 +3,7 @@
 Ngày 02/11/2026. Báo cáo theo quy tắc của [phần 12](blueprint/12-realism-delivery.md): mỗi mục tách 4 cột **Documented / Implemented / Tested / RealismReviewed**. Cột *RealismReviewed* đều là **chưa**: chưa có chuyên gia jurisdiction, người có trải nghiệm hay reviewer nội dung nào xem xét. Không mục nào được gọi là "100% thực tế".
 
 Quy ước cột Tested:
-- **A**: có test tự động (Vitest, `npm test`, hiện 38 test, tất cả pass)
+- **A**: có test tự động (Vitest, `npm test`, hiện 47 test, tất cả pass)
 - **B**: đã chạy thử trong trình duyệt qua script Playwright (Chrome headless, SwiftShader)
 - **—**: chưa có bằng chứng kiểm thử
 
@@ -21,6 +21,28 @@ Quy ước cột Tested:
 | QA33–38 / LAB-SC01–20 | Test specification | Chưa tự động hóa | Chưa chạy | Chưa |
 
 Đợt bàn giao này chỉ tạo/cập nhật tài liệu và hình minh họa, không sửa source game, tests, SQL hoặc push Git. Thay đổi custody đang có trong working tree là công việc riêng, giữ nguyên. Kiểm tra cấu trúc DOCX/Markdown không được tính là test gameplay.
+
+### CR-LAB-01 — khu lao động, học nghề, phục vụ chung (bản đầu), 02/11/2026
+
+Đã code theo [18](blueprint/18-labour-rehabilitation-spec.md)/[19](blueprint/19-labour-ui-art-direction.md), phạm vi P0 + phần P1. Kiểm thử: `tests/labour.test.ts` (9 test; tổng bộ 47 test pass), `tsc`/`vite build` sạch; luồng Chrome headless `scripts/labour.mjs` ở 1440×900 và 844×390 (U39 nhận ca → U43 nhận dụng cụ tại L27 → thu hoạch luống R-01 → U44 kiểm nhận lô, trả dụng cụ, ghi nhận). Chưa kiểm tra trên thiết bị thật, chưa benchmark hiệu năng, chưa review nội dung/pháp lý.
+
+| Hạng mục | Implemented | Tested | RealismReviewed | Ghi chú |
+|---|---|---|---|---|
+| F73 Phân công (U39) | Có | A, B | Chưa | 2 ca/ngày (sáng/chiều), một ca mỗi khung, chặn trùng lịch khóa học/ca xưởng cũ, đổi việc trước giờ, hướng dẫn an toàn trước khi nhận mộc |
+| F74 Dụng cụ & vật tư (U43) | Có | A, B | Chưa | Sổ dụng cụ tách khỏi túi đồ; cấp/trả nguyên tử, idempotent; quá giờ thì tổ trưởng nhận bàn giao — không tự phạt |
+| F75 Vườn rau W01/W04 | Có | A, B | Chưa | 4 luống, chu kỳ làm đất → gieo → cây con → đang lớn → thu → dọn; thiếu nước thì ngừng lớn, không chết; tưới thêm không cộng gì; mỗi vụ một lô |
+| F76 Ao cá W05 | Có | A | Chưa | Quan sát, cho ăn theo phần (2/ngày), nhật ký, đến kỳ thu → lô cá; cá chỉ là cảnh, không vào túi |
+| F77 Cảnh quan & vườn ươm W06/W03 | Có | A | Chưa | 6 ô trước/sau, trồng bằng khay giống; khay gỗ đạt kiểm từ xưởng mộc chuyển về vườn ươm |
+| F78 Mộc W08 (U42) | Có | A | Chưa | Lệnh khay cây: đo/ghép bằng lựa chọn, hoàn thiện, kiểm 3 tiêu chí, làm lại có lý do; chế độ hỗ trợ có gợi ý, kết quả như nhau |
+| F79 Phục vụ chung | Một phần | — | Chưa | W15 vệ sinh sân (3 điểm + đổ rác). W02/07/09–12/16/19 hiện thẻ “chưa mở” kèm lý do |
+| F80 Kho/kiểm nhận (U44) | Có | A, B | Chưa | Lô có mã, số lượng nguyên (gram/chiếc), đích sử dụng; không vào túi cá nhân |
+| F81 Tổ đội/giám sát | Một phần | B | Chưa | NPC “Anh Khải” tại kho; một phần tổ xưởng làm ở vườn/cảnh quan; tổ chăm luống/ao không gán công cho người chơi |
+| F82 Ghi nhận ca | Có | A | Chưa | Một khóa settlement/ca, hoàn tất = đủ, làm một phần = một nửa, không làm = 0 (không trừ quyền lợi); XP theo nghề |
+| F83 Lưu/khôi phục | Có | A | Chưa | Module `labour` v1 trong save schema 3 (tùy chọn); save cũ → sổ đầu kỳ, không gán ca; kiểm bảo toàn dụng cụ/kho khi tải |
+| F84 UI/3D | Có (blockout) | B | Chưa | L23 vườn rau, L24 ao cá, L25 vườn ươm & cảnh quan, L27 kho & kiểm nhận (qua sân L04), bàn mộc L10; tư thế khom/tưới/quét, dụng cụ cầm tay; mưa → việc trong nhà tại L27 |
+| Thụ án × lao động | Có | A | Chưa | Ca đã nhận mở quyền tới L27 + khu làm việc (qua sân) trong khung ca; kỷ luật/bố trí riêng → hoãn ca, không tính vắng |
+
+**Chưa làm:** W02/07/09–14/16/18–20, L26 chăn nuôi, L28; asset/animation production; benchmark; review thực tế/pháp lý.
 
 ### CR-VN-01 — đã triển khai bản đầu (chưa review độ chân thực), 02/11/2026
 

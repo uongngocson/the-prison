@@ -38,6 +38,7 @@ export function Pause() {
         <button className="btn" onClick={() => set({ overlay: 'life' })}>Đời sống</button>
         <button className="btn" onClick={() => set({ overlay: 'profile', profileTab: 'profile' })}>Hồ sơ, quan hệ, kỹ năng, thành tựu</button>
         {controller.s?.custody && <button className="btn" onClick={() => set({ overlay: 'custody' })}>Chế độ thụ án</button>}
+        <button className="btn" onClick={() => useUI.getState().open('work', { view: 'hub' })}>Công việc & phân công</button>
         <button className="btn" onClick={() => open('notifications')}>Lịch sử thông báo</button>
         <button className="btn" onClick={() => open('handbook')}>Sổ tay & trợ giúp</button>
         <button className="btn" onClick={() => open('settings')}>Cài đặt</button>
@@ -185,22 +186,23 @@ export function MapPanel() {
   const route = sel === s.player.zone ? 'Bạn đang ở đây.' : vnAllowed && !open(sel) ? `Chưa được tới: ${reasonText(positionAllowed(s, (z.x0 + z.x1) / 2, (z.z0 + z.z1) / 2).reasonCode ?? 'AUTHORIZATION_REQUIRED')}` : !open(sel) ? `Đang đóng: ${door?.reason || 'ngoài giờ mở cửa'}` : `Lối đi: ${ZONE_BY_ID[s.player.zone].name} → Hành lang chính → ${z.name}`;
   const K = 0.72;
   const sx = (x: number) => (x + 104) * K;
-  const sz = (zz: number) => (20 - zz) * 1.6;
+  const KZ = 1.0; // z −36…32 (gồm khu lao động) vừa khung 72
+  const sz = (zz: number) => (34 - zz) * KZ;
   return (
     <Panel title="Bản đồ (sơ đồ hư cấu)" onClose={close}>
       <div className="split map">
         <div className="list" role="listbox" aria-label="Danh sách khu">
-          {ZONES.filter((x) => x.id !== 'L03' || true).map((x) => (
-            <button key={x.id} className="item-row" aria-selected={sel === x.id} onClick={() => setSel(x.id)}>
-              {x.id === s.player.zone ? '📍 ' : ''}{known(x.id) ? x.name : `${x.id} — chưa khám phá`}{!open(x.id) ? ' 🔒' : ''}
+          {[...ZONES].sort((a, b) => Number(known(b.id)) - Number(known(a.id))).map((x) => (
+            <button key={x.id} className={`item-row ${known(x.id) ? '' : 'unknown'}`} aria-selected={sel === x.id} onClick={() => setSel(x.id)}>
+              {x.id === s.player.zone ? '📍 ' : ''}{known(x.id) ? x.name : 'Khu chưa khám phá'}{!open(x.id) ? ' 🔒' : ''}
             </button>
           ))}
         </div>
         <div>
-          <svg viewBox="0 0 160 75" aria-label="Sơ đồ các khu" role="img">
+          <svg viewBox="0 0 160 72" aria-label="Sơ đồ các khu" role="img">
             {ZONES.map((x) => (
               <g key={x.id} className={`z ${x.id === s.player.zone ? 'cur' : ''} ${!open(x.id) ? 'closed' : ''}`} onClick={() => setSel(x.id)}>
-                <rect x={sx(x.x0)} y={sz(x.z1)} width={(x.x1 - x.x0) * K} height={(x.z1 - x.z0) * 1.6} fill={x.id === sel ? '#4b6468' : x.outdoor ? '#3e5a3e' : '#2b3b3e'} />
+                <rect x={sx(x.x0)} y={sz(x.z1)} width={(x.x1 - x.x0) * K} height={(x.z1 - x.z0) * KZ} fill={x.id === sel ? '#4b6468' : x.outdoor ? '#3e5a3e' : '#2b3b3e'} />
                 <text x={sx((x.x0 + x.x1) / 2)} y={sz((x.z0 + x.z1) / 2) + 1} fontSize="2.6" textAnchor="middle" fill="#f2f0e8">{known(x.id) ? x.id : '?'}</text>
               </g>
             ))}

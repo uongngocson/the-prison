@@ -10,6 +10,7 @@ import { cloud } from '../../persistence/cloud';
 import { fmtClock } from '../../domain/util';
 import { POLICY_PROFILE } from '../../content/life';
 import { GateScene, SloganTicker, SLOGANS, FACILITY_NAME } from './GateScene';
+import { Icon } from '../icons';
 
 function capabilities() {
   const c = document.createElement('canvas');
@@ -77,33 +78,66 @@ export function Landing() {
   );
 }
 
+/** Khung màn hình kiểu game: cảnh cổng trại phủ toàn màn + lớp tối bên trái cho menu. */
+function GameShell({ children, portrait }: { children: React.ReactNode; portrait: boolean }) {
+  return (
+    <main className={`gm ${portrait ? 'gm-portrait' : ''}`} id="main">
+      <div className="gm-bg" aria-hidden><GateScene portrait={portrait} cover /></div>
+      <div className="gm-shade" aria-hidden />
+      {children}
+    </main>
+  );
+}
+function Brand() {
+  return (
+    <header className="gm-brand">
+      <span className="gm-mark" aria-hidden>★</span>
+      <div><h1>MỘT NGÀY MỚI</h1><p>Kỷ luật · Học tập · Lao động · Trở về</p></div>
+    </header>
+  );
+}
+
 export function Auth() {
   const set = useUI((s) => s.set);
+  const portrait = useDevice((d) => d.portrait && d.width < 700);
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [msg, setMsg] = useState('');
+  const [user, setUser] = useState<{ email?: string } | null | undefined>(undefined);
   const configured = cloud.configured();
+  useEffect(() => { cloud.user().then(setUser).catch(() => setUser(null)); }, []);
+  const valid = /.+@.+\..+/.test(email);
   return (
-    <main className="page"><div className="page-inner" style={{ maxWidth: 520 }}>
-      <div className="card">
-        <h2>Đăng nhập tùy chọn</h2>
-        <p className="muted">Tài khoản chỉ dùng để đồng bộ save giữa các thiết bị. Không đăng nhập vẫn chơi đầy đủ.</p>
-        {!configured && <p className="notice">Bản cài đặt này chưa cấu hình dịch vụ đám mây (biến môi trường VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). Bạn có thể chơi khách và dùng Xuất/Nhập file save.</p>}
-        {configured && (
-          <form onSubmit={async (e) => { e.preventDefault(); setState('sending'); const r = await cloud.signIn(email); setState(r.ok ? 'sent' : 'error'); setMsg(r.message); }}>
-            <label className="field">Email<input type="text" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-describedby="authmsg" /></label>
-            <div className="row" style={{ marginTop: 8 }}>
-              <button className="btn primary" disabled={state === 'sending' || !email.includes('@')}>Gửi liên kết đăng nhập</button>
-            </div>
-            <p id="authmsg" role="status" className="muted small">{state === 'sent' ? 'Nếu địa chỉ hợp lệ, liên kết đăng nhập đã được gửi. Mở email trên thiết bị này.' : state === 'error' ? msg : ''}</p>
-          </form>
-        )}
-        <div className="row" style={{ marginTop: 12 }}>
-          <button className="btn" onClick={() => set({ screen: 'menu' })} data-autofocus>Tiếp tục không tài khoản</button>
-          <button className="btn ghost" onClick={() => set({ screen: 'landing' })}>Quay lại</button>
-        </div>
-      </div>
-    </div></main>
+    <GameShell portrait={portrait}>
+      <section className="gm-panel gm-auth" aria-labelledby="auth-title">
+        <button className="gm-back" onClick={() => set({ screen: 'menu' })} aria-label="Quay lại"><Icon name="back" size={20} /></button>
+        <div className="gm-avatar" aria-hidden><Icon name="user" size={34} /></div>
+        <h2 id="auth-title">Tài khoản</h2>
+        {user ? <>
+          <span className="gm-status ok">Đã đăng nhập</span>
+          <p className="gm-email">{user.email}</p>
+          <p className="gm-sub">Save được đồng bộ giữa các thiết bị.</p>
+          <button className="gm-btn primary" onClick={() => set({ screen: 'menu' })} data-autofocus>Vào game</button>
+          <button className="gm-btn" onClick={async () => { await cloud.signOut(); setUser(null); }}>Đăng xuất</button>
+        </> : <>
+          <span className="gm-status">{user === undefined ? 'Đang kiểm tra…' : 'Đang chơi với tư cách khách'}</span>
+          <p className="gm-sub">Đăng nhập để giữ save trên mọi thiết bị. Không bắt buộc.</p>
+          {configured ? (
+            <form className="gm-form" onSubmit={async (e) => { e.preventDefault(); if (!valid) return; setState('sending'); const r = await cloud.signIn(email); setState(r.ok ? 'sent' : 'error'); setMsg(r.message); }}>
+              <label className="gm-input">
+                <Icon name="talk" size={18} />
+                <input type="email" inputMode="email" autoComplete="email" placeholder="Email của bạn" value={email} onChange={(e) => { setEmail(e.target.value); setState('idle'); }} aria-label="Email" />
+              </label>
+              <button className="gm-btn primary" disabled={state === 'sending' || !valid}>{state === 'sending' ? 'Đang gửi…' : 'Gửi liên kết đăng nhập'}</button>
+              {state === 'sent' && <p className="gm-note ok" role="status">Đã gửi! Mở email trên thiết bị này để đăng nhập.</p>}
+              {state === 'error' && <p className="gm-note err" role="alert">{msg || 'Không gửi được, thử lại sau.'}</p>}
+            </form>
+          ) : <p className="gm-note">Đồng bộ đám mây chưa bật. Bạn vẫn chơi đầy đủ và có thể xuất/nhập file save.</p>}
+          <div className="gm-or"><span>hoặc</span></div>
+          <button className="gm-btn" onClick={() => set({ screen: 'menu' })} data-autofocus>Chơi ngay không cần tài khoản</button>
+        </>}
+      </section>
+    </GameShell>
   );
 }
 
@@ -111,27 +145,43 @@ export function Menu() {
   const set = useUI((s) => s.set);
   const open = useUI((s) => s.open);
   const overlay = useUI((s) => s.overlay);
+  const portrait = useDevice((d) => d.portrait && d.width < 700);
   const [latest, setLatest] = useState<SaveEnvelope | null | undefined>(undefined);
+  const [user, setUser] = useState<{ email?: string } | null>(null);
   useEffect(() => { hasAnySave().then(setLatest).catch(() => setLatest(null)); }, [overlay]);
+  useEffect(() => { cloud.user().then(setUser).catch(() => setUser(null)); }, []);
   const cont = async () => { const slot = await slotOfLatest(); if (slot) await controller.continueFrom(slot); };
+  const items: { icon: string; label: string; go: () => void; primary?: boolean }[] = [
+    { icon: 'forward', label: 'Hành trình mới', go: () => set({ screen: 'create' }), primary: !latest },
+    { icon: 'save', label: 'Quản lý save', go: () => open('saves') },
+    { icon: 'settings', label: 'Cài đặt', go: () => open('settings') },
+  ];
   return (
-    <main className="page"><div className="page-inner">
-      <div className="hero">
-        <nav className="col" style={{ maxWidth: 420 }} aria-label="Menu chính">
-          <h1>Một Ngày Mới</h1>
-          {latest && <button className="btn primary" onClick={cont} data-autofocus>Tiếp tục — {latest.meta.name}, Ngày {latest.meta.day} {fmtClock(latest.meta.minute)}, {latest.meta.zone}<br /><span className="small" style={{ fontWeight: 400 }}>Lưu lúc {new Date(latest.savedAt).toLocaleString('vi-VN')}</span></button>}
-          <button className={`btn ${latest ? '' : 'primary'}`} onClick={() => set({ screen: 'create' })} data-autofocus={!latest || undefined}>Hành trình mới</button>
-          <button className="btn" onClick={() => open('saves')}>Quản lý save</button>
-          <button className="btn" onClick={() => open('settings')}>Cài đặt</button>
-          <button className="btn" onClick={() => set({ screen: 'auth' })}>Tài khoản {cloud.configured() ? '' : '(chưa cấu hình)'}</button>
-          <button className="btn" onClick={() => set({ screen: 'lobby' })}>Chơi cùng bạn (thử nghiệm)</button>
-          <button className="btn ghost" onClick={() => set({ screen: 'credits' })}>Giới thiệu & ghi công</button>
-          {latest === undefined && <p className="muted small" role="status">Đang đọc save...</p>}
-        </nav>
-        <div className="poster"><Poster /></div>
-      </div>
-      <footer className="muted small mobile-hide">Bản dựng 1.1.0 · nội dung {`nd-1.1.0`} · {POLICY_PROFILE.jurisdictionLabel}</footer>
-    </div></main>
+    <GameShell portrait={portrait}>
+      <Brand />
+      <nav className="gm-menu" aria-label="Menu chính">
+        {latest && (
+          <button className="gm-continue" onClick={cont} data-autofocus>
+            <span className="gm-play" aria-hidden><Icon name="forward" size={26} /></span>
+            <span className="gm-cont-text">
+              <b>Tiếp tục</b>
+              <span>{latest.meta.name} · Ngày {latest.meta.day} · {fmtClock(latest.meta.minute)}</span>
+              <em>{latest.meta.zone}</em>
+            </span>
+          </button>
+        )}
+        {items.map((it) => (
+          <button key={it.label} className={`gm-item ${it.primary ? 'primary' : ''}`} onClick={it.go} data-autofocus={it.primary || undefined}>
+            <Icon name={it.icon} size={22} /><span>{it.label}</span>
+          </button>
+        ))}
+        {latest === undefined && <p className="gm-loading" role="status">Đang đọc save…</p>}
+      </nav>
+      <button className="gm-account" onClick={() => set({ screen: 'auth' })} aria-label="Tài khoản">
+        <span className="gm-avatar sm" aria-hidden><Icon name="user" size={20} /></span>
+        <span className="gm-acc-text"><b>{user?.email ? user.email.split('@')[0] : 'Khách'}</b><em>{user ? 'Đã đồng bộ' : 'Đăng nhập để đồng bộ'}</em></span>
+      </button>
+    </GameShell>
   );
 }
 

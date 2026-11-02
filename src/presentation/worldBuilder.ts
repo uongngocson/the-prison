@@ -4,6 +4,7 @@ import { Color3, Color4, DynamicTexture, Mesh, MeshBuilder, Scene, StandardMater
 import { CELL_DOORS, PROPS, WALLS, WALL_BANNERS, ZONES, ZONE_BY_ID, type PropDef, type WallBanner } from '../content/world';
 import type { ZoneId } from '../domain/types';
 import { hash32 } from '../domain/util';
+import { boxPiece, color4, cylPiece, mergePieces, meshPiece, sphPiece, yieldFrame, type Piece } from './geo';
 
 export interface WorldHandles {
   zoneMeshes: Map<ZoneId, Mesh[]>;
@@ -24,11 +25,11 @@ function hexToColor4(hex: string, mul = 1): Color4 {
 }
 
 class Batch {
-  meshes = new Map<string, Mesh[]>();
-  add(key: string, m: Mesh) {
+  meshes = new Map<string, Piece[]>();
+  add(key: string, m: Mesh | Piece) {
     let arr = this.meshes.get(key);
     if (!arr) this.meshes.set(key, (arr = []));
-    arr.push(m);
+    arr.push(m instanceof Mesh ? meshPiece(m) : m);
   }
 }
 
@@ -41,7 +42,8 @@ export function colorize(m: Mesh, hex: string, mul = 1, jitterSeed?: number) {
   return m;
 }
 
-export function buildWorld(scene: Scene): WorldHandles {
+/** Dựng thế giới theo từng đợt, nhường luồng chính giữa các đợt (loading không treo). */
+export async function buildWorld(scene: Scene, onProgress: (f: number) => void = () => {}): Promise<WorldHandles> {
   const batch = new Batch();
   const baseMat = new StandardMaterial('mat_world_vc', scene);
   baseMat.diffuseColor = new Color3(1, 1, 1);
@@ -56,30 +58,28 @@ export function buildWorld(scene: Scene): WorldHandles {
   windowMat.disableLighting = true;
 
   let uid = 0;
+  const tint = (mul: number, seed?: number) => mul * (seed !== undefined ? 0.94 + ((seed % 13) / 13) * 0.12 : 1);
   const box = (zone: ZoneId, w: number, h: number, d: number, x: number, y: number, z: number, color: string, yaw = 0, mul = 1, seed?: number) => {
-    const m = MeshBuilder.CreateBox(`b${uid++}`, { width: w, height: h, depth: d }, scene);
+    const m = boxPiece(w, h, d, color4(color, tint(mul, seed)));
     m.position.set(x, y, z);
     m.rotation.y = yaw;
-    colorize(m, color, mul, seed);
     batch.add(zone, m);
     return m;
   };
   const cyl = (zone: ZoneId, dia: number, h: number, x: number, y: number, z: number, color: string, tess = 10, diaTop?: number) => {
-    const m = MeshBuilder.CreateCylinder(`c${uid++}`, { diameter: dia, diameterTop: diaTop ?? dia, height: h, tessellation: tess }, scene);
+    const m = cylPiece(dia, h, tess, color4(color), diaTop);
     m.position.set(x, y, z);
-    colorize(m, color);
     batch.add(zone, m);
     return m;
   };
   const sph = (zone: ZoneId, dia: number, x: number, y: number, z: number, color: string, sy = 1) => {
-    const m = MeshBuilder.CreateSphere(`s${uid++}`, { diameter: dia, segments: 6 }, scene);
+    const m = sphPiece(dia, color4(color));
     m.position.set(x, y, z);
     m.scaling.y = sy;
-    colorize(m, color);
     batch.add(zone, m);
     return m;
   };
-  const emissive: Mesh[] = [];
+  const emissive: Piece[] = [];
   const windows: Mesh[] = [];
 
   // ---------- floors & ceilings ----------
@@ -89,6 +89,17 @@ export function buildWorld(scene: Scene): WorldHandles {
     const d = z.z1 - z.z0;
     const cx = (z.x0 + z.x1) / 2;
     const cz = (z.z0 + z.z1) / 2;
+    if (z.outdoor && z.id !== 'L04') {
+      box(z.id, w, 0.1, d, cx, -0.05, cz, z.floor, 0, 1, hash32(z.id));
+      if (z.id === 'L23') {
+        // lối công tác lát gạch giữa các luống + viền đường đi
+        for (let i = 0; i < 5; i++) box(z.id, 0.9, 0.03, 15, 70.8 + i * 4.5, 0.02, 23, '#9a9284');
+        box(z.id, w - 1, 0.03, 2.2, cx, 0.02, 14.2, '#9a9284');
+      }
+      if (z.id === 'L25') { box(z.id, 1.6, 0.03, d - 2, 100, 0.02, cz, '#a59c8a'); box(z.id, w - 1, 0.03, 1.6, cx, 0.02, 17.4, '#a59c8a'); }
+      if (z.id === 'L24') { box(z.id, w - 1, 0.03, 2.4, cx, 0.02, -18.4, '#a59c8a'); box(z.id, 18, 0.06, 14, 80, 0.03, -28, '#8d8a6e'); }
+      continue;
+    }
     if (z.outdoor) {
       const f = MeshBuilder.CreateGround('yard_floor', { width: w, height: d, subdivisions: 1 }, scene);
       f.position.set(cx, 0, cz);
@@ -100,7 +111,7 @@ export function buildWorld(scene: Scene): WorldHandles {
       box('L04', w, 0.05, 2.2, cx, 0.02, 11, '#5f7a4a'); box('L04', w, 0.05, 1.8, cx, 0.02, -15.1, '#5f7a4a');
       box('L04', 14, 0.02, 8, 95, 0.012, -2, '#6c6f74');
       // distant skyline (cảnh quan, không phải bản vẽ thật)
-      box('L04', 60, 6, 1, 89, 8, 22, '#8d958f', 0, 0.9); box('L04', 1, 6, 50, 118, 8, -2, '#8d958f', 0, 0.85);
+      box('L04', 70, 6, 1, 89, 8, 40, '#8d958f', 0, 0.9); box('L04', 1, 6, 50, 118, 8, -2, '#8d958f', 0, 0.85);
       continue;
     }
     const floorColor = z.id === 'L13' ? '#7f8c90' : z.id === 'L08' ? '#9aa3a0' : z.id === 'L07' ? '#6b5a48' : z.id === 'L09' ? '#4a5560' : z.floor;
@@ -115,7 +126,7 @@ export function buildWorld(scene: Scene): WorldHandles {
     const nx = Math.max(1, Math.round(w / 6));
     const nz = Math.max(1, Math.round(d / 6));
     for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
-      const lm = MeshBuilder.CreateBox(`lp${uid++}`, { width: 1.2, height: 0.04, depth: 0.5 }, scene);
+      const lm = boxPiece(1.2, 0.04, 0.5, color4('#ffffff'));
       lm.position.set(z.x0 + (i + 0.5) * (w / nx), z.height - 0.03, z.z0 + (j + 0.5) * (d / nz));
       emissive.push(lm);
     }
@@ -137,6 +148,8 @@ export function buildWorld(scene: Scene): WorldHandles {
     add(0.07, h, 0.09, len / 2, h / 2, STEEL_DARK);
   };
 
+  onProgress(0.08);
+  await yieldFrame();
   // ---------- walls (two-tone, or bars for cell fronts) ----------
   for (const w of WALLS) {
     if (w.doorId) continue;
@@ -170,18 +183,16 @@ export function buildWorld(scene: Scene): WorldHandles {
   doorMat.specularPower = 24;
   /** Builds one merged barred door leaf centred at origin (local x along opening). */
   const barDoor = (name: string, len: number, h: number, alongX: boolean, withLock: boolean): Mesh => {
-    const parts: Mesh[] = [];
+    const parts: Piece[] = [];
     const add = (bw: number, bh: number, bd: number, lx: number, y: number, color: string) => {
-      const m = MeshBuilder.CreateBox(`${name}_p${parts.length}`, { width: alongX ? bw : bd, height: bh, depth: alongX ? bd : bw }, scene);
+      const m = boxPiece(alongX ? bw : bd, bh, alongX ? bd : bw, color4(color));
       m.position.set(alongX ? lx : 0, y - h / 2, alongX ? 0 : lx);
-      colorize(m, color);
       parts.push(m);
     };
     grille(len, h, add);
     // diagonal-free cross plate + lock box like real cell doors
     if (withLock) { add(0.16, 0.28, 0.12, len / 2 - 0.14, h * 0.48, '#4a5156'); add(0.05, 0.05, 0.16, len / 2 - 0.14, h * 0.44, '#c9b25a'); }
-    const merged = Mesh.MergeMeshes(parts, true, true)!;
-    merged.name = name;
+    const merged = mergePieces(scene, name, parts)[0];
     merged.material = doorMat;
     merged.isPickable = false;
     return merged;
@@ -249,7 +260,8 @@ export function buildWorld(scene: Scene): WorldHandles {
     const text = b.text.toUpperCase();
     // một dòng nếu vừa, nếu không chia hai dòng ở khoảng trắng gần giữa
     let size = H * 0.5;
-    const fit = (lines: string[]) => { for (let fs = size; fs > 10; fs -= 1) { ctx.font = `800 ${fs}px "Noto Sans", "Segoe UI", sans-serif`; if (lines.every((l) => ctx.measureText(l).width <= W - pad * 2) && fs * lines.length * 1.12 <= H * 0.78) return fs; } return 10; };
+    // đo một lần ở cỡ chuẩn rồi tính tỉ lệ (trước đây giảm 1px mỗi lần + đo lại → ~2 giây khi tải)
+    const fit = (lines: string[]) => { ctx.font = `800 100px "Noto Sans", "Segoe UI", sans-serif`; const wmax = Math.max(...lines.map((l) => ctx.measureText(l).width)); return Math.max(10, Math.min(size, (100 * (W - pad * 2)) / wmax, (H * 0.78) / (lines.length * 1.12))); };
     let lines = [text];
     let fs = fit(lines);
     if (fs < H * 0.3) {
@@ -280,7 +292,12 @@ export function buildWorld(scene: Scene): WorldHandles {
   // ---------- props ----------
   const brokenMarkers = new Map<string, Mesh>();
   const boards: Mesh[] = [];
-  for (const p of PROPS) buildProp(p);
+  onProgress(0.25);
+  await yieldFrame();
+  for (let i = 0; i < PROPS.length; i++) {
+    buildProp(PROPS[i]);
+    if (i % 120 === 119) { onProgress(0.25 + 0.35 * (i / PROPS.length)); await yieldFrame(); }
+  }
 
 
   /** Bồn cầu sứ chi tiết: chân bệ, lòng bồn + nước, bệ ngồi, nắp bật, két nước, nút xả, ống cấp, giá giấy.
@@ -288,7 +305,7 @@ export function buildWorld(scene: Scene): WorldHandles {
   function buildToilet(p: PropDef) {
     const PORC = '#f2f2ee', CHROME = '#c3c9cc';
     const cell = !!p.meta?.cell;
-    const yawM = (m: Mesh) => { m.rotation.y = p.yaw; return m; };
+    const yawM = <T extends { rotation: Vector3 }>(m: T) => { m.rotation.y = p.yaw; return m; };
     // chân bệ (thon dần lên trên)
     { const [x, z] = local(p, 0, -0.16); const m = cyl(p.zone, 0.26, 0.3, x, 0.15, z, PORC, 14, 0.34); m.scaling.z = 1.35; yawM(m); }
     // lòng bồn (oval)
@@ -427,6 +444,45 @@ export function buildWorld(scene: Scene): WorldHandles {
       case 'visit_table': pbox(p, p.w, 0.05, p.d, 0, 0.74, 0, '#9b7f62'); pbox(p, 0.1, 0.72, 0.1, 0, 0.36, 0, '#3a3a3a'); pbox(p, p.w, 0.25, 0.03, 0, 0.88, 0, '#c9d6d6', 1.2); break;
       case 'medbed': pbox(p, p.w, 0.5, p.d, 0, 0.35, 0, '#d9dedc'); pbox(p, p.w - 0.1, 0.12, p.d - 0.1, 0, 0.66, 0, '#f2f4f3'); pbox(p, 0.04, 1.8, p.d + 0.4, p.w / 2 + 0.4, 1.0, 0, '#b8d0cc'); break;
       case 'plant': { cyl(p.zone, 0.4, 0.4, p.x, 0.2, p.z, '#7a5a42'); sph(p.zone, 0.7, p.x, 0.75, p.z, '#4f7a43', 1.1); break; }
+
+      // ---------- CR-LAB-01 station props (phần tĩnh; trạng thái động ở labourView) ----------
+      case 'garden_bed': {
+        // khung luống gạch thấp + đất (đất/cây theo giai đoạn do labourView vẽ)
+        pbox(p, p.w, 0.28, 0.12, 0, 0.14, p.d / 2 - 0.06, '#8a5a44'); pbox(p, p.w, 0.28, 0.12, 0, 0.14, -p.d / 2 + 0.06, '#8a5a44');
+        pbox(p, 0.12, 0.28, p.d, p.w / 2 - 0.06, 0.14, 0, '#8a5a44'); pbox(p, 0.12, 0.28, p.d, -p.w / 2 + 0.06, 0.14, 0, '#8a5a44');
+        // biển số luống
+        pbox(p, 0.05, 0.5, 0.05, p.w / 2 + 0.15, 0.25, -p.d / 2 + 0.3, '#6b5a44'); pbox(p, 0.36, 0.2, 0.03, p.w / 2 + 0.15, 0.55, -p.d / 2 + 0.3, '#e9e2cf');
+        break;
+      }
+      case 'garden_tap': pbox(p, 0.12, 0.9, 0.12, 0, 0.45, 0, '#7d8a8f'); pbox(p, 0.25, 0.06, 0.08, 0, 0.82, 0.08, '#b5b9bc'); pbox(p, 0.5, 0.12, 0.4, 0, 0.06, 0.2, '#6f7f86'); { const [x, z] = local(p, 0.32, 0.25); const t = MeshBuilder.CreateTorus(`hose${uid++}`, { diameter: 0.45, thickness: 0.05, tessellation: 18 }, scene); t.position.set(x, 0.08, z); colorize(t, '#3f7a4a'); batch.add(p.zone, t); } break;
+      case 'flower_patch': pbox(p, p.w, 0.2, 0.1, 0, 0.1, p.d / 2 - 0.05, '#b6ad98'); pbox(p, p.w, 0.2, 0.1, 0, 0.1, -p.d / 2 + 0.05, '#b6ad98'); pbox(p, 0.1, 0.2, p.d, p.w / 2 - 0.05, 0.1, 0, '#b6ad98'); pbox(p, 0.1, 0.2, p.d, -p.w / 2 + 0.05, 0.1, 0, '#b6ad98'); pbox(p, p.w - 0.2, 0.12, p.d - 0.2, 0, 0.06, 0, '#5a4635'); break;
+      case 'nursery_bench': pbox(p, p.w, 0.06, p.d, 0, 0.82, 0, '#9b7f5c'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.07, 0.8, 0.07, a * (p.w / 2 - 0.08), 0.4, b * (p.d / 2 - 0.08), '#5d4a36'); pbox(p, p.w - 0.2, 0.04, p.d - 0.2, 0, 0.3, 0, '#7d6648'); pbox(p, p.w, 0.05, 0.05, 0, 1.9, -p.d / 2, '#6b5a44'); for (const a of [-1, 1]) pbox(p, 0.06, 1.9, 0.06, a * (p.w / 2), 0.95, -p.d / 2, '#6b5a44'); break;
+      case 'waste_bin': pbox(p, p.w, p.h, p.d, 0, p.h / 2, 0, '#3f6b4f'); pbox(p, p.w + 0.06, 0.06, p.d + 0.06, 0, p.h + 0.03, 0, '#2f5440'); pbox(p, 0.4, 0.18, 0.02, 0, p.h * 0.65, p.d / 2 + 0.01, '#e9e2cf'); break;
+      case 'pond': {
+        // bờ ao đá + nền đáy (mặt nước & cá động ở labourView)
+        const hw = p.w / 2, hd = p.d / 2;
+        pbox(p, p.w + 0.8, 0.35, 0.4, 0, 0.17, hd + 0.2, '#9a9688'); pbox(p, p.w + 0.8, 0.35, 0.4, 0, 0.17, -hd - 0.2, '#9a9688');
+        pbox(p, 0.4, 0.35, p.d, hw + 0.2, 0.17, 0, '#9a9688'); pbox(p, 0.4, 0.35, p.d, -hw - 0.2, 0.17, 0, '#9a9688');
+        pbox(p, p.w, 0.05, p.d, 0, -0.35, 0, '#3d4a3a');
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; const [x, z] = local(p, Math.cos(a) * (hw + 0.6), Math.sin(a) * (hd + 0.6)); if (Math.abs(Math.sin(a)) > 0.85 && Math.sin(a) > 0) continue; sph(p.zone, 0.5 + (i % 3) * 0.15, x, 0.35, z, ['#4f7a3f', '#5f8a48', '#6b8f4a'][i % 3], 0.7); }
+        break;
+      }
+      case 'pond_dock': pbox(p, p.w, 0.08, p.d, 0, 0.04, 0, '#8b6b4a'); for (let i = 0; i < 6; i++) pbox(p, p.w, 0.005, 0.02, 0, 0.085, -p.d / 2 + 0.2 + i * 0.44, '#5d4632'); for (const [a, b] of [[-1, 1], [1, 1]]) { pbox(p, 0.07, 0.95, 0.07, a * (p.w / 2 - 0.05), 0.55, b * (p.d / 2 - 0.05), '#6b5338'); } pbox(p, p.w, 0.06, 0.06, 0, 0.98, p.d / 2 - 0.05, '#6b5338'); break;
+      case 'feed_station': pbox(p, p.w, 0.05, p.d, 0, 0.9, 0, '#9b7f62'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, 0.88, 0.05, a * (p.w / 2 - 0.06), 0.44, b * (p.d / 2 - 0.06), '#5a4a3a'); pbox(p, 0.35, 0.3, 0.3, -0.3, 1.07, 0, '#c9b07a'); pbox(p, 0.3, 0.04, 0.22, 0.25, 0.94, 0, '#e9e2cf'); pbox(p, 0.6, 0.04, 0.3, 0, 0.45, 0, '#7d6648'); break;
+      case 'tool_counter': pbox(p, p.w, p.h - 0.05, p.d, 0, (p.h - 0.05) / 2, 0, '#6f7b72'); pbox(p, p.w + 0.1, 0.05, p.d + 0.1, 0, p.h, 0, '#c9c4b4'); pbox(p, p.w, 0.5, 0.04, 0, p.h + 0.9, -p.d / 2 - 0.6, '#2f3f40'); pbox(p, 1.2, 0.18, 0.02, 0, p.h + 1.3, -p.d / 2 - 0.58, '#e5bc79'); break;
+      case 'scale_station': {
+        pbox(p, p.w, 0.9, p.d, 0, 0.45, 0, '#7a807e'); pbox(p, p.w + 0.05, 0.05, p.d + 0.05, 0, 0.92, 0, '#c9c4b4');
+        pbox(p, 0.7, 0.06, 0.6, -0.5, 0.98, 0, '#b5b9bc'); pbox(p, 0.6, 0.02, 0.5, -0.5, 1.02, 0, '#d6dadc');
+        pbox(p, 0.3, 0.22, 0.06, -0.5, 1.16, -0.3, '#2f3a3d'); pbox(p, 0.22, 0.08, 0.01, -0.5, 1.2, -0.265, '#7fd18a', 1.4);
+        pbox(p, 0.5, 0.03, 0.35, 0.55, 0.95, 0, '#e9e2cf'); break;
+      }
+      case 'sort_table': pbox(p, p.w, 0.05, p.d, 0, 0.78, 0, '#9b7f62'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, 0.76, 0.05, a * (p.w / 2 - 0.06), 0.38, b * (p.d / 2 - 0.06), '#5a4a3a'); for (let i = 0; i < 4; i++) pbox(p, 0.45, 0.06, 0.32, -0.75 + i * 0.5, 0.84, 0, '#3f3a34'); break;
+      case 'stock_shelf': { for (let i = 0; i < 4; i++) pbox(p, p.w, 0.04, p.d, 0, 0.1 + i * 0.6, 0, '#8a8f8c'); for (const a of [-1, 1]) for (const b of [-1, 1]) pbox(p, 0.05, 2.0, 0.05, a * (p.w / 2 - 0.03), 1.0, b * (p.d / 2 - 0.03), '#5f676c'); break; }
+      case 'tool_rack': { pbox(p, 0.05, 1.6, p.d, 0, 1.0, 0, '#6b5a44'); for (let i = 0; i < 6; i++) { pbox(p, 0.06, 0.06, 0.3, 0.06, 1.5, -1.0 + i * 0.4, '#b5b9bc'); pbox(p, 0.03, 0.9 - (i % 3) * 0.15, 0.03, 0.12, 1.05 - (i % 3) * 0.07, -1.0 + i * 0.4, ['#8b6b4a', '#7d8a8f', '#8b6b4a'][i % 3]); } break; }
+      case 'wood_bench': { pbox(p, p.w, 0.08, p.d, 0, 0.86, 0, '#b08a5a'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.09, 0.82, 0.09, a * (p.w / 2 - 0.08), 0.41, b * (p.d / 2 - 0.08), '#6b5338'); pbox(p, p.w - 0.2, 0.04, p.d - 0.2, 0, 0.28, 0, '#8b6b4a'); pbox(p, 0.18, 0.12, 0.3, p.w / 2 - 0.2, 0.96, -0.3, '#5f676c'); pbox(p, 0.6, 0.02, 0.4, -p.w / 2 + 0.45, 0.91, 0.25, '#e9e2cf'); pbox(p, 0.02, 0.01, 0.38, -p.w / 2 + 0.45, 0.925, 0.25, '#2b3f6b'); break; }
+      case 'wood_rack': { pbox(p, 0.06, 1.5, p.d, -0.3, 0.75, 0, '#6b5338'); pbox(p, 0.06, 1.5, p.d, 0.3, 0.75, 0, '#6b5338'); for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) pbox(p, 0.55, 0.05, p.d - 0.2, 0, 0.3 + i * 0.35 + j * 0.06, 0, ['#d2b27c', '#c9a86f', '#dcbd88'][j]); break; }
+      case 'clean_spot': break; // bẩn/sạch do labourView vẽ
+      case 'crate': pbox(p, p.w, p.h, p.d, 0, p.h / 2, 0, '#9b7f5c'); pbox(p, p.w - 0.1, 0.06, p.d - 0.1, 0, p.h + 0.02, 0, '#5f8a48'); break;
       case 'tree': { cyl(p.zone, 0.35, 2.4, p.x, 1.2, p.z, '#5d4632'); sph(p.zone, 2.6, p.x, 3.2, p.z, '#4a7040', 0.9); sph(p.zone, 1.8, p.x + 0.6, 4.0, p.z - 0.3, '#567d47'); break; }
       case 'bench': pbox(p, p.w, 0.06, p.d, 0, 0.45, 0, '#8b6f52'); pbox(p, 0.06, 0.43, p.d - 0.1, -p.w / 2 + 0.15, 0.21, 0, '#3a3a3a'); pbox(p, 0.06, 0.43, p.d - 0.1, p.w / 2 - 0.15, 0.21, 0, '#3a3a3a'); break;
       case 'track': { const [x, z] = local(p, 0, 0); cyl(p.zone, 0.9, 0.03, x, 0.02, z, '#e8c54a', 16); cyl(p.zone, 0.12, 1.0, x, 0.5, z, '#e8c54a', 8); break; }
@@ -484,12 +540,13 @@ export function buildWorld(scene: Scene): WorldHandles {
 
   // ---------- merge per zone ----------
   const zoneMeshes = new Map<ZoneId, Mesh[]>();
+  onProgress(0.6);
+  await yieldFrame();
+  let zi = 0;
   for (const [zone, list] of batch.meshes) {
     const chunks: Mesh[] = [];
-    for (let i = 0; i < list.length; i += 400) {
-      const merged = Mesh.MergeMeshes(list.slice(i, i + 400), true, true, undefined, false, false);
-      if (!merged) continue;
-      merged.name = `zone_${zone}_${i}`;
+    if (++zi % 4 === 0) { onProgress(0.6 + 0.35 * (zi / batch.meshes.size)); await yieldFrame(); }
+    for (const merged of mergePieces(scene, `zone_${zone}`, list)) {
       merged.material = baseMat;
       merged.isPickable = false;
       merged.freezeWorldMatrix();
@@ -499,7 +556,7 @@ export function buildWorld(scene: Scene): WorldHandles {
     zoneMeshes.set(zone as ZoneId, chunks);
   }
   if (yardFloor) { yardFloor.material = baseMat; yardFloor.receiveShadows = true; yardFloor.freezeWorldMatrix(); }
-  const lightsMerged = Mesh.MergeMeshes(emissive, true, true);
+  const lightsMerged = emissive.length ? mergePieces(scene, 'lights', emissive)[0] : null;
   if (lightsMerged) { lightsMerged.material = lightMat; lightsMerged.isPickable = false; lightsMerged.freezeWorldMatrix(); }
   const winMerged = windows.length ? Mesh.MergeMeshes(windows, true, true) : null;
   if (winMerged) { winMerged.material = windowMat; winMerged.isPickable = false; winMerged.freezeWorldMatrix(); }

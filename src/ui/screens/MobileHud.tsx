@@ -8,6 +8,7 @@ import { Icon, Ring } from '../icons';
 import { enterFullscreen, fullscreenSupported, useDevice } from '../device';
 import { audio } from '../../audio/audio';
 import { custodyHud } from './Custody';
+import { WorkHudCard } from './Work';
 
 const NEED_ICON: Record<string, string> = { energy: 'energy', hunger: 'hunger', hygiene: 'hygiene', mood: 'mood' };
 const tap = (fn: () => void) => () => { audio.resume(); fn(); };
@@ -56,6 +57,7 @@ export function MobileHud() {
           <button className={`m-phase ${c.confined ? 'conf' : 'act'}`} onClick={tap(() => open(c.confined ? 'incell' : 'custody'))} aria-label={`${c.phase}, ${c.room}. Tiếp: ${c.next}`}>
             <Icon name="lock" size={14} /><span>{c.phase}</span>
           </button>) : null; })()}
+        <WorkHudCard compact />
         {hud.quest && (
           <button className="m-quest" onClick={tap(() => open('journal'))}>
             <b>{hud.quest.title}</b>
@@ -94,6 +96,7 @@ export function QuickMenu() {
     { icon: 'bag', label: 'Túi đồ', go: () => open('inventory') },
     { icon: 'home', label: 'Đời sống', badge: hud?.lifeBadges, go: () => set({ overlay: 'life' }) },
     { icon: 'user', label: 'Hồ sơ', go: () => set({ overlay: 'profile', profileTab: 'profile' }) },
+    { icon: 'work', label: 'Công việc', go: () => open('work', { view: 'hub' }) },
     ...(custodyHud() ? [{ icon: 'lock', label: 'Chế độ', go: () => open('custody') }] : []),
     { icon: 'book', label: 'Sổ tay', go: () => open('handbook') },
     { icon: 'save', label: 'Lưu game', go: () => open('saves') },

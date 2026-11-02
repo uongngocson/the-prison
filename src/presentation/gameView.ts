@@ -1,7 +1,8 @@
 // Presentation bridge: Babylon scene, third-person camera, input mapping, day/night, weather, sync from sim snapshots.
 import { Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight, ParticleSystem, Scene, ShadowGenerator, UniversalCamera, Vector3 } from '@babylonjs/core';
 import { buildWorld, type WorldHandles } from './worldBuilder';
-import { COSMETIC_OUTFIT, Humanoid, STAFF_OUTFIT, type Pose } from './characters';
+import { LabourView } from './labourView';
+import { COSMETIC_OUTFIT, Humanoid, STAFF_OUTFIT, type Held, type Pose } from './characters';
 import { stripe } from './palette';
 import type { GameSession } from '../simulation/session';
 import { NPCS, NPC_BY_ID } from '../content/npcs';
@@ -12,6 +13,11 @@ import type { NpcActivity } from '../domain/types';
 import type { Settings, ActionName } from '../ui/settings';
 
 const ACT_POSE: Record<NpcActivity, Pose> = { idle: 'idle', walking: 'walk', acting: 'work', sleeping: 'lie', talking: 'talk', seated: 'sit', eating: 'eat', exercising: 'exercise', reading: 'read', working: 'work', queue: 'idle' };
+const LAB_POSE: Record<string, [Pose, Held]> = {
+  lab_prepare: ['tend', 'hoe'], lab_sow: ['tend', null], lab_water: ['water', 'can'], lab_weed: ['tend', null], lab_harvest: ['tend', 'tray'], lab_clean: ['tend', 'hoe'],
+  lab_observe: ['idle', 'notebook'], lab_feed: ['water', 'scoop'], lab_log: ['read', 'notebook'], lab_harvest_fish: ['work', null], lab_weed_patch: ['tend', null], lab_plant: ['tend', null],
+  lab_collect: ['work', null], lab_sweep: ['sweep', 'broom'], lab_dump: ['work', 'broom'], lab_sort: ['work', null], lab_measure: ['work', null], lab_assemble: ['work', null], lab_finish: ['work', 'sander'],
+};
 const VERB_POSE: Record<string, Pose> = { use_toilet: 'toilet', eat: 'eat', read: 'read', exercise: 'exercise', work_shift: 'work', help: 'work', sort_books: 'work', attend_class: 'read', quiet_time: 'sit', culture_session: 'sit', rest: 'lie', rest_care: 'lie', call: 'sit', visit: 'sit', legal_meeting: 'sit', care_appointment: 'sit', wash: 'work', shower: 'idle', laundry_exchange: 'work', grooming: 'sit', arrange: 'work' };
 
 export class GameView {
@@ -69,11 +75,16 @@ export class GameView {
   }
 
   /** Staged build (U05 stages reported by caller). */
-  buildWorldStage() { this.world = buildWorld(this.scene); }
-  buildCharactersStage() {
+  async buildWorldStage(onProgress?: (f: number) => void) { this.world = await buildWorld(this.scene, onProgress); this.labour = new LabourView(this.scene); }
+  private labour: LabourView | null = null;
+  async buildCharactersStage() {
     const s = this.session.s;
     this.player = new Humanoid(this.scene, 'player', s.character.appearance, stripe(s.character.appearance.outfit));
-    for (const n of NPCS) this.npcs.set(n.id, new Humanoid(this.scene, n.id, n.appearance, n.role === 'staff' ? STAFF_OUTFIT : stripe(0)));
+    let i = 0;
+    for (const n of NPCS) {
+      this.npcs.set(n.id, new Humanoid(this.scene, n.id, n.appearance, n.role === 'staff' ? STAFF_OUTFIT : stripe(0)));
+      if (++i % 12 === 0) await new Promise((r) => setTimeout(r, 0));
+    }
     this.yaw = s.player.yaw;
   }
   async warmStage() {
@@ -88,9 +99,13 @@ export class GameView {
     const preset = st.graphics.preset === 'auto' ? (coarse && short < 600 ? 'low' : 'medium') : st.graphics.preset;
     this.tier = preset === 'high' ? 'high' : preset === 'low' ? 'low' : 'medium';
     this.cullDistance = this.tier === 'low' ? 28 : this.tier === 'medium' ? 42 : 56;
-    const scale = preset === 'low' ? Math.min(st.graphics.resolutionScale, 0.7) : st.graphics.resolutionScale;
-    const dpr = preset === 'high' ? Math.min(1.5, window.devicePixelRatio || 1) : coarse ? Math.min(1.25, window.devicePixelRatio || 1) : 1;
-    this.engine.setHardwareScalingLevel(1 / (Math.max(0.5, scale) * dpr));
+    // Độ nét: màn mật độ cao (điện thoại) render tối đa 2× CSS; không xuống dưới 1× CSS (trước đây 0,7–0,875× → mờ).
+    const devDpr = window.devicePixelRatio || 1;
+    const cap = preset === 'high' ? 2 : preset === 'low' ? (coarse ? 1.5 : 1) : coarse ? 1.75 : 1.25;
+    this.maxRes = Math.max(1, Math.min(devDpr, cap)) * Math.max(0.5, st.graphics.resolutionScale);
+    this.minRes = Math.min(this.maxRes, Math.max(0.75, coarse ? 1 : 0.85) * Math.max(0.5, st.graphics.resolutionScale));
+    this.res = this.maxRes;
+    this.engine.setHardwareScalingLevel(1 / this.res);
     const wantShadows = st.graphics.shadows && preset !== 'low' && !(st.graphics.preset === 'auto' && coarse);
     if (wantShadows && !this.shadows) {
       this.shadows = new ShadowGenerator(preset === 'high' ? 2048 : 1024, this.sun);
@@ -210,6 +225,7 @@ export class GameView {
 
   // ---------------- Frame ----------------
   frame(dt: number) {
+    this.adaptResolution(dt);
     const s = this.session.s;
     if (this.gameplayInput) this.pushInput(dt);
     else this.pollGamepad(dt);
@@ -238,10 +254,11 @@ export class GameView {
     if (m === 'sleeping') pose = 'lie';
     else if (m === 'seated') pose = 'sit';
     else if (m === 'talking') pose = 'talk';
-    else if (m === 'acting' && s.player.action) pose = VERB_POSE[s.player.action.verb] ?? 'work';
+    else if (m === 'acting' && s.player.action) pose = LAB_POSE[s.player.action.verb]?.[0] ?? VERB_POSE[s.player.action.verb] ?? 'work';
     else if (moving > 0.2) pose = s.player.crouch ? 'crouch' : moving > 2.4 ? 'run' : 'walk';
     else if (s.player.crouch) pose = 'crouch';
     if (pose === 'lie') { const bed = s.player.action ? PROP_BY_ID[s.player.action.targetId] : null; if (bed) { pr.rotation.y = bed.yaw; pr.position.set(bed.x, 0, bed.z); } }
+    this.player.setHeld(m === 'acting' && s.player.action ? LAB_POSE[s.player.action.verb]?.[1] ?? null : null);
     this.player.animate(dt, pose, moving, rm);
     const outfit = s.equipped.outfit ? s.inventory.bag.find((x) => x?.uid === s.equipped.outfit)?.itemId : null;
     this.player.setOutfit(outfit ? COSMETIC_OUTFIT[outfit] ?? 'stripe' : 'stripe');
@@ -332,6 +349,7 @@ export class GameView {
   }
 
   private updateDoors(dt: number) {
+    this.labour?.update(this.session.s, dt);
     for (const [id, d] of this.world.doors) {
       const st = this.session.s.world.doors[id]?.state ?? 'open';
       const target = st === 'closed' ? 1 : 0;
@@ -388,5 +406,16 @@ export class GameView {
   render() { this.scene.render(); }
   resize() { this.engine.resize(); }
   fps() { return this.engine.getFps(); }
+  private maxRes = 1; private minRes = 1; private res = 1; private resTimer = 0; private lowFps = 0;
+  /** Độ phân giải động: FPS thấp kéo dài → hạ từng bậc; FPS dư → nâng lại (không dưới 1× CSS trên cảm ứng). */
+  private adaptResolution(dt: number) {
+    this.resTimer += dt;
+    if (this.resTimer < 1.5) return;
+    this.resTimer = 0;
+    const f = this.engine.getFps();
+    if (f < 38 && this.res > this.minRes) { if (++this.lowFps >= 2) { this.res = Math.max(this.minRes, this.res - 0.25); this.engine.setHardwareScalingLevel(1 / this.res); this.lowFps = 0; } }
+    else if (f > 56 && this.res < this.maxRes) { this.res = Math.min(this.maxRes, this.res + 0.125); this.engine.setHardwareScalingLevel(1 / this.res); this.lowFps = 0; }
+    else this.lowFps = 0;
+  }
   dispose() { for (const d of this.disposers) d(); this.scene.dispose(); this.engine.dispose(); }
 }

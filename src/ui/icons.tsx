@@ -3,6 +3,12 @@ import type { ReactNode } from 'react';
 
 const P: Record<string, ReactNode> = {
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  leaf: <><path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15" /><path d="M5 19l8-8" /></>,
+  fish: <><path d="M3 12c3-4 7-5 11-5 3 0 5 2 7 5-2 3-4 5-7 5-4 0-8-1-11-5z" /><path d="M3 12l-1-3M3 12l-1 3" /><circle cx="16" cy="11" r="0.8" /></>,
+  flower: <><circle cx="12" cy="8" r="2.2" /><path d="M12 5.8V3M14.2 8H17M12 10.2V13M9.8 8H7" /><path d="M12 13v8M12 17c-2 0-4-1-5-3M12 17c2 0 4-1 5-3" /></>,
+  saw: <><path d="M3 15l12-9 4 4-12 9z" /><path d="M6 14l1 1M9 12l1 1M12 10l1 1" /><path d="M17 4l3 3" /></>,
+  broom: <><path d="M14 3l-4 10" /><path d="M6 13h8l2 8H4z" /><path d="M7 17v4M10 17v4M13 17v4" /></>,
+  work: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5h6v2M3 12h18" /></>,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   dice: <><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="9" cy="9" r="1.2" /><circle cx="15" cy="15" r="1.2" /><circle cx="15" cy="9" r="1.2" /><circle cx="9" cy="15" r="1.2" /></>,
   back: <path d="M15 5l-7 7 7 7" />,

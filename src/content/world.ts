@@ -6,7 +6,9 @@ import { LONG_SLOGANS, SHORT_SLOGANS } from './slogans';
 export interface ZoneDef {
   id: ZoneId;
   name: string;
-  side: 'north' | 'south' | 'corridor' | 'yard';
+  side: 'north' | 'south' | 'corridor' | 'yard' | 'annex';
+  /** Khu phụ nối qua khu khác (vd. sân L04) thay vì hành lang; doorIn = hướng vào khu. */
+  via?: ZoneId; doorIn?: { x: number; z: number };
   x0: number; x1: number; z0: number; z1: number;
   height: number;
   floor: string; wall: string; accent: string;
@@ -19,6 +21,7 @@ export interface ZoneDef {
 
 export type PropKind =
   | 'bed' | 'locker' | 'desk' | 'chair' | 'table' | 'counter' | 'sink' | 'shower' | 'toilet' | 'water'
+  | 'garden_bed' | 'garden_tap' | 'flower_patch' | 'nursery_bench' | 'waste_bin' | 'pond' | 'pond_dock' | 'feed_station' | 'tool_counter' | 'scale_station' | 'sort_table' | 'stock_shelf' | 'tool_rack' | 'wood_bench' | 'wood_rack' | 'clean_spot' | 'crate'
   | 'shelf' | 'board' | 'bar' | 'mat' | 'workbench' | 'laundry' | 'barber' | 'phone' | 'visit_table'
   | 'medbed' | 'plant' | 'tree' | 'bench' | 'track' | 'stove' | 'prep' | 'boxes' | 'whiteboard'
   | 'tray_return' | 'cabinet' | 'hoop' | 'staff_post' | 'mail_desk' | 'quiet_mat' | 'muster' | 'window';
@@ -89,6 +92,10 @@ const HOURS: Partial<Record<ZoneId, [number, number]>> = {
   L11: [8 * 60, 17 * 60 + 30],
   L18: [8 * 60, 17 * 60 + 30],
   L01: [7 * 60, 19 * 60],
+  L23: [6 * 60, 18 * 60],
+  L24: [6 * 60, 18 * 60],
+  L25: [6 * 60, 18 * 60],
+  L27: [7 * 60 + 30, 17 * 60],
 };
 
 function layoutSide(list: typeof north, side: 'north' | 'south') {
@@ -121,6 +128,16 @@ layoutSide(north, 'north');
 layoutSide(south, 'south');
 ZONES.push({ id: 'L03', name: 'Hành lang chính', side: 'corridor', x0: -101, x1: 69, z0: -CORR, z1: CORR, height: 3.6, floor: '#4f5452', wall: '#6d7774', accent: '#e8b77a', door: null, tier: 'slice', purpose: 'Kết nối các khu, bảng lịch, biển chỉ dẫn' });
 ZONES.push({ id: 'L04', name: 'Sân sinh hoạt', side: 'yard', x0: 69, x1: 109, z0: -16, z1: 12, height: 5, floor: '#5b5b55', wall: '#7b7468', accent: '#8fd1aa', outdoor: true, door: { x: 69, z: 0, axis: 'z', width: 1.8 }, tier: 'slice', purpose: 'Đi bộ, tập luyện, kết bạn, quan sát ngày đêm', hours: HOURS.L04 });
+// CR-LAB-01 khu lao động nối qua sân (L23–L25 ngoài trời, L27 trong nhà). Bố cục blockout hư cấu.
+const ANNEX: [ZoneId, string, number, number, number, number, number, 1 | -1, boolean, string, string][] = [
+  ['L23', 'Vườn rau', 69, 91, 12, 32, 80, 1, true, '#6d6a4c', 'Luống rau theo phân công: làm đất, gieo, tưới, thu hoạch'],
+  ['L25', 'Vườn ươm & cảnh quan', 91, 109, 12, 32, 100, 1, true, '#5f7a4a', 'Khay giống, ô hoa cảnh quan, gom phế liệu'],
+  ['L24', 'Ao cá', 69, 93, -36, -16, 81, -1, true, '#64754e', 'Quan sát và chăm ao theo kế hoạch tại sàn chăm'],
+  ['L27', 'Kho & kiểm nhận', 93, 109, -32, -16, 106, -1, false, '#8a8578', 'Cấp phát dụng cụ, cân, kiểm nhận và bàn giao lô'],
+];
+for (const [id, name, x0, x1, z0, z1, dx, dir, outdoor, color, purpose] of ANNEX) {
+  ZONES.push({ id, name, side: 'annex', via: 'L04', doorIn: { x: 0, z: dir }, x0, x1, z0, z1, height: outdoor ? 3 : 3.4, floor: color, wall: outdoor ? '#7b7468' : '#8a8578', accent: '#91be9a', outdoor, door: { x: dx, z: dir === 1 ? z0 : z1, axis: 'x', width: 1.8 }, tier: 'life', purpose, hours: HOURS[id] });
+}
 
 export const ZONE_BY_ID: Record<ZoneId, ZoneDef> = Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<ZoneId, ZoneDef>;
 
@@ -172,7 +189,10 @@ export const WALLS: WallSeg[] = [];
 const DIMS: Record<PropKind, [number, number, number, boolean]> = {
   bed: [0.95, 2.0, 0.55, true], locker: [0.6, 0.5, 1.8, true], desk: [1.2, 0.6, 0.75, true], chair: [0.5, 0.5, 0.9, false],
   table: [2.4, 1.0, 0.75, true], counter: [4, 0.8, 1.05, true], sink: [0.7, 0.5, 0.9, true], shower: [1.4, 1.4, 2.1, false],
-  toilet: [1.2, 1.4, 2.0, false], water: [0.45, 0.45, 1.0, true], shelf: [3.6, 0.5, 2.0, true], board: [1.6, 0.08, 1.1, false],
+  toilet: [1.2, 1.4, 2.0, false],
+  garden_bed: [1.4, 6, 0.3, true], garden_tap: [0.4, 0.4, 1.0, true], flower_patch: [2.4, 2.4, 0.25, true], nursery_bench: [4, 1, 0.85, true], waste_bin: [0.8, 0.8, 1.0, true],
+  pond: [16, 12, 0.3, true], pond_dock: [2.6, 2.6, 0.15, false], feed_station: [1.2, 0.7, 1.0, true], tool_counter: [3, 0.8, 1.05, true], scale_station: [2.2, 0.9, 1.0, true],
+  sort_table: [2.2, 1, 0.8, true], stock_shelf: [3, 0.6, 2.0, true], tool_rack: [0.3, 2.6, 1.8, true], wood_bench: [2.4, 1.1, 0.9, true], wood_rack: [0.8, 2.2, 1.6, true], clean_spot: [1.6, 1.6, 0.02, false], crate: [0.7, 0.5, 0.45, true], water: [0.45, 0.45, 1.0, true], shelf: [3.6, 0.5, 2.0, true], board: [1.6, 0.08, 1.1, false],
   bar: [1.6, 0.3, 2.3, false], mat: [1.2, 2.0, 0.05, false], workbench: [2.2, 1.0, 0.9, true], laundry: [2.4, 0.8, 1.05, true],
   barber: [0.7, 0.7, 1.0, false], phone: [0.9, 0.4, 1.6, true], visit_table: [1.2, 0.8, 0.75, true], medbed: [1.0, 2.0, 0.7, true],
   plant: [0.5, 0.5, 1.1, false], tree: [0.5, 0.5, 5, true], bench: [1.8, 0.5, 0.45, true], track: [0.6, 0.6, 0.1, false],
@@ -183,7 +203,10 @@ const DIMS: Record<PropKind, [number, number, number, boolean]> = {
 
 const LABEL: Record<PropKind, string> = {
   bed: 'Giường', locker: 'Tủ cá nhân', desk: 'Bàn', chair: 'Ghế', table: 'Bàn ăn', counter: 'Quầy', sink: 'Bồn rửa', shower: 'Buồng tắm',
-  toilet: 'Buồng vệ sinh', water: 'Vòi nước uống', shelf: 'Kệ sách', board: 'Bảng thông báo', bar: 'Xà tập', mat: 'Thảm tập',
+  toilet: 'Buồng vệ sinh',
+  garden_bed: 'Luống rau', garden_tap: 'Vòi nước tưới', flower_patch: 'Ô cảnh quan', nursery_bench: 'Bàn ươm khay giống', waste_bin: 'Thùng gom phế liệu', pond: 'Ao cá', pond_dock: 'Sàn chăm ao',
+  feed_station: 'Bàn chăm ao', tool_counter: 'Quầy cấp phát dụng cụ', scale_station: 'Điểm cân & kiểm nhận', sort_table: 'Bàn phân loại khay giống', stock_shelf: 'Kệ kho', tool_rack: 'Giá dụng cụ',
+  wood_bench: 'Bàn mộc', wood_rack: 'Giá phôi gỗ', clean_spot: 'Điểm cần quét dọn', crate: 'Thùng rau', water: 'Vòi nước uống', shelf: 'Kệ sách', board: 'Bảng thông báo', bar: 'Xà tập', mat: 'Thảm tập',
   workbench: 'Bàn làm việc', laundry: 'Quầy đổi đồ giặt', barber: 'Ghế cắt tóc', phone: 'Trạm liên lạc', visit_table: 'Bàn gặp',
   medbed: 'Giường nghỉ', plant: 'Cây cảnh', tree: 'Cây', bench: 'Ghế dài', track: 'Mốc đường đi bộ', stove: 'Bếp', prep: 'Bàn sơ chế',
   boxes: 'Thùng hàng', whiteboard: 'Bảng lớp', tray_return: 'Chỗ trả khay', cabinet: 'Tủ hồ sơ', hoop: 'Rổ bóng', staff_post: 'Vị trí nhân viên',
@@ -263,9 +286,24 @@ WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color
 WALLS.push({ x0: 69, z0: -CORR, x1: 69, z1: -0.9, h: 3.6, zone: 'L03', color: '#6d7774' });
 WALLS.push({ x0: 69, z0: 0.9, x1: 69, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
 WALLS.push({ x0: 69, z0: -0.9, x1: 69, z1: 0.9, h: 3.6, zone: 'L04', color: '#7b7468', doorId: 'door_L04' });
-WALLS.push({ x0: 69, z0: 12, x1: 109, z1: 12, h: 5, zone: 'L04', color: '#7b7468' });
+for (const [a, b] of [[69, 79.1], [80.9, 99.1], [100.9, 109]]) WALLS.push({ x0: a, z0: 12, x1: b, z1: 12, h: 5, zone: 'L04', color: '#7b7468' });
+WALLS.push({ x0: 79.1, z0: 12, x1: 80.9, z1: 12, h: 3, zone: 'L23', color: '#7b7468', doorId: 'door_L23' });
+WALLS.push({ x0: 99.1, z0: 12, x1: 100.9, z1: 12, h: 3, zone: 'L25', color: '#7b7468', doorId: 'door_L25' });
 WALLS.push({ x0: 109, z0: -16, x1: 109, z1: 12, h: 5, zone: 'L04', color: '#7b7468' });
-WALLS.push({ x0: 69, z0: -16, x1: 109, z1: -16, h: 5, zone: 'L04', color: '#7b7468' });
+for (const [a, b] of [[69, 80.1], [81.9, 105.1], [106.9, 109]]) WALLS.push({ x0: a, z0: -16, x1: b, z1: -16, h: 5, zone: 'L04', color: '#7b7468' });
+WALLS.push({ x0: 80.1, z0: -16, x1: 81.9, z1: -16, h: 3, zone: 'L24', color: '#7b7468', doorId: 'door_L24' });
+WALLS.push({ x0: 105.1, z0: -16, x1: 106.9, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578', doorId: 'door_L27' });
+// tường bao khu lao động (hàng rào cao 3 m ngoài trời)
+WALLS.push({ x0: 69, z0: 12, x1: 69, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
+WALLS.push({ x0: 69, z0: 32, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
+WALLS.push({ x0: 91, z0: 12, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
+WALLS.push({ x0: 91, z0: 32, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#7b7468' });
+WALLS.push({ x0: 109, z0: 12, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#7b7468' });
+WALLS.push({ x0: 69, z0: -36, x1: 69, z1: -16, h: 3, zone: 'L24', color: '#7b7468' });
+WALLS.push({ x0: 69, z0: -36, x1: 93, z1: -36, h: 3, zone: 'L24', color: '#7b7468' });
+WALLS.push({ x0: 93, z0: -36, x1: 93, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578' });
+WALLS.push({ x0: 93, z0: -32, x1: 109, z1: -32, h: 3.4, zone: 'L27', color: '#8a8578' });
+WALLS.push({ x0: 109, z0: -32, x1: 109, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578' });
 
 // ---------- Zone furnishing ----------
 // L01 Intake
@@ -501,6 +539,51 @@ for (let x = -64; x <= 64; x += 16) absSlot('L03', 'stand', x, -1.2, 0, 'stand')
   for (let i = 0; i < 6; i++) absSlot('L04', 'stand', 84 + (i % 3) * 3, 1 + Math.floor(i / 3) * 3, Math.PI * (i % 2), 'stand');
 }
 
+// ---------- CR-LAB-01: L23 vườn rau, L24 ao cá, L25 cảnh quan, L27 kho, bàn mộc L10, điểm quét sân ----------
+{
+  // L23 — 4 luống dọc, lối công tác giữa các luống
+  ['R-01', 'R-02', 'R-03', 'R-04'].forEach((pid, i) => {
+    const x = 73 + i * 4.5;
+    absProp('L23', 'garden_bed', x, 23, 0, { id: `plot_${pid}`, label: `Luống ${pid}`, meta: { plot: pid } });
+    absSlot('L23', 'work', x + 1.2, 21 + (i % 2) * 3, -Math.PI / 2, 'work', `plot_${pid}`);
+  });
+  absProp('L23', 'garden_tap', 70, 14.5, Math.PI / 2, { id: 'garden_tap', label: 'Vòi nước tưới' });
+  absProp('L23', 'board', 69.1, 17.5, Math.PI / 2, { id: 'board_work_L23', label: 'Bảng phân công vườn rau' });
+  for (let i = 0; i < 3; i++) absProp('L23', 'crate', 88.5, 14.5 + i * 0.6, 0, { id: `crate_L23_${i}` });
+  absProp('L23', 'tree', 89.5, 30.5); absProp('L23', 'tree', 70.5, 30.5);
+  // L25 — 6 ô cảnh quan (2 hàng), bàn ươm, thùng gom
+  ['P-01', 'P-02', 'P-03', 'P-04', 'P-05', 'P-06'].forEach((pid, i) => {
+    const x = 94.5 + (i % 3) * 5, z = 21 + Math.floor(i / 3) * 6;
+    absProp('L25', 'flower_patch', x, z, 0, { id: `patch_${pid}`, label: `Ô cảnh quan ${pid}`, meta: { patch: pid } });
+    absSlot('L25', 'work', x, z - 1.8, 0, 'work', `patch_${pid}`);
+  });
+  absProp('L25', 'nursery_bench', 100, 14.3, 0, { id: 'nursery_bench', label: 'Bàn ươm khay giống' });
+  absProp('L25', 'waste_bin', 107.4, 14.2, -Math.PI / 2, { id: 'waste_bin_L25', label: 'Thùng gom phế liệu' });
+  absProp('L25', 'tree', 107.5, 30.5); absProp('L25', 'tree', 92.5, 30.5);
+  // L24 — ao, sàn chăm, bàn chăm ao
+  absProp('L24', 'pond', 80, -28, 0, { id: 'pond_C01', label: 'Ao C-01', meta: { pond: 'C-01' } });
+  absProp('L24', 'pond_dock', 80, -20.9, 0, { id: 'pond_dock', label: 'Sàn chăm ao' });
+  absProp('L24', 'feed_station', 84.2, -18.6, 0, { id: 'feed_station', label: 'Bàn chăm ao · nhật ký' });
+  absProp('L24', 'bench', 76, -18.4, 0, { id: 'pond_bench', label: 'Ghế nghỉ' }); absSlot('L24', 'sit', 76, -18.4, 0, 'sit', 'pond_bench');
+  absSlot('L24', 'work', 82.5, -19.6, Math.PI, 'work', 'feed_station');
+  absProp('L24', 'tree', 70.5, -34.5); absProp('L24', 'tree', 91.5, -34.5); absProp('L24', 'tree', 70.5, -18);
+  // L27 — quầy dụng cụ, cân & kiểm nhận, bàn phân loại (việc trong nhà khi mưa), kệ kho
+  absProp('L27', 'tool_counter', 97, -20.2, 0, { id: 'tool_counter', label: 'Quầy cấp phát dụng cụ' });
+  absSlot('L27', 'staff', 97, -21.4, 0, 'stand', 'tool_counter', 'L27_staff_0');
+  absProp('L27', 'scale_station', 103.5, -21, 0, { id: 'scale_station', label: 'Điểm cân & kiểm nhận' });
+  absProp('L27', 'sort_table', 100, -26.5, 0, { id: 'sort_table', label: 'Bàn phân loại khay giống' });
+  absSlot('L27', 'work', 100, -25.6, Math.PI, 'work', 'sort_table');
+  for (const [i, x] of [96, 100.5, 105].entries()) absProp('L27', 'stock_shelf', x, -31.4, 0, { id: `stock_shelf_${i}`, label: ['Kệ rau & nông sản', 'Kệ thủy sản', 'Kệ đồ mộc'][i] });
+  absProp('L27', 'tool_rack', 93.3, -24, Math.PI / 2, { id: 'tool_rack', label: 'Giá dụng cụ' });
+  absProp('L27', 'board', 108.9, -24, -Math.PI / 2, { id: 'board_work_L27', label: 'Bảng phân công & kho' });
+  // L10 — bàn mộc M-03 có thứ tự: bảng mẫu → giá phôi → bàn
+  prop('L10', 'wood_bench', 21, 11.6, 0, { id: 'wood_bench', label: 'Bàn mộc M-03' });
+  slot('L10', 'work', 21, 10.6, 0, 'work', 'wood_bench');
+  prop('L10', 'wood_rack', 25.3, 9.5, -Math.PI / 2, { id: 'wood_rack', label: 'Giá phôi gỗ' });
+  // L04 — điểm quét dọn
+  for (const [i, [x, z]] of ([[78, 6.5], [95, 8.5], [99, -11]] as [number, number][]).entries()) absProp('L04', 'clean_spot', x, z, 0, { id: `clean_S-0${i + 1}`, label: `Điểm quét dọn S-0${i + 1}`, meta: { spot: `S-0${i + 1}` } });
+}
+
 // ---------- L19–L22 custody rooms (CR-VN-01) ----------
 function custodyRoom(id: string, label: string, zoneId: ZoneId, cohort: CustodyCohort, u0: number, w: number, vFront: number, vBack: number, beds: number, num: string) {
   const zone = ZONE_BY_ID[zoneId];
@@ -565,6 +648,7 @@ export function doorNodes(zoneId: ZoneId): { inside: Vec3; outside: Vec3 } | nul
   const z = ZONE_BY_ID[zoneId];
   if (!z.door) return null;
   if (z.side === 'yard') return { inside: { x: 71, y: 0, z: 0 }, outside: { x: 67.5, y: 0, z: 0 } };
+  if (z.side === 'annex' && z.doorIn) return { inside: { x: z.door.x + z.doorIn.x * 1.6, y: 0, z: z.door.z + z.doorIn.z * 1.6 }, outside: { x: z.door.x - z.doorIn.x * 1.4, y: 0, z: z.door.z - z.doorIn.z * 1.4 } };
   const dir = z.side === 'north' ? 1 : -1;
   return { inside: { x: z.door.x, y: 0, z: z.door.z + dir * 1.5 }, outside: { x: z.door.x, y: 0, z: z.door.z - dir * 1.2 } };
 }
@@ -573,6 +657,7 @@ export function zoneCenter(zoneId: ZoneId): Vec3 {
   const z = ZONE_BY_ID[zoneId];
   if (z.side === 'corridor') return { x: 0, y: 0, z: 0 };
   if (z.side === 'yard') return { x: 89, y: 0, z: -2 };
+  if (z.side === 'annex' && z.door && z.doorIn) return { x: z.door.x + z.doorIn.x * 3, y: 0, z: z.door.z + z.doorIn.z * 3 };
   const dir = z.side === 'north' ? 1 : -1;
   return { x: (z.x0 + z.x1) / 2, y: 0, z: z.door!.z + dir * Math.min(3.2, (z.z1 - z.z0) / 2) };
 }
@@ -580,10 +665,11 @@ export function zoneCenter(zoneId: ZoneId): Vec3 {
 /** Logical route between zones (graph: rooms ↔ corridor ↔ yard). Used by NPC paths and map U13. */
 export function zoneRoute(from: ZoneId, to: ZoneId): ZoneId[] {
   if (from === to) return [from];
-  const r: ZoneId[] = [from];
-  if (from !== 'L03') r.push('L03');
-  if (to !== 'L03') r.push(to);
-  return r;
+  // chuỗi lên tới hành lang: khu phụ → khu cha (sân) → L03
+  const up = (z: ZoneId): ZoneId[] => { const c: ZoneId[] = [z]; let cur = ZONE_BY_ID[z]; while (cur.via) { c.push(cur.via); cur = ZONE_BY_ID[cur.via]; } if (c[c.length - 1] !== 'L03') c.push('L03'); return c; };
+  const a = up(from), b = up(to);
+  const meet = a.find((z) => b.includes(z))!;
+  return [...a.slice(0, a.indexOf(meet) + 1), ...b.slice(0, b.indexOf(meet)).reverse()];
 }
 
 export const SLOT_BY_ID: Record<string, SlotDef> = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
@@ -605,6 +691,8 @@ export const SAFE_ANCHORS: Partial<Record<ZoneId, Vec3>> = Object.fromEntries(ZO
     const xs = ZONES.filter((z) => z.side === side).map((z) => z.x0).sort((a, b) => a - b).slice(1);
     xs.forEach((x, i) => { if (i % 2 === (side === 'north' ? 0 : 1)) bannerL('L03', x - corr.x0, side === 'north' ? depth - 0.12 : 0.12, side === 'north' ? Math.PI : 0, 3.4, 'long', 2.85); });
   }
+  WALL_BANNERS.push({ id: 'banner_L27', zone: 'L27', x: 101, y: 2.75, z: -31.88, yaw: 0, w: 6, h: 0.62, text: 'Lao động chân chính — sống lương thiện — hướng thiện', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_L23', zone: 'L23', x: 80, y: 2.3, z: 31.88, yaw: Math.PI, w: 7, h: 0.8, text: 'Học tập — lao động — rèn luyện để sớm trở về với gia đình', size: 'long' });
   const yard = ZONE_BY_ID.L04;
   WALL_BANNERS.push({ id: 'banner_yard_e', zone: 'L04', x: yard.x1 - 0.12, y: 3.6, z: -10, yaw: -Math.PI / 2, w: 9, h: 1, text: 'Tự do là quý giá nhất — hãy giữ gìn bằng việc sống đúng pháp luật', size: 'long' });
   WALL_BANNERS.push({ id: 'banner_yard_n', zone: 'L04', x: 89, y: 3.6, z: yard.z1 - 0.12, yaw: Math.PI, w: 9, h: 1, text: 'Học tập — lao động — rèn luyện để sớm trở về với gia đình', size: 'long' });

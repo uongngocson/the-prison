@@ -399,6 +399,9 @@ function Programs({ s }: { s: GameState }) {
   const [msg, setMsg] = useState('');
   return (
     <div>
+      <button className="wk-link" onClick={() => useUI.getState().open('work', { view: 'hub' })}>
+        <b>Công việc & phân công</b><span>Vườn rau · Ao cá · Cảnh quan · Xưởng mộc · Vệ sinh khu chung</span><span className="kbd">N</span>
+      </button>
       <p className="small muted">Khóa học và ca làm có lịch, điều khoản và cách tham gia tương đương. Điểm danh khác với XP; buổi vắng có lý do được học bù. Giấy ghi nhận chỉ có giá trị trong game.</p>
       <table className="tbl"><thead><tr><th>Chương trình</th><th>Lịch</th><th>Điều khoản</th><th>Tiến độ</th><th /></tr></thead><tbody>
         {PROGRAMS.map((p) => { const e = s.life.programs.find((x) => x.programId === p.id); const active = e && ['enrolled', 'in_progress'].includes(e.state); return (

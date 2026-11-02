@@ -7,7 +7,7 @@ import type { FocusTarget } from '../simulation/session';
 export type Screen = 'landing' | 'auth' | 'menu' | 'create' | 'setup' | 'loading' | 'game' | 'ending' | 'lobby' | 'fatal' | 'credits';
 export type Overlay =
   | null | 'pause' | 'inventory' | 'journal' | 'map' | 'schedule' | 'profile' | 'handbook' | 'saves' | 'settings' | 'life'
-  | 'quickmenu' | 'custody' | 'incell' | 'sleep' | 'scene' | 'library' | 'news' | 'menu_board' | 'notifications';
+  | 'quickmenu' | 'custody' | 'incell' | 'work' | 'sleep' | 'scene' | 'library' | 'news' | 'menu_board' | 'notifications';
 
 export interface HudSnapshot {
   clock: string; dayLabel: string; period: string; activity: string; zone: string; cell: string | null; weather: string;

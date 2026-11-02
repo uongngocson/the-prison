@@ -2,7 +2,7 @@
 // phase cycle, chapter/release split. One clock, one state, one ledger — không tạo simulation thứ hai.
 import type { ClassificationDecision, CustodyOrder, CustodyPhase, CustodyState, GameState, IncidentReview, Judgment, MovementGrant, PlacementGroup, StartSegment, ZoneId } from './types';
 import { type Ctx, changeNeed, notify } from './core';
-import { CUSTODY_ROOMS, CUSTODY_ROOM_BY_ID, custodyRoomAt, custodyRoomOfBed, zoneAt, type CustodyRoomDef, type PropDef } from '../content/world';
+import { CUSTODY_ROOMS, CUSTODY_ROOM_BY_ID, ZONE_BY_ID, custodyRoomAt, custodyRoomOfBed, zoneAt, type CustodyRoomDef, type PropDef } from '../content/world';
 import { CUSTODY_SCHEDULE, PHASE_LABEL, PRESET_BY_ID, REASON_TEXT, VN_PROFILE, type CustodyWindow } from '../content/custody';
 import { NPCS } from '../content/npcs';
 import { MEALS } from '../content/schedule';
@@ -274,6 +274,8 @@ function refreshGrants(ctx: Ctx) {
     const day0 = s.minute - minuteOfDay(s.minute);
     ensureGrant(ctx, 'program', p.zone, day0 + p.from - 15, day0 + p.to + 10, `program:${key}`);
   }
+  // CR-LAB-01: ca lao động đã nhận → quyền tới kho + khu làm việc trong khung ca (không mở toàn cơ sở)
+  for (const g of custodyLabourHook.grants?.(s) ?? []) ensureGrant(ctx, 'program', g.destination, g.from, g.until, g.key);
   if (c.releaseState === 'release_due') {
     const day0 = s.minute - minuteOfDay(s.minute);
     ensureGrant(ctx, 'release', 'L18', day0 + hm(8), day0 + hm(17), `release:${dayOf(s.minute)}`);
@@ -281,6 +283,9 @@ function refreshGrants(ctx: Ctx) {
   for (const g of c.grants) if (g.state === 'active' && s.minute >= g.validUntilMinute) g.state = 'expired';
   if (c.grants.length > 60) c.grants = c.grants.filter((g) => g.state === 'active').concat(c.grants.filter((g) => g.state !== 'active').slice(-30));
 }
+
+/** Hook do module lao động đăng ký (tránh vòng import). */
+export const custodyLabourHook: { grants?: (s: GameState) => { destination: ZoneId; from: number; until: number; key: string }[] } = {};
 
 // ======================= Evaluator (API15 / 16 §4) =======================
 export interface Eval { ok: boolean; reasonCode?: string; method?: 'self' | 'authorized_movement' | 'at_room' | 'abstract' | 'not_available' }
@@ -292,7 +297,8 @@ export function allowedZones(s: GameState): Set<ZoneId> {
   const grants = activeGrants(s).filter((g) => g.purpose !== 'escort');
   if (phase === 'released') return new Set(['L18', 'L01', 'L03']);
   if (phase === 'intake') return new Set(['L01']);
-  const addGrantPath = () => { for (const g of grants) out.add(g.destination); if (grants.length) { out.add('L03'); if (home) out.add(home.zone); } };
+  // đường đi theo phép: đích + khu trung gian (vd. sân L04 với khu lao động) + hành lang + khu ở
+  const addGrantPath = () => { for (const g of grants) { out.add(g.destination); const via = ZONE_BY_ID[g.destination]?.via; if (via) out.add(via); } if (grants.length) { out.add('L03'); if (home) out.add(home.zone); } };
   if (phase === 'disciplinary_confinement' || phase === 'separate_housing') { addGrantPath(); return out; }
   if (isConfinedPhase(phase)) { addGrantPath(); return out; }
   if (phase === 'returning') { out.add('L03'); if (home) out.add(home.zone); out.add(s.player.zone); return out; }

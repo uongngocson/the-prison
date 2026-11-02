@@ -7,6 +7,7 @@ import { controller } from '../../app/controller';
 import { useTouchUI } from './TouchControls';
 import { MobileHud } from './MobileHud';
 import { CustodyHudLine } from './Custody';
+import { WorkHudCard } from './Work';
 import { Icon } from '../icons';
 
 export function Hud() {
@@ -46,6 +47,7 @@ export function Hud() {
       {hud.tutorial && !hidden && <div className="tip box" role="note">💡 {hud.tutorial} <button className="btn sm ghost" style={{ pointerEvents: 'auto' }} onClick={() => controller.session?.skipTutorial()}>Bỏ qua hướng dẫn</button></div>}
       {hud.waypoint && !hidden && <div className="waypoint box">➜ {hud.waypoint.label} · {hud.waypoint.dist} m <span style={{ display: 'inline-block', transform: `rotate(${hud.waypoint.dir}rad)` }}>⬆</span></div>}
       <div className="hud-tr">
+        {!hidden && <WorkHudCard />}
         {hud.quest && (
           <div className="box">
             <div className="small muted">Nhiệm vụ đang theo dõi <Key action="journal" /></div>

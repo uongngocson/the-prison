@@ -6,7 +6,9 @@ import type { Appearance } from '../domain/types';
 import { SKIN, HAIR } from './palette';
 export { SKIN, HAIR, RES_OUTFIT, STAFF_OUTFIT, COSMETIC_OUTFIT } from './palette';
 
-export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet';
+export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet' | 'tend' | 'water' | 'sweep';
+/** Dụng cụ cầm tay khi làm việc (chỉ hiển thị; không phải vật phẩm túi đồ). */
+export type Held = 'can' | 'broom' | 'hoe' | 'scoop' | 'sander' | 'tray' | 'notebook' | null;
 
 interface Sources { torso: Mesh; hips: Mesh; head: Mesh; hair0: Mesh; hair1: Mesh; hair2: Mesh; arm: Mesh; leg: Mesh; eye: Mesh; shadow: Mesh }
 
@@ -103,9 +105,13 @@ export class Humanoid {
   private torsoStripe: InstancedMesh | null = null;
   private armsStripe: InstancedMesh[] = [];
   private armsSolid: InstancedMesh[] = [];
+  private scene: Scene;
+  private held: Held = null;
+  private heldNode: TransformNode | null = null;
 
   constructor(scene: Scene, public id: string, look: Appearance, outfitHex: string) {
     const src = makeSources(scene);
+    this.scene = scene;
     this.root = new TransformNode(`ch_${id}`, scene);
     this.body = new TransformNode(`chb_${id}`, scene);
     this.body.parent = this.root;
@@ -164,6 +170,41 @@ export class Humanoid {
     this.shadow.position.y = 0.012;
     this.shadow.rotation.x = Math.PI / 2;
     this.outfitHex = outfitHex;
+  }
+
+  /** Gắn dụng cụ vào tay phải (dựng lười, tái sử dụng). */
+  setHeld(kind: Held) {
+    if (kind === this.held) return;
+    this.held = kind;
+    this.heldNode?.dispose();
+    this.heldNode = null;
+    if (!kind) return;
+    const sc = this.scene;
+    const node = new TransformNode(`held_${this.id}`, sc);
+    node.parent = this.armR;
+    node.position.set(0, -0.66, 0.02);
+    const mk = (m: Mesh, hex: string) => { const mat = new StandardMaterial(`hm_${m.name}`, sc); mat.diffuseColor = Color3.FromHexString(hex); mat.specularColor = new Color3(0.1, 0.1, 0.1); m.material = mat; m.parent = node; m.isPickable = false; return m; };
+    if (kind === 'can') {
+      const body = mk(MeshBuilder.CreateCylinder('can', { diameter: 0.2, height: 0.24, tessellation: 12 }, sc), '#3f7a8a'); body.position.set(0, -0.08, 0.12);
+      const spout = mk(MeshBuilder.CreateCylinder('spout', { diameter: 0.035, height: 0.3, tessellation: 6 }, sc), '#3f7a8a'); spout.position.set(0, -0.02, 0.32); spout.rotation.x = Math.PI / 2.6;
+    } else if (kind === 'broom') {
+      const st = mk(MeshBuilder.CreateCylinder('broomst', { diameter: 0.035, height: 1.25, tessellation: 6 }, sc), '#8b6b4a'); st.position.set(0, -0.35, 0.05);
+      const head = mk(MeshBuilder.CreateBox('broomh', { width: 0.32, height: 0.18, depth: 0.08 }, sc), '#c9a86f'); head.position.set(0, -0.98, 0.05);
+    } else if (kind === 'hoe') {
+      const st = mk(MeshBuilder.CreateCylinder('hoest', { diameter: 0.03, height: 0.7, tessellation: 6 }, sc), '#8b6b4a'); st.position.set(0, -0.2, 0.05);
+      const head = mk(MeshBuilder.CreateBox('hoeh', { width: 0.12, height: 0.03, depth: 0.12 }, sc), '#7d8a8f'); head.position.set(0, -0.55, 0.11);
+    } else if (kind === 'scoop') {
+      const st = mk(MeshBuilder.CreateCylinder('scst', { diameter: 0.025, height: 0.25, tessellation: 6 }, sc), '#c9ced1'); st.position.set(0, -0.05, 0.06); st.rotation.x = Math.PI / 2;
+      const cup = mk(MeshBuilder.CreateCylinder('sccup', { diameter: 0.1, diameterBottom: 0.07, height: 0.07, tessellation: 10 }, sc), '#c9ced1'); cup.position.set(0, -0.05, 0.2);
+    } else if (kind === 'sander') {
+      const b = mk(MeshBuilder.CreateBox('sand', { width: 0.12, height: 0.06, depth: 0.2 }, sc), '#c9a86f'); b.position.set(0, -0.06, 0.06);
+    } else if (kind === 'tray') {
+      const b = mk(MeshBuilder.CreateBox('trayh', { width: 0.45, height: 0.12, depth: 0.32 }, sc), '#9b7f5c'); b.position.set(-0.27, -0.1, 0.22);
+      const v = mk(MeshBuilder.CreateBox('trayv', { width: 0.4, height: 0.1, depth: 0.27 }, sc), '#5f8a48'); v.position.set(-0.27, -0.03, 0.22);
+    } else if (kind === 'notebook') {
+      const b = mk(MeshBuilder.CreateBox('note', { width: 0.16, height: 0.02, depth: 0.22 }, sc), '#e9e2cf'); b.position.set(0, -0.05, 0.1);
+    }
+    this.heldNode = node;
   }
 
   /** 'stripe' = đồng phục sọc; mã màu = trang phục thẩm mỹ (áo trơn, quần vẫn đồng phục). */
@@ -237,6 +278,31 @@ export class Humanoid {
         this.armL.rotation.z = -0.3 - s * 2.4; this.armR.rotation.z = 0.3 + s * 2.4;
         this.legL.rotation.z = -s * 0.25; this.legR.rotation.z = s * 0.25;
         b.position.y = s * 0.05;
+        break;
+      }
+      case 'tend': {
+        // quỳ/khom chăm luống: thân cúi, hai tay với xuống đất luân phiên
+        this.phase += dt * (reducedMotion ? 1.5 : 3);
+        b.position.y = -0.42;
+        this.legL.rotation.x = -1.55; this.legR.rotation.x = -0.35;
+        this.torso.rotation.x = 0.55; this.head.rotation.x = 0.35;
+        this.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.22; this.armR.rotation.x = -1.35 - Math.sin(this.phase) * 0.22;
+        break;
+      }
+      case 'water': {
+        // tưới: tay phải đưa bình ra trước, nghiêng nhẹ theo nhịp
+        this.phase += dt * (reducedMotion ? 1 : 2);
+        this.armR.rotation.x = -1.05 + Math.sin(this.phase) * 0.12; this.armR.rotation.z = -0.05;
+        this.armL.rotation.x = -0.2; this.torso.rotation.x = 0.12; this.head.rotation.x = 0.35;
+        break;
+      }
+      case 'sweep': {
+        // quét: hai tay cầm cán, đưa sang trái phải
+        this.phase += dt * (reducedMotion ? 1.5 : 3.2);
+        const sw = Math.sin(this.phase) * 0.45;
+        this.armR.rotation.x = -0.55; this.armL.rotation.x = -0.75;
+        this.armR.rotation.z = sw; this.armL.rotation.z = sw + 0.35;
+        this.torso.rotation.x = 0.22; this.torso.rotation.y = sw * 0.4; this.head.rotation.x = 0.25;
         break;
       }
       case 'work': {

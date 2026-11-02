@@ -12,6 +12,7 @@ import { NPCS, NPC_BY_ID } from '../content/npcs';
 import { DAILY, ROLL_CALLS, npcBlockAt } from '../content/schedule';
 import { Rng, dayOf, dist2, fmtClock, hm, minuteOfDay } from '../domain/util';
 import { cellOf } from './nav';
+import { ensureLabour, labourPanelVerbs, labourTick } from '../domain/labour';
 import { constrainMove, custodyTick, homeBed, homeRoom, isVN, positionAllowed, propAllowed, reasonText, resolveOnLoad } from '../domain/custody';
 import { CUSTODY_ROOM_BY_ID, custodyRoomAt, custodyRoomOfBed } from '../content/world';
 
@@ -60,6 +61,7 @@ export class GameSession {
     this.refreshStaffDuty();
     resetWeeklyStock(this.ctx);
     // CR-VN-01: xử lý mốc đến hạn + vị trí hợp lệ TRƯỚC khi cho input (không có frame tự do khi khôi phục).
+    ensureLabour(this.s); // CR-LAB-01: save cũ thiếu module → sổ đầu kỳ, không gán ca
     resolveOnLoad(this.ctx);
     if (!options.resume) {
       this.ai.snapAll(this.ctx);
@@ -191,6 +193,7 @@ export class GameSession {
     if (m % 60 === 0) this.director();
     lifeTick(ctx);
     custodyTick(ctx);
+    labourTick(ctx);
     autoStartQuests(ctx);
     questsCheckState(ctx);
     if (m % 10 === 0) checkAchievements(ctx);
@@ -424,6 +427,14 @@ export class GameSession {
     this.focus = t;
   }
 
+  /** Thao tác trong panel station (U42) — cùng gate custody như prompt. */
+  gatedPanelVerbs(prop: PropDef): VerbOption[] {
+    const verbs = labourPanelVerbs(this.s, prop);
+    if (!isVN(this.s)) return verbs;
+    const e = propAllowed(this.s, prop);
+    return e.ok ? verbs : verbs.map((v) => ({ ...v, enabled: false, reason: reasonText(e.reasonCode) }));
+  }
+
   /** Verbs filtered by custody evaluator (cùng luật với commit). */
   gatedVerbs(prop: PropDef): VerbOption[] {
     const verbs = verbsFor(this.s, prop, this.settings.autoComplete);
@@ -450,7 +461,7 @@ export class GameSession {
     if (verb === 'talk') return this.talk(targetId);
     const prop = PROP_BY_ID[targetId];
     if (!prop || !this.inRange(prop)) return { ok: false, message: 'Quá xa hoặc bị che khuất.' };
-    const opt = this.gatedVerbs(prop).find((v) => v.verb === verb);
+    const opt = this.gatedVerbs(prop).find((v) => v.verb === verb) ?? this.gatedPanelVerbs(prop).find((v) => v.verb === verb);
     if (!opt) return { ok: false, message: 'Không thể làm việc này ở đây.' };
     if (!opt.enabled) return { ok: false, message: opt.reason ?? 'Chưa khả dụng.' };
     if (this.s.tutorial.interact === 'active') this.tutorialDone('interact', 'schedule');

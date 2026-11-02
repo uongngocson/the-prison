@@ -15,9 +15,9 @@ export const SLOGANS: { text: string; note: string; icon: string }[] = [
   { icon: '🌱', text: 'Biết sai, biết sửa — hoàn lương là con đường sáng', note: 'Học tập, lao động, cải tạo tốt để sớm trở về với gia đình và xã hội.' },
 ];
 
-export function GateScene({ compact = false, portrait = false }: { compact?: boolean; portrait?: boolean }) {
+export function GateScene({ compact = false, portrait = false, cover = false }: { compact?: boolean; portrait?: boolean; cover?: boolean }) {
   return (
-    <svg className="gate-scene" viewBox={portrait ? '280 70 640 440' : '0 0 1200 560'} preserveAspectRatio={portrait ? 'xMidYMin meet' : 'xMidYMid slice'} role="img"
+    <svg className="gate-scene" viewBox={portrait ? '280 70 640 440' : '0 0 1200 560'} preserveAspectRatio={portrait && !cover ? 'xMidYMin meet' : 'xMidYMid slice'} role="img"
       aria-label={`Minh họa cổng ${FACILITY_NAME} (hư cấu): tường vàng, mái ngói đỏ, biển tên đỏ chữ vàng, cổng sắt, barie và chốt gác, khẩu hiệu tuyên truyền pháp luật.`}>
       <defs>
         <linearGradient id="gs-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c9d6db" /><stop offset="1" stopColor="#eef1ec" /></linearGradient>

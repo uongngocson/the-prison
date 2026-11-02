@@ -3,6 +3,7 @@ import type { GameState, ZoneId } from './types';
 import type { PropDef } from '../content/world';
 import { CELL_ROOMS, CUSTODY_ROOMS, ZONE_BY_ID } from '../content/world';
 import { homeBed, homeRoom, isVN } from './custody';
+import { labourCommit, labourVerbs } from './labour';
 import { type Ctx, addItem, adjustRep, awardXp, changeNeed, countItem, notify, removeItem } from './core';
 import { ITEM_BY_ID, LIBRARY_BOOKS } from '../content/items';
 import { MEALS, ROLL_CALLS } from '../content/schedule';
@@ -125,9 +126,11 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
         board_menu: ['read_menu', 'menu'], board_shift: ['view_programs', 'programs'], board_study: ['view_programs', 'programs'], board_kitchen: ['view_programs', 'programs'],
         board_cases: ['view_cases', 'cases'], board_visits: ['view_contacts', 'contacts'], board_contact: ['view_contacts', 'contacts'],
         board_achievements: ['view_achievements', 'achievements'], board_quiet: ['view_support', 'support'],
+        board_work_L23: ['view_work', 'work'], board_work_L27: ['view_work', 'work'],
         board_schedule_L19: ['view_schedule', 'schedule'], board_schedule_L20: ['view_schedule', 'schedule'], board_rules_L21: ['view_custody', 'custody'], board_rules_L22: ['view_custody', 'custody'],
       };
-      const [verb, screen] = map[p.id] ?? ['read_board', 'news'];
+      let [verb, screen] = map[p.id] ?? ['read_board', 'news'];
+      if (screen === 'custody' && !isVN(s)) [verb, screen] = ['read_rules', 'handbook']; // chế độ Cốt truyện: bảng nội quy chung
       out.push({ verb, label: verb === 'view_schedule' ? 'Xem lịch sinh hoạt' : `Đọc: ${p.label}`, duration: 0, enabled: true, instant: true, screen });
       break;
     }
@@ -188,6 +191,11 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
       out.push({ verb: 'muster', label: rc ? `Có mặt — ${rc.label}` : 'Điểm tập trung (điểm danh 06:30 & 21:30)', duration: 0, enabled: true, instant: true });
       break;
     }
+    // CR-LAB-01 station props
+    case 'garden_bed': case 'pond': case 'pond_dock': case 'feed_station': case 'flower_patch': case 'waste_bin': case 'nursery_bench':
+    case 'wood_bench': case 'clean_spot': case 'sort_table': case 'tool_counter': case 'scale_station': case 'stock_shelf':
+      out.push(...labourVerbs(s, p));
+      break;
   }
   return out;
 }
@@ -305,6 +313,8 @@ export function commitAction(ctx: Ctx, verb: string, p: PropDef | null, actionId
       break;
     }
     case 'touch_track': break;
+    default:
+      if (verb.startsWith('lab_')) msg = labourCommit(ctx, verb, p, params);
   }
   ctx.emit({ type: 'actionCompleted', verb, targetId: p?.id ?? '', zone, actionId });
   return msg;

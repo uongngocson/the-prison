@@ -9,7 +9,7 @@ export type SkillId = 'focus' | 'fitness' | 'communication';
 export type ZoneId =
   | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09'
   | 'L10' | 'L11' | 'L12' | 'L13' | 'L14' | 'L15' | 'L16' | 'L17' | 'L18'
-  | 'L19' | 'L20' | 'L21' | 'L22';
+  | 'L19' | 'L20' | 'L21' | 'L22' | 'L23' | 'L24' | 'L25' | 'L27';
 
 export interface Vec3 { x: number; y: number; z: number }
 
@@ -264,6 +264,8 @@ export interface GameState {
   schemaVersion: number;
   experienceMode: ExperienceMode;
   custody: CustodyState | null;
+  /** CR-LAB-01: module lao động (tùy chọn; save cũ thiếu → tạo khi tải, không gán ca). */
+  labour?: LabourState;
   contentVersion: string;
   lineageId: string;
   generation: number;
@@ -326,6 +328,28 @@ export type DomainEvent =
   | { type: 'openScreen'; screen: string; params?: Record<string, string> }
   | { type: 'sound'; cue: string; caption?: string }
   | { type: 'ended'; endingId: string };
+
+// ======================= CR-LAB-01 labour module (DB51–DB58, snapshot module v1) =======================
+export type LabourAssignmentState = 'assigned' | 'active' | 'completed' | 'handed_over' | 'excused' | 'expired' | 'cancelled' | 'settled';
+export interface LabourTask { id: string; label: string; done: boolean }
+export interface LabourAssignment {
+  id: string; workId: string; workVersion: number; day: number; window: 'am' | 'pm'; start: number; end: number;
+  state: LabourAssignmentState; target: string; kitIssued: boolean; kitReturned: boolean; materialLeft: number;
+  checkInMinute: number | null; tasks: LabourTask[]; batchIds: string[]; credit: number; reason?: string; rainFallback?: boolean; createdMinute: number;
+}
+export interface LabourTool { id: string; type: string; status: 'available' | 'issued' | 'returned' | 'review'; custodian: string | null; assignmentId: string | null }
+export interface LabourPlot { id: string; stage: 'empty' | 'prepared' | 'sown' | 'seedling' | 'growing' | 'ready' | 'harvested'; cycleId: string; cycleNo: number; stageSince: number; growthMin: number; lastWatered: number; weededDay: number; caretaker: 'player' | 'team' | null }
+export interface LabourPond { id: string; stage: 'growing' | 'harvest_ready' | 'harvest_pending_check' | 'restock_ready'; cohortNo: number; stockedMinute: number; feedDay: number; feeds: number; observedDay: number; loggedDay: number; careEvents: number; lastObservation: 'normal' | 'check' | null }
+export interface LabourPatch { id: string; state: 'need_care' | 'weeded' | 'planted' | 'awaiting_check' | 'accepted'; since: number }
+export interface LabourWoodOrder { id: string; stage: 'brief' | 'blank' | 'marked' | 'assembled' | 'finished' | 'awaiting_check' | 'rework' | 'accepted'; assignmentId: string | null; measure: string | null; assemble: string | null; failed: string[]; attempts: number }
+export interface LabourBatch { id: string; kind: 'veg' | 'fish' | 'tray' | 'waste'; qty: number; unit: 'g' | 'count'; state: 'pending_check' | 'accepted' | 'held' | 'allocated'; destination: string; sourceKey: string; assignmentId: string | null; team: boolean; minute: number; reason?: string }
+export interface LabourReceipt { id: string; minute: number; kind: 'assign' | 'change' | 'kit_issue' | 'kit_return' | 'qc' | 'handover' | 'settle'; text: string; assignmentId: string | null }
+export interface LabourState {
+  version: 1; revision: number;
+  assignments: LabourAssignment[]; tools: LabourTool[]; plots: LabourPlot[]; pond: LabourPond; patches: LabourPatch[];
+  orders: LabourWoodOrder[]; batches: LabourBatch[]; receipts: LabourReceipt[]; sourceKeys: string[];
+  nurseryTrays: number; seedPacks: number; feedStock: number; cleanSpots: Record<string, number>; orientation: Record<string, boolean>;
+}
 
 export interface EmittedEvent { id: string; tick: number; minute: number; event: DomainEvent }
 

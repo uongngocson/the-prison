@@ -169,9 +169,10 @@ class Controller {
       this.view = view;
       view.applySettings(st);
       await step(2);
-      view.buildWorldStage();
+      // dựng theo đợt, cập nhật thanh tiến trình trong bước (không treo ở 40%)
+      await view.buildWorldStage((f) => useUI.getState().set({ loading: { stage: stages[2], progress: (2 + f) / (stages.length - 1), error: null, stages } }));
       await step(3);
-      view.buildCharactersStage();
+      await view.buildCharactersStage();
       if (resume) Object.assign(view, resume.camera);
       await step(4);
       await view.warmStage();
@@ -222,6 +223,7 @@ class Controller {
     this.session = null;
   }
 
+  private lastLoopErr = 0;
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     const now = performance.now();
@@ -234,11 +236,18 @@ class Controller {
     const modal = ui.overlay !== null || ui.dialogue !== null || ui.fatal !== null;
     sess.paused = modal || ui.screen !== 'game'; // Ending/loading must not advance the world either.
     view.setGameplayInput(!modal && ui.screen === 'game');
-    sess.update(dt);
-    view.frame(dt);
-    view.render();
-    this.hudTimer += dt;
-    if (this.hudTimer > 0.25) { this.hudTimer = 0; this.projectHud(); }
+    // một lỗi khung hình không được làm đứng HUD/vòng lặp (ghi log có giới hạn)
+    try {
+      // Đang tải: không vẽ cảnh dựng dở mỗi khung (tốn GPU/CPU, làm chậm loading trên máy yếu)
+      if (ui.screen === 'loading' || this.booting) return;
+      sess.update(dt);
+      view.frame(dt);
+      view.render();
+      this.hudTimer += dt;
+      if (this.hudTimer > 0.25) { this.hudTimer = 0; this.projectHud(); }
+    } catch (e) {
+      if (now - this.lastLoopErr > 5000) { this.lastLoopErr = now; console.error('[loop]', e); }
+    }
     // focus prompt updates (10 Hz in sim) — copy reference cheaply
     if (ui.focus !== sess.focus) ui.set({ focus: sess.focus });
     if (!sess.paused) {
@@ -325,6 +334,8 @@ class Controller {
     if (screen === 'achievements') { ui.set({ overlay: 'profile', profileTab: 'achievements' }); return; }
     if (screen === 'inventory') { ui.set({ overlay: 'inventory', overlayParams: { locker: '1' } }); return; }
     if (screen === 'menu') { ui.set({ overlay: 'menu_board' }); return; }
+    // CR-LAB-01: U39 bảng công việc, U40/41 station, U42 bàn mộc, U43 dụng cụ, U44 bàn giao
+    if (screen === 'work' || screen.startsWith('work_')) { ui.open('work', { view: screen === 'work' ? 'hub' : screen.slice(5), ...(params ?? {}) }); return; }
     const map: Record<string, Overlay> = { schedule: 'schedule', handbook: 'handbook', news: 'news', library: 'library', scene: 'scene', sleep: 'sleep', journal: 'journal', map: 'map' };
     const o = map[screen];
     if (o) ui.open(o, params ?? {});
@@ -347,6 +358,7 @@ class Controller {
       case 'profile': ui.set({ overlay: 'profile', profileTab: 'profile' }); break;
       case 'life': ui.set({ overlay: 'life' }); break;
       case 'handbook': ui.open('handbook'); break;
+      case 'work': ui.open('work', { view: 'hub' }); break;
       case 'custody': if (isVN(sess.s)) ui.open(isConfinedPhase(sess.s.custody!.phase) ? 'incell' : 'custody'); break;
       case 'cancel': if (sess.s.player.action) sess.cancelAction(); else if (sess.s.player.mode === 'seated') sess.standUp(); break;
       case 'skip': sess.skipAction(); this.bump(); break;
@@ -368,7 +380,7 @@ class Controller {
     if (verb === 'talk') this.refreshDialogue();
     if (r.message) ui.toast({ id: `m_${Date.now()}`, text: r.message, severity: 'info' });
     if (r.screen === 'sleep') ui.open('sleep', { bed: targetId });
-    else if (r.screen) this.openScreen(r.screen);
+    else if (r.screen) this.openScreen(r.screen, { target: targetId });
     this.bump();
     this.checkpoint();
   }
@@ -452,7 +464,7 @@ class Controller {
 }
 
 export function verbLabel(verb: string, target: string): string {
-  const L: Record<string, string> = { eat: 'Đang ăn', read: 'Đang đọc', exercise: 'Đang tập', rest: 'Đang nghỉ', wash: 'Đang rửa mặt', shower: 'Đang tắm', use_toilet: 'Đang đi vệ sinh', drink: 'Đang uống nước', sort_books: 'Đang sắp sách', help: 'Đang giúp việc', work_shift: 'Đang làm ca', attend_class: 'Đang học', quiet_time: 'Giờ yên tĩnh', culture_session: 'Sinh hoạt', grooming: 'Cắt tóc', laundry_exchange: 'Đổi đồ giặt', take_meal: 'Nhận suất ăn', take_spare_meal: 'Nhận suất dự phòng', return_tray: 'Trả khay', call: 'Cuộc gọi', visit: 'Thăm gặp', legal_meeting: 'Buổi hẹn cố vấn', care_appointment: 'Buổi hẹn chăm sóc', rest_care: 'Nghỉ phục hồi', arrange: 'Trải thảm', collect_orders: 'Nhận hàng', essentials: 'Nhận vật dụng' };
+  const L: Record<string, string> = { eat: 'Đang ăn', read: 'Đang đọc', exercise: 'Đang tập', rest: 'Đang nghỉ', wash: 'Đang rửa mặt', shower: 'Đang tắm', use_toilet: 'Đang đi vệ sinh', lab_prepare: 'Đang làm đất', lab_sow: 'Đang gieo hạt', lab_water: 'Đang tưới', lab_weed: 'Đang nhổ cỏ', lab_harvest: 'Đang thu hoạch', lab_clean: 'Đang dọn luống', lab_observe: 'Đang quan sát ao', lab_feed: 'Đang cho cá ăn', lab_log: 'Đang ghi nhật ký', lab_harvest_fish: 'Đang hỗ trợ thu cá', lab_weed_patch: 'Đang làm cỏ', lab_plant: 'Đang trồng hoa', lab_collect: 'Đang gom phế liệu', lab_sweep: 'Đang quét dọn', lab_dump: 'Đang đổ rác', lab_sort: 'Đang phân loại khay', lab_measure: 'Đang đo & đánh dấu', lab_assemble: 'Đang ghép khay', lab_finish: 'Đang chà nhám', drink: 'Đang uống nước', sort_books: 'Đang sắp sách', help: 'Đang giúp việc', work_shift: 'Đang làm ca', attend_class: 'Đang học', quiet_time: 'Giờ yên tĩnh', culture_session: 'Sinh hoạt', grooming: 'Cắt tóc', laundry_exchange: 'Đổi đồ giặt', take_meal: 'Nhận suất ăn', take_spare_meal: 'Nhận suất dự phòng', return_tray: 'Trả khay', call: 'Cuộc gọi', visit: 'Thăm gặp', legal_meeting: 'Buổi hẹn cố vấn', care_appointment: 'Buổi hẹn chăm sóc', rest_care: 'Nghỉ phục hồi', arrange: 'Trải thảm', collect_orders: 'Nhận hàng', essentials: 'Nhận vật dụng' };
   return L[verb] ?? verb;
 }
 

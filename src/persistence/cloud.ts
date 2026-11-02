@@ -9,14 +9,12 @@ const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export interface CloudSaveMeta { id: string; slot: number; generation: number; revision: number; day: number; zone: string; name: string; updated_at: string; lineage_id: string }
 
 class Cloud {
-  private client: SupabaseClient | null = null;
+  private client: Promise<SupabaseClient> | null = null;
   configured() { return !!URL && !!KEY; }
-  private async c(): Promise<SupabaseClient> {
-    if (!this.configured()) throw new Error('Chưa cấu hình dịch vụ đám mây.');
-    if (!this.client) {
-      const { createClient } = await import('@supabase/supabase-js');
-      this.client = createClient(URL!, KEY!, { auth: { persistSession: true, autoRefreshToken: true } });
-    }
+  /** Một client duy nhất kể cả khi nhiều lời gọi đồng thời (tránh 2 GoTrueClient). */
+  private c(): Promise<SupabaseClient> {
+    if (!this.configured()) return Promise.reject(new Error('Chưa cấu hình dịch vụ đám mây.'));
+    this.client ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(URL!, KEY!, { auth: { persistSession: true, autoRefreshToken: true } }));
     return this.client;
   }
   async signIn(email: string): Promise<{ ok: boolean; message: string }> {

@@ -85,3 +85,9 @@ Vòng lặp: quan sát lịch → chọn mục tiêu → đi tới khu → tươ
 | Bổ sung1.1 | Realism audit; lifecycle GDD/TDD; data/API/UI; QA/WBS/RTM mở rộng | 09–12, L15–18 tại03 |
 
 Tài liệu chi tiết dùng ID F (feature), U (screen), L (level), T (task), QA (test), R (risk), ADR (quyết định). Các trường đặc tả chung được kế thừa có nêu rõ, giúp QA đọc một quy tắc nhất quán thay vì lặp lại khác nhau.
+
+## Audit UI hiện có
+
+- [20 — Kế hoạch kiểm thử UI đa kích thước](20-existing-ui-test-plan.md): phạm vi U01–U38, không gồm phần labour 18–19.
+- [21 — Kết quả và lỗi có bằng chứng](21-existing-ui-audit-results.md): ảnh thực chạy, spec, log và giới hạn kiểm thử.
+- [Sổ bằng chứng từng ca](evidence/ui-existing-2026-11-02/README.md): liên kết PNG/JSON, ma trận và kết quả theo thiết bị.

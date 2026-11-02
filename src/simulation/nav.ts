@@ -1,7 +1,7 @@
 // NavPort: logical zone graph + in-room waypoint routing validated by PhysicsPort segment checks.
 // (01: offline navmesh binding chưa xác minh — đây là adapter graph đơn giản cùng interface path query.)
 import type { Vec3, ZoneId } from '../domain/types';
-import { CELL_ROOMS, ZONE_BY_ID, doorNodes, zoneCenter, type SlotDef } from '../content/world';
+import { CELL_ROOMS, ZONE_BY_ID, doorNodes, zoneCenter, zoneRoute, type SlotDef } from '../content/world';
 import type { PhysicsPort } from '../physics/physics';
 
 const v = (x: number, z: number): Vec3 => ({ x, y: 0, z });
@@ -71,20 +71,25 @@ export function pathToPoint(phys: PhysicsPort, from: Vec3, fromZone: ZoneId, toZ
   if (inCell && (!targetCell || targetCell.id !== inCell.id)) for (const p of cellExit(inCell)) push(p, 'L02');
 
   if (fromZone !== toZone) {
-    if (fromZone !== 'L03') {
-      const dn = doorNodes(fromZone);
-      if (dn) {
-        for (const p of roomRoute(phys, fromZone, cur, dn.inside)) push(p, fromZone);
-        push(dn.outside, 'L03');
+    // Đi theo chuỗi khu: khu phụ (vd. vườn) → sân → hành lang → khu đích (và ngược lại).
+    const route = zoneRoute(fromZone, toZone);
+    for (let i = 0; i < route.length - 1; i++) {
+      const a = route[i], b = route[i + 1];
+      const up = ZONE_BY_ID[a].via === b || (b === 'L03' && !ZONE_BY_ID[a].via);
+      if (up) {
+        const dn = doorNodes(a);
+        if (!dn) continue;
+        for (const p of roomRoute(phys, a, cur, dn.inside)) push(p, a);
+        push(dn.outside, b);
+      } else {
+        const dn = doorNodes(b);
+        if (!dn) continue;
+        if (a === 'L03') push(dn.outside, 'L03');
+        else for (const p of roomRoute(phys, a, cur, dn.outside)) push(p, a);
+        push(dn.inside, b);
       }
     }
-    if (toZone !== 'L03') {
-      const dn = doorNodes(toZone)!;
-      push(dn.outside, 'L03');
-      push(dn.inside, toZone);
-    } else {
-      push(v(target.x, Math.max(-1, Math.min(1, target.z))), 'L03');
-    }
+    if (toZone === 'L03') push(v(target.x, Math.max(-1, Math.min(1, target.z))), 'L03');
   }
   if (targetCell && (!inCell || inCell.id !== targetCell.id)) {
     const ex = cellExit(targetCell).reverse();

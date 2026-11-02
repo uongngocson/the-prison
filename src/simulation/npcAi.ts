@@ -18,6 +18,11 @@ export class NpcAi {
   /** CR-VN-01: khu ở cũ (L02) được ánh xạ sang khu của buồng NPC trong bối cảnh VN. */
   private effectiveBlock(s: GameState, def: NpcDef): NpcBlock {
     const b = this.baseBlock(s, def);
+    // CR-LAB-01: một phần tổ xưởng làm vườn/cảnh quan (tổ đội thấy được trong cảnh, công của NPC không ghi cho người chơi)
+    if (b.slot === 'work' && b.zone === 'L10' && def.role === 'resident' && s.world.weather !== 'rain') {
+      const k = hash32(def.id) % 3;
+      if (k > 0) return { ...b, zone: k === 1 ? 'L23' : 'L25' };
+    }
     if (!s.custody || b.zone !== 'L02') return b;
     const room = custodyRoomOfBed(s.custody.npcBeds[def.id] ?? null);
     return room ? { ...b, zone: room.zone } : b;

@@ -34,6 +34,7 @@ export function validateSave(raw: unknown): string | null {
     if (s.experienceMode === 'fictional_life' && s.custody) return 'Save hư cấu không được chứa dữ liệu giam giữ.';
     if (s.experienceMode === 'vn_custody') { const e = validateCustody(s as GameState); if (e) return e; }
   }
+  if (s.labour !== undefined) { const e = validateLabour(s as GameState); if (e) return e; }
   if ((s.schemaVersion ?? 0) >= 2) {
     const l = s.life;
     if (!l || !l.episode || !l.account) return 'Thiếu lifeState (schema 2).';
@@ -43,6 +44,23 @@ export function validateSave(raw: unknown): string | null {
 }
 
 /** Toàn graph custody (16 §8.3): refs, cohort, một housing active, khoảng lệnh, quyền theo phạm vi. */
+/** CR-LAB-01 module v1: bảo toàn dụng cụ/kho, không âm, không trùng ID. */
+function validateLabour(s: GameState): string | null {
+  const l = s.labour!;
+  if (!l || l.version !== 1) return 'Dữ liệu lao động không đúng phiên bản.';
+  for (const k of ['assignments', 'tools', 'plots', 'patches', 'orders', 'batches', 'receipts', 'sourceKeys'] as const) if (!Array.isArray(l[k])) return 'Dữ liệu lao động thiếu trường.';
+  for (const n of [l.nurseryTrays, l.seedPacks, l.feedStock]) if (!Number.isInteger(n) || n < 0) return 'Số lượng kho lao động không hợp lệ.';
+  const ids = new Set<string>();
+  for (const t of l.tools) {
+    if (ids.has(t.id)) return 'Trùng mã dụng cụ.';
+    ids.add(t.id);
+    if (!['available', 'issued', 'returned', 'review'].includes(t.status)) return 'Trạng thái dụng cụ không hợp lệ.';
+    if (t.status === 'issued' && !l.assignments.some((a) => a.id === t.assignmentId)) return 'Dụng cụ đang cấp nhưng không thuộc ca nào.';
+  }
+  if (l.assignments.filter((a) => a.state === 'active').length > 1) return 'Có hơn một ca đang hoạt động.';
+  for (const b of l.batches) if (!Number.isInteger(b.qty) || b.qty < 0) return 'Số lượng lô không hợp lệ.';
+  return null;
+}
 function validateCustody(s: GameState): string | null {
   const c = s.custody;
   if (!c || c.mode !== 'vn_custody') return 'Thiếu dữ liệu chế độ giam giữ.';

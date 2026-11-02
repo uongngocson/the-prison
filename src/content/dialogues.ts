@@ -243,7 +243,14 @@ staffGraph('laundry', 'Đổi đồ giặt hả? Mang đồ cần giặt tới q
   { id: 'job', text: 'Cô có cần giúp gì không?', cond: [{ q: 'S03', is: ['locked', 'offered'] }], effects: [{ start: 'S03' }, { obj: ['S03', 'o1'] }], next: 'job' },
   { id: 'free', text: 'Tôi cần khăn, xà phòng (cấp phát thiết yếu).', effects: [{ act: 'freeEssentials' }] },
 ], [], [{ id: 'job', text: 'Tư phòng 3 nhờ đổi bộ đồ mà chưa ghé được. Cháu đổi đồ ở quầy rồi mang giúp cậu ấy nhé.', effects: [{ give: ['uniform_worn', 1] }], choices: [BYE] }]);
+staffGraph('production_lead', 'Kho và tổ sản xuất đây. Cần nhận việc, nhận dụng cụ hay bàn giao?', [
+  { id: 'work', text: 'Xem bảng công việc.', effects: [{ open: 'work' }] },
+  { id: 'tools', text: 'Nhận / trả dụng cụ.', effects: [{ open: 'work_tools' }] },
+  { id: 'hand', text: 'Bàn giao và kết ca.', effects: [{ open: 'work_handover' }] },
+  { id: 'safety', text: 'Nếu tôi mệt giữa ca thì sao?', next: 'rest' },
+], [], [{ id: 'rest', text: 'Báo tôi, chuyển sang việc ngồi ở bàn phân loại. Không ai bị trừ suất ăn hay quyền lợi vì nghỉ.', choices: [BYE] }]);
 staffGraph('workshop_supervisor', 'Xưởng làm việc theo ca. Bạn muốn nhận phân công không?', [
+  { id: 'work', text: 'Mở bảng công việc (mộc, vườn, ao…).', effects: [{ open: 'work' }] },
   { id: 'programs', text: 'Xem điều khoản ca làm.', effects: [{ open: 'programs' }] },
   { id: 'gloves', text: 'Cho tôi xin găng tay lao động.', cond: [{ noItem: 'work_gloves' }], effects: [{ act: 'issueGloves' }] },
   { id: 'safety', text: 'Nếu tôi thấy việc nào không an toàn thì sao?', next: 'safety' },

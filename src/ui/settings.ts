@@ -3,18 +3,18 @@ import { create } from 'zustand';
 
 export type ActionName =
   | 'moveForward' | 'moveBack' | 'moveLeft' | 'moveRight' | 'run' | 'crouch' | 'interact' | 'cancel' | 'skip'
-  | 'inventory' | 'journal' | 'map' | 'schedule' | 'profile' | 'life' | 'handbook' | 'pause' | 'shoulder' | 'custody';
+  | 'inventory' | 'journal' | 'map' | 'schedule' | 'profile' | 'life' | 'handbook' | 'pause' | 'shoulder' | 'custody' | 'work';
 
 export const ACTION_LABEL: Record<ActionName, string> = {
   moveForward: 'Đi tới', moveBack: 'Đi lùi', moveLeft: 'Sang trái', moveRight: 'Sang phải', run: 'Chạy', crouch: 'Cúi người',
   interact: 'Tương tác', cancel: 'Hủy hành động', skip: 'Tua nhanh hành động', inventory: 'Túi đồ', journal: 'Nhật ký nhiệm vụ',
-  map: 'Bản đồ', schedule: 'Lịch sinh hoạt', profile: 'Hồ sơ nhân vật', life: 'Đời sống', handbook: 'Sổ tay', pause: 'Tạm dừng / Menu', shoulder: 'Đổi vai camera', custody: 'Chế độ thụ án',
+  map: 'Bản đồ', schedule: 'Lịch sinh hoạt', profile: 'Hồ sơ nhân vật', life: 'Đời sống', handbook: 'Sổ tay', pause: 'Tạm dừng / Menu', shoulder: 'Đổi vai camera', custody: 'Chế độ thụ án', work: 'Công việc & phân công',
 };
 
 export const DEFAULT_BINDINGS: Record<ActionName, string> = {
   moveForward: 'KeyW', moveBack: 'KeyS', moveLeft: 'KeyA', moveRight: 'KeyD', run: 'ShiftLeft', crouch: 'KeyC', interact: 'KeyE',
   cancel: 'KeyQ', skip: 'KeyF', inventory: 'KeyI', journal: 'KeyJ', map: 'KeyM', schedule: 'KeyK', profile: 'KeyP', life: 'KeyL',
-  handbook: 'KeyH', pause: 'Escape', shoulder: 'KeyV', custody: 'KeyG',
+  handbook: 'KeyH', pause: 'Escape', shoulder: 'KeyV', custody: 'KeyG', work: 'KeyN',
 };
 
 export interface Settings {

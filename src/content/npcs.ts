@@ -7,7 +7,7 @@ export type ResidentGroup = 'readers' | 'sports' | 'kitchen' | 'workshop' | 'qui
 export type StaffRole =
   | 'intake' | 'residential' | 'kitchen_supervisor' | 'server' | 'librarian' | 'teacher' | 'care' | 'laundry'
   | 'workshop_supervisor' | 'coach' | 'case_advisor' | 'reintegration' | 'contact_clerk' | 'service_clerk'
-  | 'visits' | 'maintenance' | 'facilitator' | 'property_clerk';
+  | 'visits' | 'maintenance' | 'facilitator' | 'property_clerk' | 'production_lead';
 
 export interface NpcDef {
   id: string;
@@ -57,6 +57,7 @@ const staff: [string, string, StaffRole, string, 'day' | 'late' | 'night', strin
   ['nam', 'Chú Năm', 'maintenance', 'L03', 'day', 'Thợ bảo trì', 'Sửa vòi nước, bóng đèn, cửa kẹt.'],
   ['linh', 'Cô Linh', 'facilitator', 'L17_staff_0', 'day', 'Điều phối sinh hoạt văn hóa', 'Tổ chức giờ yên tĩnh, nhóm trò chuyện, sinh hoạt văn hóa tự chọn.'],
   ['hoa_s', 'Anh Hòa Bình', 'property_clerk', 'L18_staff_1', 'day', 'Phụ trách tài sản', 'Lưu giữ và hoàn trả tài sản ký gửi.'],
+  ['khai', 'Anh Khải', 'production_lead', 'L27_staff_0', 'day', 'Tổ trưởng sản xuất & kho', 'Phân công tổ vườn, ao, cảnh quan; cấp phát dụng cụ và kiểm nhận lô.'],
 ];
 
 // Residents — 40 người. Một số có vai trò cốt truyện.
