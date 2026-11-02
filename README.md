@@ -8,6 +8,8 @@ Trạng thái chi tiết của từng tính năng (F01–F60), màn hình (U01�
 
 ## Chạy game
 
+Hồ sơ thiết kế mới, **chưa triển khai**: [khu lao động và học nghề — bản Word](docs/deliverables/Labour-Rehabilitation-BA-1.3.docx), [nghiệp vụ](docs/blueprint/18-labour-rehabilitation-spec.md) và [UI/đồ họa minh họa](docs/blueprint/19-labour-ui-art-direction.md). Gồm trồng rau, nuôi cá, làm vườn, mộc và các việc phục vụ sinh hoạt chung; ảnh concept không phải screenshot game hiện tại.
+
 Yêu cầu: Node.js 20 trở lên, trình duyệt desktop có WebGL2.
 
 ```bash

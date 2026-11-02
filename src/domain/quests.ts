@@ -13,6 +13,8 @@ export function qp(s: GameState, id: string): QuestProgress {
 export function evalPred(s: GameState, p: PredName): boolean {
   switch (p) {
     case 'releaseEligible': return releaseEligible(s);
+    case 'storyMilestone': return s.experienceMode === 'vn_custody' ? dayOf(s.minute) >= 7 && s.quests.Q06?.state === 'active' : releaseEligible(s);
+    case 'chapterClosed': return !!s.flags.departed || !!s.flags.chapter_closed;
     case 'hasLetterReply': return s.life.correspondence.some((c) => c.direction === 'incoming' && c.channel === 'letter' && c.read);
     case 'enrolledAny': return s.life.programs.some((e) => ['enrolled', 'in_progress', 'completed'].includes(e.state));
     case 'attendedAnySession': return !!s.flags.attended_session;

@@ -1,12 +1,17 @@
 // F01/F02: character creation + journey initialization in one transaction (một lineage, idempotent theo draft key).
-import { CONTENT_VERSION, SCHEMA_VERSION, type Appearance, type GameState, type NpcRuntime } from './types';
+import { CONTENT_VERSION, SCHEMA_VERSION, type Appearance, type ExperienceMode, type GameState, type NpcRuntime, type StartSegment } from './types';
+import { createCustodyState } from './custody';
 import { NPCS } from '../content/npcs';
 import { ZONE_BY_ID } from '../content/world';
 import { PERSONAL_ITEMS_ON_ARRIVAL } from '../content/items';
 import { createLifeState } from './life';
 import { absMinuteAt, hash32 } from './util';
 
-export interface CharacterDraft { name: string; appearance: Appearance; familyContext: 'family' | 'estranged' | 'none'; seed?: number }
+export interface CharacterDraft {
+  name: string; appearance: Appearance; familyContext: 'family' | 'estranged' | 'none'; seed?: number;
+  /** CR-VN-01: mode + lựa chọn mức án (U36). Không có → hành trình hư cấu cũ. */
+  experienceMode?: ExperienceMode; presetId?: string; segment?: StartSegment;
+}
 
 export function normalizeName(raw: string): string {
   return raw.normalize('NFC').replace(/\s+/g, ' ').trim();
@@ -28,8 +33,12 @@ export function createNewGame(draft: CharacterDraft, lineageId: string): GameSta
   const bag: GameState['inventory']['bag'] = new Array(12).fill(null);
   PERSONAL_ITEMS_ON_ARRIVAL.forEach((p, i) => { bag[i] = { uid: `arr_${p.itemId}`, itemId: p.itemId, qty: 1, provenance: 'arrival' }; });
   const intake = ZONE_BY_ID.L01;
+  const mode: ExperienceMode = draft.experienceMode ?? 'fictional_life';
+  const custody = mode === 'vn_custody' ? createCustodyState(lineageId, { presetId: draft.presetId ?? '', segment: draft.segment ?? 'intake' }, start) : null;
   const s: GameState = {
     schemaVersion: SCHEMA_VERSION,
+    experienceMode: mode,
+    custody,
     contentVersion: CONTENT_VERSION,
     lineageId,
     generation: 0,

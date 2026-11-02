@@ -1,9 +1,13 @@
 # MASTER DEVELOPMENT BLUEPRINT
 
 **REALISTIC 3D PRISON LIFE SIMULATOR — WEB EDITION**  
-Bản thiết kế 1.2 — 02/11/2026, Asia/Saigon. Baseline 1.0/1.1 được giữ để truy vết; code hiện tại và tính năng còn thiếu xem [trạng thái triển khai](../IMPLEMENTATION_STATUS.md). Phần mở rộng 1.2 dưới đây **chưa được code**.
+Bản thiết kế 1.3 — 02/11/2026, Asia/Saigon. Các baseline trước được giữ để truy vết; code hiện tại và tính năng còn thiếu xem [trạng thái triển khai](../IMPLEMENTATION_STATUS.md). Custody 1.2 đã có triển khai một phần theo báo cáo hiện tại; mở rộng lao động 1.3 dưới đây **mới là tài liệu**.
 
 ## Cách đọc và trạng thái bàn giao
+
+**CR-LAB-01 — lao động, học nghề và phục vụ sinh hoạt chung:** [18 — nghiệp vụ và tích hợp](18-labour-rehabilitation-spec.md) + [19 — UI/đồ họa và sáu mockup](19-labour-ui-art-direction.md). Bản bàn giao Word: [Labour-Rehabilitation-BA-1.3.docx](../deliverables/Labour-Rehabilitation-BA-1.3.docx). Phạm vi: 20 nhóm việc, bốn nghề chính rau/cá/vườn/mộc, F73–84, U39–44, L23–28, DB51–58, API18–20, QA33–38 và 20 scenario nghiệm thu. Cộng dồn ID thiết kế: 84 features / 44 screens / 28 logical spaces / 58 logical data IDs / 20 API contracts; không phải số đã code. Mọi số liệu gameplay và mockup là thiết kế, chưa có realism sign-off.
+
+[PDF xem trước, 27 trang](../deliverables/Labour-Rehabilitation-BA-1.3.pdf) và [báo cáo kiểm tra bản bàn giao](../deliverables/README.md).
 
 **Yêu cầu mới CR-VN-01 — chọn mức án và giam giữ có quản lý:** đọc [13 — audit dự án và nguồn Việt Nam](13-vietnam-custody-audit.md) → [14 — nghiệp vụ F61–72](14-sentence-custody-spec.md) → [15 — mapping toàn bộ UI và không gian](15-custody-ui-mapping.md) → [16 — data/runtime/save contracts](16-custody-contracts.md) → [17 — backlog, QA và nghiệm thu](17-custody-delivery-qa.md). Target thiết kế cộng dồn: 72 features, 38 screens, 22 logical spaces, 50 logical data IDs và 17 API contracts. Đây là số ID đặc tả, không phải số chức năng đã triển khai hoặc chứng nhận “100% thực tế”.
 
@@ -32,6 +36,8 @@ Bộ hồ sơ này là đề xuất thiết kế có thể chuyển thành backl
 | [15 — Custody UI mapping](15-custody-ui-mapping.md) | Delta U01–35, contracts U36–38, context matrix, L19–22 | UI/UX, level, QA |
 | [16 — Custody contracts](16-custody-contracts.md) | DB45–50, API14–17, quyền theo actor, clock, saga, save v3 mục tiêu | Domain, physics/AI, persistence |
 | [17 — Custody delivery & QA](17-custody-delivery-qa.md) | Change impact, T11-01–10, QA25–32, 24 scenarios, Gate VN | Producer, QA, reviewers |
+| [18 — Labour rehabilitation](18-labour-rehabilitation-spec.md) | Catalog W01–20, F73–84, nghiệp vụ/stock/tools/custody/save, backlog và QA | BA, gameplay, domain, QA |
+| [19 — Labour UI & art](19-labour-ui-art-direction.md) | U39–44, sáu mockup, L23–28, art/animation/LOD và UI states | UI/UX, art, level, QA |
 
 ## Executive Summary
 

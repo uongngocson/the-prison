@@ -1,6 +1,7 @@
 // World content: 18 khu L01–L18 (blockout hư cấu, 1 unit = 1 m). Không mô phỏng bản vẽ cơ sở thật.
 // Dữ liệu này là nguồn chung cho PhysicsPort (colliders), NavGraph (NPC), presentation và map U13.
 import type { Vec3, ZoneId } from '../domain/types';
+import { LONG_SLOGANS, SHORT_SLOGANS } from './slogans';
 
 export interface ZoneDef {
   id: ZoneId;
@@ -33,13 +34,23 @@ export interface PropDef {
   meta?: Record<string, string | number>;
 }
 
-export type SlotKind = 'sleep' | 'eat' | 'sit' | 'read' | 'class' | 'exercise' | 'work' | 'wash' | 'staff' | 'walk' | 'visit' | 'quiet' | 'queue' | 'stand' | 'care';
+export type SlotKind = 'sleep' | 'eat' | 'sit' | 'read' | 'class' | 'exercise' | 'work' | 'wash' | 'staff' | 'walk' | 'visit' | 'quiet' | 'queue' | 'stand' | 'care' | 'toilet';
 export interface SlotDef { id: string; zone: ZoneId; kind: SlotKind; pos: Vec3; yaw: number; pose: 'sit' | 'stand' | 'lie' | 'exercise' | 'work' | 'read'; propId?: string; owner?: string }
 
 export interface WallSeg { x0: number; z0: number; x1: number; z1: number; h: number; zone: ZoneId; color: string; doorId?: string; style?: 'bars' }
 /** Cửa trượt song sắt của phòng giam (trang trí, mặc định mở). */
-export interface CellDoorDef { roomId: string; number: string; x: number; z: number; alongX: boolean; width: number; slideDir: 1 | -1; inward: 1 | -1 }
+export interface CellDoorDef { roomId: string; number: string; x: number; z: number; alongX: boolean; width: number; slideDir: 1 | -1; inward: 1 | -1; dynamic?: boolean }
+/** L19–L22 (CR-VN-01): buồng có ranh giới riêng cho mode vn_custody. Bố cục hư cấu, không sao chép cơ sở thật. */
+export type CustodyCohort = 'A' | 'B' | 'separate' | 'discipline';
+export interface CustodyRoomDef {
+  id: string; label: string; zone: ZoneId; cohort: CustodyCohort; capacity: number; beds: string[]; locker: string | null;
+  rect: { x0: number; x1: number; z0: number; z1: number }; door: { x: number; z: number }; inward: 1 | -1; anchor: { x: number; z: number };
+}
+export const CUSTODY_ROOMS: CustodyRoomDef[] = [];
 export const CELL_DOORS: CellDoorDef[] = [];
+/** Băng rôn khẩu hiệu treo tường (trang trí, không va chạm). yaw = hướng mặt chữ nhìn ra. */
+export interface WallBanner { id: string; zone: ZoneId; x: number; y: number; z: number; yaw: number; w: number; h: number; text: string; size: 'short' | 'long' }
+export const WALL_BANNERS: WallBanner[] = [];
 
 const CORR = 2; // corridor half-width
 
@@ -94,9 +105,21 @@ function layoutSide(list: typeof north, side: 'north' | 'south') {
     x += w;
   }
 }
+// Khu giam giữ (L19–L22) đặt trước để là phòng đầu dãy (tường tây) — phía tây hành lang chính.
+const custodyWing: [ZoneId, string, 'north' | 'south', number, number, number, string, string][] = [
+  ['L21', 'Buồng bố trí riêng', 'north', -101, 12, 10, '#7f8786', 'Bố trí riêng theo lý do được ghi nhận (không phải kỷ luật)'],
+  ['L19', 'Khu giam giữ A', 'north', -89, 20, 14, '#8a8d80', 'Buồng ở nhóm A, giờ ra/về buồng theo lịch'],
+  ['L22', 'Buồng kỷ luật', 'south', -101, 12, 10, '#7a7b7e', 'Chấp hành quyết định kỷ luật có thời hạn, dịch vụ tại buồng'],
+  ['L20', 'Khu giam giữ B', 'south', -89, 20, 14, '#858278', 'Buồng ở nhóm B, giờ ra/về buồng theo lịch'],
+];
+for (const [id, name, side, x, w, d, wall, purpose] of custodyWing) {
+  const z0 = side === 'north' ? CORR : -CORR - d;
+  const z1 = side === 'north' ? CORR + d : -CORR;
+  ZONES.push({ id, name, side, x0: x, x1: x + w, z0, z1, height: 3.2, floor: '#56595a', wall, accent: '#c9b25a', door: { x: x + w / 2, z: side === 'north' ? CORR : -CORR, axis: 'x', width: 1.8 }, tier: 'life', purpose });
+}
 layoutSide(north, 'north');
 layoutSide(south, 'south');
-ZONES.push({ id: 'L03', name: 'Hành lang chính', side: 'corridor', x0: -69, x1: 69, z0: -CORR, z1: CORR, height: 3.6, floor: '#4f5452', wall: '#6d7774', accent: '#e8b77a', door: null, tier: 'slice', purpose: 'Kết nối các khu, bảng lịch, biển chỉ dẫn' });
+ZONES.push({ id: 'L03', name: 'Hành lang chính', side: 'corridor', x0: -101, x1: 69, z0: -CORR, z1: CORR, height: 3.6, floor: '#4f5452', wall: '#6d7774', accent: '#e8b77a', door: null, tier: 'slice', purpose: 'Kết nối các khu, bảng lịch, biển chỉ dẫn' });
 ZONES.push({ id: 'L04', name: 'Sân sinh hoạt', side: 'yard', x0: 69, x1: 109, z0: -16, z1: 12, height: 5, floor: '#5b5b55', wall: '#7b7468', accent: '#8fd1aa', outdoor: true, door: { x: 69, z: 0, axis: 'z', width: 1.8 }, tier: 'slice', purpose: 'Đi bộ, tập luyện, kết bạn, quan sát ngày đêm', hours: HOURS.L04 });
 
 export const ZONE_BY_ID: Record<ZoneId, ZoneDef> = Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<ZoneId, ZoneDef>;
@@ -116,6 +139,30 @@ function L(zone: ZoneDef, u: number, v: number): { x: number; z: number } {
 }
 function Y(zone: ZoneDef, yawLocal: number): number {
   return zone.side === 'south' ? Math.PI - yawLocal : yawLocal;
+}
+/** Bồn cầu đặt sát tường bên (u0), quay vào trong buồng; vách che thấp ở phía song sắt. barsV = v của song sắt. */
+function cellToilet(zoneId: ZoneId, roomId: string, u: number, v: number, barsV: number, label: string) {
+  const zone = ZONE_BY_ID[zoneId];
+  const pos = L(zone, u, v);
+  const bars = L(zone, u, barsV);
+  const panel = bars.z < pos.z ? 1 : -1; // local +x (yaw π/2) = world −z
+  const t = prop(zoneId, 'toilet', u, v, Math.PI / 2, { id: `${roomId}_toilet`, label, w: 0.62, d: 0.8, collider: false, meta: { cell: 1, panel } });
+  toiletSlot(t);
+  return t;
+}
+/** Chỗ ngồi trên bồn: lùi 0.12 m về phía két nước, quay mặt ra ngoài. */
+function toiletSlot(t: PropDef) {
+  const fx = Math.sin(t.yaw), fz = Math.cos(t.yaw);
+  SLOTS.push({ id: `${t.id}_seat`, zone: t.zone, kind: 'toilet', pos: { x: t.x - fx * 0.12, y: 0, z: t.z - fz * 0.12 }, yaw: t.yaw, pose: 'sit', propId: t.id });
+}
+const sloganIdx = { short: 0, long: 0 };
+/** Băng rôn trên tường theo tọa độ local (v = khoảng cách từ tường hành lang). Lùi 0.12 khỏi tim tường (tường dày 0.2). */
+function bannerL(zoneId: ZoneId, u: number, v: number, yawLocal: number, w: number, size: 'short' | 'long', y?: number) {
+  const zone = ZONE_BY_ID[zoneId];
+  const p = L(zone, u, v);
+  const list = size === 'short' ? SHORT_SLOGANS : LONG_SLOGANS;
+  const text = list[sloganIdx[size]++ % list.length];
+  WALL_BANNERS.push({ id: `banner_${WALL_BANNERS.length}`, zone: zoneId, x: p.x, z: p.z, yaw: Y(zone, yawLocal), w, h: size === 'short' ? 0.42 : 0.62, y: y ?? (size === 'short' ? 2.45 : zone.height - 0.72), text, size });
 }
 
 export const PROPS: PropDef[] = [];
@@ -212,7 +259,7 @@ function lineToWorld(zone: ZoneDef, u0: number, v0: number, u1: number, v1: numb
 ZONES.filter((z) => z.side === 'north').forEach((z, i) => roomShell(z, i === 0));
 ZONES.filter((z) => z.side === 'south').forEach((z, i) => roomShell(z, i === 0));
 // Corridor west end, yard
-WALLS.push({ x0: -69, z0: -CORR, x1: -69, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
+WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
 WALLS.push({ x0: 69, z0: -CORR, x1: 69, z1: -0.9, h: 3.6, zone: 'L03', color: '#6d7774' });
 WALLS.push({ x0: 69, z0: 0.9, x1: 69, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
 WALLS.push({ x0: 69, z0: -0.9, x1: 69, z1: 0.9, h: 3.6, zone: 'L04', color: '#7b7468', doorId: 'door_L04' });
@@ -260,6 +307,8 @@ export const CELL_ROOMS: { id: string; label: string; beds: string[]; locker: st
     slot('L02', 'sleep', u0 + 0.6, 11.3, 0, 'lie', b1.id, `${b1.id}`);
     slot('L02', 'sleep', u0 + cw - 0.6, 11.3, 0, 'lie', b2.id, `${b2.id}`);
     CELL_ROOMS.push({ id: roomId, label: `Phòng ${c + 1}`, beds: [b1.id, b2.id], locker: lk.id, door: L(z, cu, 8), inward: 1 });
+    bannerL('L02', cu, 14 - 0.12, Math.PI, Math.min(cw - 0.8, 2.8), 'short');
+    cellToilet('L02', roomId, u0 + 0.62, 9.2, 8, `Bồn cầu phòng ${c + 1}`);
   }
   wallWithGaps('L02', 0, 8, 26, doors, 1.2, undefined, 'bars');
   doors.forEach((cu, i) => { const p = L(z, cu, 8); CELL_DOORS.push({ roomId: `cell_${i + 1}`, number: `10${i + 1}`, x: p.x, z: p.z, alongX: true, width: 1.2, slideDir: 1, inward: 1 }); });
@@ -275,6 +324,8 @@ export const CELL_ROOMS: { id: string; label: string; beds: string[]; locker: st
     slot('L02', 'sleep', u0 + 0.6, 2.5, 0, 'lie', b1.id, b1.id);
     slot('L02', 'sleep', u0 + 5.4, 2.5, 0, 'lie', b2.id, b2.id);
     CELL_ROOMS.push({ id: roomId, label: `Phòng ${idx}`, beds: [b1.id, b2.id], locker: lk.id, door: L(z, u0 + 3, 5), inward: -1 });
+    bannerL('L02', u0 + 3, 0.12, 0, 2.8, 'short');
+    cellToilet('L02', roomId, idx === 7 ? u0 + 0.62 : u0 + 0.62, 4.0, 5, `Bồn cầu phòng ${idx}`);
   }
   // common area
   for (const tu of [10.5, 15.5]) {
@@ -380,7 +431,7 @@ for (let i = 0; i < 3; i++) {
   wallL('L13', 4.6 + i * 1.8, 8.4, 4.6 + i * 1.8, 10, 2.1);
 }
 wallL('L13', 4.6 + 3 * 1.8, 8.4, 4.6 + 3 * 1.8, 10, 2.1);
-for (let i = 0; i < 2; i++) { prop('L13', 'toilet', 12.6 + i * 1.6, 9.2, Math.PI, { id: `toilet_${i}`, label: `Buồng vệ sinh ${i + 1}` }); wallL('L13', 11.8 + i * 1.6, 8.4, 11.8 + i * 1.6, 10, 2.1); }
+for (let i = 0; i < 2; i++) { const t = prop('L13', 'toilet', 12.6 + i * 1.6, 9.2, Math.PI, { id: `toilet_${i}`, label: `Buồng vệ sinh ${i + 1}` }); toiletSlot(t); wallL('L13', 11.8 + i * 1.6, 8.4, 11.8 + i * 1.6, 10, 2.1); }
 wallL('L13', 15.0, 8.4, 15.0, 10, 2.1);
 prop('L13', 'laundry', 13, 4, 0, { id: 'laundry_counter' });
 slot('L13', 'staff', 13, 5.2, Math.PI, 'stand', 'laundry_counter', 'L13_staff_0');
@@ -450,6 +501,64 @@ for (let x = -64; x <= 64; x += 16) absSlot('L03', 'stand', x, -1.2, 0, 'stand')
   for (let i = 0; i < 6; i++) absSlot('L04', 'stand', 84 + (i % 3) * 3, 1 + Math.floor(i / 3) * 3, Math.PI * (i % 2), 'stand');
 }
 
+// ---------- L19–L22 custody rooms (CR-VN-01) ----------
+function custodyRoom(id: string, label: string, zoneId: ZoneId, cohort: CustodyCohort, u0: number, w: number, vFront: number, vBack: number, beds: number, num: string) {
+  const zone = ZONE_BY_ID[zoneId];
+  const a = L(zone, u0, vFront);
+  const b = L(zone, u0 + w, vBack);
+  const cu = u0 + w / 2;
+  const inward: 1 | -1 = zone.side === 'north' ? 1 : -1;
+  const bedIds: string[] = [];
+  const bedU = beds === 1 ? [u0 + 0.6] : [u0 + 0.6, u0 + w - 0.6];
+  bedU.forEach((bu, i) => {
+    const bed = prop(zoneId, 'bed', bu, vBack - 2.2, 0, { id: `${id}_bed_${'ab'[i]}`, label: `Giường ${num}${'AB'[i]}` });
+    slot(zoneId, 'sleep', bu, vBack - 2.2, 0, 'lie', bed.id, bed.id);
+    bedIds.push(bed.id);
+  });
+  const locker = cohort === 'discipline' ? null : prop(zoneId, 'locker', cu, vBack - 0.4, Math.PI, { id: `${id}_locker`, label: `Tủ cá nhân buồng ${num}` }).id;
+  prop(zoneId, 'sink', u0 + w - 0.45, vFront + 1.4, -Math.PI / 2, { id: `${id}_sink`, label: `Bồn rửa buồng ${num}` });
+  prop(zoneId, 'water', u0 + 0.35, vFront + 1.0, Math.PI / 2, { id: `${id}_water`, label: `Vòi nước buồng ${num}` });
+  const door = L(zone, cu, vFront);
+  const anchor = L(zone, cu, vFront + 1.6);
+  CUSTODY_ROOMS.push({ id, label, zone: zoneId, cohort, capacity: beds, beds: bedIds, locker, rect: { x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z) }, door, inward, anchor });
+  CELL_DOORS.push({ roomId: id, number: num, x: door.x, z: door.z, alongX: true, width: 1.2, slideDir: 1, inward, dynamic: true });
+  bannerL(zoneId, cu, vBack - 0.12, Math.PI, Math.min(w - 0.8, 3), 'short');
+  cellToilet(zoneId, id, u0 + 0.62, vFront + 2.2, vFront, `Bồn cầu buồng ${num}`);
+}
+for (const [zoneId, cohort, prefix] of [['L19', 'A', 'A'], ['L20', 'B', 'B']] as [ZoneId, CustodyCohort, string][]) {
+  const fronts: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const u0 = i * 5;
+    fronts.push(u0 + 2.5);
+    if (i > 0) wallL(zoneId, u0, 8, u0, 14);
+    custodyRoom(`vn${prefix}_${i + 1}`, `Buồng ${prefix}-0${i + 1}`, zoneId, cohort, u0, 5, 8, 14, 2, `${prefix}-0${i + 1}`);
+  }
+  wallWithGaps(zoneId, 0, 8, 20, fronts, 1.2, undefined, 'bars');
+  const t = prop(zoneId, 'table', 10, 4.6, 0, { w: 2.4, d: 0.9, label: 'Bàn sinh hoạt khu' });
+  for (let k = 0; k < 3; k++) { slot(zoneId, 'sit', 9.2 + k * 0.8, 3.85, 0, 'sit', t.id); slot(zoneId, 'sit', 9.2 + k * 0.8, 5.35, Math.PI, 'sit', t.id); }
+  prop(zoneId, 'board', 3, 0.1, 0, { id: `board_schedule_${zoneId}`, label: `Lịch sinh hoạt khu ${prefix}` });
+  prop(zoneId, 'muster', 15.5, 2.5, 0, { id: `muster_${zoneId}`, label: 'Điểm tập trung điểm danh' });
+  prop(zoneId, 'water', 19.6, 1.5, -Math.PI / 2, { id: `water_${zoneId}` });
+  for (let k = 0; k < 4; k++) slot(zoneId, 'stand', 13 + k, 2.4, 0, 'stand');
+}
+for (const [zoneId, cohort, prefix, label] of [['L21', 'separate', 'R', 'Buồng riêng'], ['L22', 'discipline', 'K', 'Buồng kỷ luật']] as [ZoneId, CustodyCohort, string, string][]) {
+  wallL(zoneId, 6, 4, 6, 10);
+  wallWithGaps(zoneId, 0, 4, 12, [3, 9], 1.2, undefined, 'bars');
+  for (let i = 0; i < 2; i++) custodyRoom(`vn${prefix}_${i + 1}`, `${label} ${prefix}-0${i + 1}`, zoneId, cohort, i * 6, 6, 4, 10, 1, `${prefix}-0${i + 1}`);
+  prop(zoneId, 'chair', 10.5, 1.6, 0, { label: 'Ghế trực' });
+  slot(zoneId, 'staff', 10.5, 1.6, 0, 'sit', undefined, `${zoneId}_staff_0`);
+  prop(zoneId, 'board', 2, 0.1, 0, { id: `board_rules_${zoneId}`, label: zoneId === 'L22' ? 'Quyền và dịch vụ tại buồng kỷ luật' : 'Dịch vụ tại buồng riêng' });
+}
+export const CUSTODY_ROOM_BY_ID: Record<string, CustodyRoomDef> = Object.fromEntries(CUSTODY_ROOMS.map((r) => [r.id, r]));
+export function custodyRoomAt(x: number, z: number): CustodyRoomDef | null {
+  for (const r of CUSTODY_ROOMS) if (x >= r.rect.x0 - 0.05 && x <= r.rect.x1 + 0.05 && z >= r.rect.z0 - 0.05 && z <= r.rect.z1 + 0.05) return r;
+  return null;
+}
+export function custodyRoomOfBed(bedId: string | null): CustodyRoomDef | null {
+  if (!bedId) return null;
+  return CUSTODY_ROOMS.find((r) => r.beds.includes(bedId)) ?? null;
+}
+
 // ---------- Derived nav graph ----------
 /** Point inside the room just past the door; and corridor point outside the door. */
 export function doorNodes(zoneId: ZoneId): { inside: Vec3; outside: Vec3 } | null {
@@ -481,3 +590,22 @@ export const SLOT_BY_ID: Record<string, SlotDef> = Object.fromEntries(SLOTS.map(
 export const PROP_BY_ID: Record<string, PropDef> = Object.fromEntries(PROPS.map((p) => [p.id, p]));
 export const SPAWN: Vec3 = { x: -26, y: 0, z: 5 };
 export const SAFE_ANCHORS: Partial<Record<ZoneId, Vec3>> = Object.fromEntries(ZONES.map((z) => [z.id, zoneCenter(z.id)]));
+
+// ---------- Băng rôn khẩu hiệu ở khu sinh hoạt, hành lang, sân ----------
+{
+  const ROOM_ZONES = new Set<ZoneId>(['L02', 'L19', 'L20', 'L21', 'L22']);
+  for (const z of ZONES) {
+    if ((z.side !== 'north' && z.side !== 'south') || ROOM_ZONES.has(z.id)) continue;
+    const w = z.x1 - z.x0, depth = z.z1 - z.z0;
+    bannerL(z.id, w / 2, depth - 0.12, Math.PI, Math.min(w - 1.5, 5.2), 'long');
+  }
+  const corr = ZONE_BY_ID.L03;
+  const depth = corr.z1 - corr.z0;
+  for (const side of ['north', 'south'] as const) {
+    const xs = ZONES.filter((z) => z.side === side).map((z) => z.x0).sort((a, b) => a - b).slice(1);
+    xs.forEach((x, i) => { if (i % 2 === (side === 'north' ? 0 : 1)) bannerL('L03', x - corr.x0, side === 'north' ? depth - 0.12 : 0.12, side === 'north' ? Math.PI : 0, 3.4, 'long', 2.85); });
+  }
+  const yard = ZONE_BY_ID.L04;
+  WALL_BANNERS.push({ id: 'banner_yard_e', zone: 'L04', x: yard.x1 - 0.12, y: 3.6, z: -10, yaw: -Math.PI / 2, w: 9, h: 1, text: 'Tự do là quý giá nhất — hãy giữ gìn bằng việc sống đúng pháp luật', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_yard_n', zone: 'L04', x: 89, y: 3.6, z: yard.z1 - 0.12, yaw: Math.PI, w: 9, h: 1, text: 'Học tập — lao động — rèn luyện để sớm trở về với gia đình', size: 'long' });
+}

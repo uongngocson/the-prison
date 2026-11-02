@@ -55,6 +55,7 @@ class Cloud {
         const m = /current=(\d+)/.exec(error.message);
         return { ok: false, conflict: { currentRevision: m ? Number(m[1]) : -1 }, message: 'Bản trên đám mây mới hơn. Bản này được giữ cục bộ để bạn chọn.' };
       }
+      if (/schema_version_check/.test(error.message)) return { ok: false, message: 'Máy chủ chưa hỗ trợ định dạng save mới (v3). Save vẫn an toàn trên máy này; cần chạy migration 0002 trên Supabase.' };
       return { ok: false, message: error.message };
     }
     return { ok: true, revision: (data as { revision: number }).revision };

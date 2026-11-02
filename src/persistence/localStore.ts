@@ -1,7 +1,8 @@
 // IndexedDB local save (S34): 3 manual slots + autosave with 2 generations; atomic per-transaction writes.
 import type { GameState } from '../domain/types';
 import { dayOf } from '../domain/util';
-import { ZONE_BY_ID } from '../content/world';
+import { ZONE_BY_ID, custodyRoomOfBed } from '../content/world';
+import { PRESET_BY_ID } from '../content/custody';
 import { decodeSave, encodeSave, type SaveEnvelope, type SaveMeta } from './saveCodec';
 
 const DB = 'mot-ngay-moi';
@@ -38,7 +39,9 @@ function tx<T>(mode: IDBTransactionMode, fn: (st: IDBObjectStore) => IDBRequest<
 }
 
 export function metaOf(s: GameState): SaveMeta {
-  return { name: s.character.name, day: dayOf(s.minute), minute: s.minute, zone: ZONE_BY_ID[s.player.zone]?.name ?? s.player.zone, chapter: s.chapter, lineageId: s.lineageId, generation: s.generation, ended: s.ended };
+  const room = s.custody ? custodyRoomOfBed(s.life.housing.find((h) => h.state === 'active')?.bedSlotId ?? null)?.label : undefined;
+  // Metadata không nhạy cảm: mode/preset/buồng; không đưa dữ kiện sự việc vào danh sách save.
+  return { name: s.character.name, day: dayOf(s.minute), minute: s.minute, zone: ZONE_BY_ID[s.player.zone]?.name ?? s.player.zone, chapter: s.chapter, lineageId: s.lineageId, generation: s.generation, ended: s.ended, mode: s.experienceMode, preset: s.custody ? PRESET_BY_ID[s.custody.presetId]?.label : undefined, room };
 }
 
 /** Capture → validate → write new generation keeping previous (≥1 valid generation after interrupted write). */

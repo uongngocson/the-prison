@@ -1,5 +1,7 @@
 # 10 — Full Life Specification: hệ thống đời sống bổ sung
 
+**CR-LAB-01 / thiết kế 1.3:** [18](18-labour-rehabilitation-spec.md) mở rộng F48 thành phân công, tools, crop/pond/work-order/QC/bàn giao; F73–84 là delta chưa triển khai, không thay công ca bằng một minigame không có ledger.
+
 **CR-VN-01 / thiết kế 1.2:** [14](14-sentence-custody-spec.md) mở rộng F35/F37/F52/F56/F57 trong mode VN; [17](17-custody-delivery-qa.md) phân biệt baseline và delta; giữ hành vi legacy.
 
 Tiếp nối F01–F32 của [phần04](04-gameplay.md). Mọi F33–F60 dưới đây là **đề xuất thiết kế hư cấu**, nhận diện từ [audit09](09-realism-audit.md), chưa có code/test. Kế thừa C0 authority/atomic/idempotency, clock/gameplay accessibility và save trust mode. DB/UI/API mới ở [phần11](11-prison-life-contracts.md), tasks/tests ở [phần12](12-realism-delivery.md).

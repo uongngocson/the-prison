@@ -1,7 +1,7 @@
 // Procedural blockout world from content (03). Static meshes merged per zone with vertex colors (ít draw call);
 // emissive lights/windows separate; boards/signs use DynamicTexture text (localization không bake vào asset).
 import { Color3, Color4, DynamicTexture, Mesh, MeshBuilder, Scene, StandardMaterial, TransformNode, Vector3, VertexBuffer, type AbstractMesh } from '@babylonjs/core';
-import { CELL_DOORS, PROPS, WALLS, ZONES, ZONE_BY_ID, type PropDef } from '../content/world';
+import { CELL_DOORS, PROPS, WALLS, WALL_BANNERS, ZONES, ZONE_BY_ID, type PropDef, type WallBanner } from '../content/world';
 import type { ZoneId } from '../domain/types';
 import { hash32 } from '../domain/util';
 
@@ -14,6 +14,8 @@ export interface WorldHandles {
   brokenMarkers: Map<string, Mesh>;
   boards: Mesh[];
   focusRing: Mesh;
+  /** CR-VN-01: cửa buồng động — hình ảnh tách khỏi quyền (evaluator quyết định). */
+  cellDoors: Map<string, { mesh: Mesh; closedPos: Vector3; openPos: Vector3; t: number }>;
 }
 
 function hexToColor4(hex: string, mul = 1): Color4 {
@@ -204,11 +206,13 @@ export function buildWorld(scene: Scene): WorldHandles {
   }
 
   // ---------- cell doors: barred sliding doors (slid open) + room number plate ----------
+  const cellDoors: WorldHandles['cellDoors'] = new Map();
   for (const d of CELL_DOORS) {
     const leaf = barDoor(`celldoor_${d.roomId}`, d.width, 2.4, d.alongX, true);
     // slid open behind the adjacent bar wall, offset toward the cell interior
     leaf.position.set(d.x + d.slideDir * d.width * 0.95, 1.2, d.z + d.inward * 0.12);
-    leaf.freezeWorldMatrix();
+    if (d.dynamic) cellDoors.set(d.roomId, { mesh: leaf, openPos: leaf.position.clone(), closedPos: new Vector3(d.x, 1.2, d.z + d.inward * 0.12), t: 0 });
+    else leaf.freezeWorldMatrix();
     for (const sd of [-1, 1]) box('L02', 0.1, 2.5, 0.12, d.x + sd * d.width / 2, 1.25, d.z, STEEL_DARK);
     const tex = new DynamicTexture(`tx_no_${d.roomId}`, { width: 128, height: 64 }, scene, true);
     const ctx = tex.getContext() as CanvasRenderingContext2D;
@@ -228,10 +232,102 @@ export function buildWorld(scene: Scene): WorldHandles {
     }
   }
 
+  // ---------- băng rôn khẩu hiệu (đỏ chữ vàng) ----------
+  const bannerMats = new Map<string, StandardMaterial>();
+  const bannerMat = (b: WallBanner) => {
+    const key = `${b.size}|${b.w}|${b.h}|${b.text}`;
+    const hit = bannerMats.get(key);
+    if (hit) return hit;
+    const W = b.size === 'short' ? 512 : 1024;
+    const H = Math.max(64, Math.round((W * b.h) / b.w));
+    const tex = new DynamicTexture(`tx_banner_${bannerMats.size}`, { width: W, height: H }, scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    ctx.fillStyle = '#b3201c'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#f4c542'; ctx.lineWidth = Math.max(3, H * 0.05); ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, W - ctx.lineWidth * 2, H - ctx.lineWidth * 2);
+    ctx.fillStyle = '#ffd95a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const pad = W * 0.05;
+    const text = b.text.toUpperCase();
+    // một dòng nếu vừa, nếu không chia hai dòng ở khoảng trắng gần giữa
+    let size = H * 0.5;
+    const fit = (lines: string[]) => { for (let fs = size; fs > 10; fs -= 1) { ctx.font = `800 ${fs}px "Noto Sans", "Segoe UI", sans-serif`; if (lines.every((l) => ctx.measureText(l).width <= W - pad * 2) && fs * lines.length * 1.12 <= H * 0.78) return fs; } return 10; };
+    let lines = [text];
+    let fs = fit(lines);
+    if (fs < H * 0.3) {
+      const mid = text.length / 2;
+      let cut = text.indexOf(' ', Math.floor(mid));
+      const back = text.lastIndexOf(' ', Math.floor(mid));
+      if (back > 0 && (cut < 0 || mid - back < cut - mid)) cut = back;
+      if (cut > 0) { const two = [text.slice(0, cut), text.slice(cut + 1)]; const fs2 = fit(two); if (fs2 > fs) { lines = two; fs = fs2; } }
+    }
+    size = fs;
+    ctx.font = `800 ${size}px "Noto Sans", "Segoe UI", sans-serif`;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, H / 2 + (i - (lines.length - 1) / 2) * size * 1.12));
+    tex.update();
+    const mat = new StandardMaterial(`m_banner_${bannerMats.size}`, scene);
+    mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.42, 0.38, 0.36); mat.specularColor = new Color3(0, 0, 0);
+    bannerMats.set(key, mat);
+    return mat;
+  };
+  for (const b of WALL_BANNERS) {
+    const plane = MeshBuilder.CreatePlane(`banner_${b.id}`, { width: b.w, height: b.h, sideOrientation: Mesh.FRONTSIDE }, scene);
+    plane.material = bannerMat(b);
+    plane.position.set(b.x, b.y, b.z);
+    plane.rotation.y = b.yaw + Math.PI;
+    plane.isPickable = false;
+    plane.freezeWorldMatrix();
+  }
+
   // ---------- props ----------
   const brokenMarkers = new Map<string, Mesh>();
   const boards: Mesh[] = [];
   for (const p of PROPS) buildProp(p);
+
+
+  /** Bồn cầu sứ chi tiết: chân bệ, lòng bồn + nước, bệ ngồi, nắp bật, két nước, nút xả, ống cấp, giá giấy.
+   *  Biến thể buồng giam (meta.cell): thêm vách che thấp phía song sắt. Biến thể khu vệ sinh: sàn gạch + cửa buồng mở. */
+  function buildToilet(p: PropDef) {
+    const PORC = '#f2f2ee', CHROME = '#c3c9cc';
+    const cell = !!p.meta?.cell;
+    const yawM = (m: Mesh) => { m.rotation.y = p.yaw; return m; };
+    // chân bệ (thon dần lên trên)
+    { const [x, z] = local(p, 0, -0.16); const m = cyl(p.zone, 0.26, 0.3, x, 0.15, z, PORC, 14, 0.34); m.scaling.z = 1.35; yawM(m); }
+    // lòng bồn (oval)
+    { const [x, z] = local(p, 0, -0.12); const m = cyl(p.zone, 0.42, 0.13, x, 0.355, z, PORC, 20, 0.44); m.scaling.z = 1.3; yawM(m); }
+    // nước trong lòng bồn
+    { const [x, z] = local(p, 0, -0.1); const m = cyl(p.zone, 0.27, 0.01, x, 0.4, z, '#9cc4cf', 16); m.scaling.z = 1.3; yawM(m); }
+    // bệ ngồi (vòng oval)
+    { const [x, z] = local(p, 0, -0.12); const t = MeshBuilder.CreateTorus(`tseat${uid++}`, { diameter: 0.36, thickness: 0.055, tessellation: 24 }, scene); t.position.set(x, 0.44, z); t.scaling.z = 1.3; t.scaling.y = 0.6; yawM(t); colorize(t, '#fafaf7'); batch.add(p.zone, t); }
+    // nắp bật dựng tựa vào két
+    pbox(p, 0.38, 0.46, 0.03, 0, 0.68, -0.39, '#f7f7f3');
+    // két nước + nắp két + nút xả
+    pbox(p, 0.44, 0.36, 0.17, 0, 0.66, -0.5, PORC);
+    pbox(p, 0.47, 0.035, 0.2, 0, 0.86, -0.5, '#fbfbf8');
+    { const [x, z] = local(p, 0.08, -0.5); cyl(p.zone, 0.055, 0.02, x, 0.885, z, CHROME, 12); }
+    // ống cấp nước + van chặn
+    pbox(p, 0.025, 0.42, 0.025, -0.18, 0.21, -0.58, CHROME);
+    { const [x, z] = local(p, -0.18, -0.55); cyl(p.zone, 0.05, 0.04, x, 0.16, z, CHROME, 8); }
+    // giá + cuộn giấy vệ sinh (ngang)
+    const side = cell ? (Number(p.meta?.panel) || 1) : -1; // giấy gắn lên vách che / vách buồng
+    const gx = side * (cell ? 0.42 : p.w / 2 - 0.06);
+    pbox(p, 0.04, 0.03, 0.16, gx, 0.72, 0.05, CHROME);
+    { const [x, z] = local(p, gx - side * 0.07, 0.05); const r = cyl(p.zone, 0.11, 0.1, x, 0.66, z, '#f4f1e8', 12); r.rotation.z = Math.PI / 2; r.rotation.y = p.yaw; }
+    if (cell) {
+      // vách che thấp phía song sắt (riêng tư tối thiểu trong buồng)
+      const px = (Number(p.meta?.panel) || 1) * 0.48;
+      pbox(p, 0.05, 1.15, 0.95, px, 0.575, -0.05, '#9aa39f');
+      pbox(p, 0.07, 0.04, 0.97, px, 1.17, -0.05, '#7d8682');
+    } else {
+      // sàn gạch men trong buồng + chân tường ốp gạch
+      pbox(p, p.w - 0.08, 0.015, p.d - 0.08, 0, 0.008, 0, '#d5dcda');
+      pbox(p, p.w - 0.08, 1.2, 0.02, 0, 0.6, -p.d / 2 + 0.05, '#dfe6e4');
+      // cửa buồng mở ra ngoài (bản lề trái) + then cài
+      const dw = p.w - 0.25, hx = -(p.w / 2 - 0.1);
+      pbox(p, 0.04, 1.75, dw, hx, 1.0, p.d / 2 + dw / 2, '#7f9a94');
+      pbox(p, 0.06, 0.05, 0.08, hx, 1.0, p.d / 2 + dw - 0.12, CHROME);
+      // vạch chân cửa
+      pbox(p, p.w - 0.1, 0.03, 0.06, 0, 0.015, p.d / 2, '#6f7a77');
+    }
+  }
 
   function local(p: PropDef, lx: number, lz: number): [number, number] {
     const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
@@ -267,7 +363,7 @@ export function buildWorld(scene: Scene): WorldHandles {
       case 'counter': pbox(p, p.w, p.h - 0.05, p.d, 0, (p.h - 0.05) / 2, 0, '#7a7f80'); pbox(p, p.w + 0.05, 0.05, p.d + 0.1, 0, p.h, 0, '#b8b8b0'); if (p.id === 'meal_counter') for (let i = 0; i < 5; i++) pbox(p, 0.5, 0.08, 0.35, -p.w / 2 + 1 + i * 2.4, p.h + 0.05, 0, '#d9d4c7'); break;
       case 'sink': pbox(p, p.w, 0.2, p.d, 0, 0.85, 0, '#e7e7e2'); pbox(p, 0.1, 0.85, 0.1, 0, 0.42, -0.1, '#9aa0a3'); pbox(p, 0.04, 0.2, 0.04, 0, 1.0, -p.d / 2 + 0.06, '#b5b9bc'); pbox(p, 0.5, 0.6, 0.02, 0, 1.55, -p.d / 2 + 0.01, '#a7bfc7', 1.2); break;
       case 'shower': pbox(p, p.w - 0.1, 0.03, p.d - 0.1, 0, 0.02, 0, '#6f8f9a'); { const [x, z] = local(p, 0, -p.d / 2 + 0.15); cyl(p.zone, 0.15, 0.05, x, 2.05, z, '#b5b9bc'); } pbox(p, p.w - 0.2, 1.7, 0.03, 0, 1.05, p.d / 2, '#cfd8d6', 1.0); break;
-      case 'toilet': { const [x, z] = local(p, 0, -0.2); cyl(p.zone, 0.42, 0.4, x, 0.2, z, '#ececec'); pbox(p, 0.4, 0.35, 0.15, 0, 0.55, -0.55, '#ececec'); pbox(p, p.w - 0.15, 1.7, 0.04, 0, 1.0, p.d / 2, '#a9b6b3'); break; }
+      case 'toilet': { buildToilet(p); break; }
       case 'water': pbox(p, p.w, 0.9, p.d, 0, 0.45, 0, '#8c9599'); pbox(p, p.w, 0.08, p.d, 0, 0.94, 0, '#c9d2d5'); pbox(p, 0.04, 0.12, 0.04, 0, 1.02, 0, '#7a8a90'); break;
       case 'shelf': {
         // double-sided open shelf: thin back board + side boards + shelves, books visible on both faces
@@ -418,7 +514,7 @@ export function buildWorld(scene: Scene): WorldHandles {
   focusRing.isPickable = false;
   focusRing.setEnabled(false);
 
-  return { zoneMeshes, doors, windowMat, lightMat, yardFloor, brokenMarkers, boards, focusRing };
+  return { zoneMeshes, doors, windowMat, lightMat, yardFloor, brokenMarkers, boards, focusRing, cellDoors };
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number) {

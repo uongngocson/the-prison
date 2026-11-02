@@ -1,7 +1,8 @@
 // Interaction verbs (F05/F12/F22–F24/F29/F49/F50) — availability + atomic commit once per actionId.
 import type { GameState, ZoneId } from './types';
 import type { PropDef } from '../content/world';
-import { CELL_ROOMS, ZONE_BY_ID } from '../content/world';
+import { CELL_ROOMS, CUSTODY_ROOMS, ZONE_BY_ID } from '../content/world';
+import { homeBed, homeRoom, isVN } from './custody';
 import { type Ctx, addItem, adjustRep, awardXp, changeNeed, countItem, notify, removeItem } from './core';
 import { ITEM_BY_ID, LIBRARY_BOOKS } from '../content/items';
 import { MEALS, ROLL_CALLS } from '../content/schedule';
@@ -33,8 +34,9 @@ const foods = ['meal_tray', 'spare_meal', 'noodles', 'biscuits', 'fruit'];
 function hasFood(s: GameState) { return foods.some((f) => countItem(s, f, ['bag', 'mailbox']) > 0); }
 function hasBook(s: GameState) { return LIBRARY_BOOKS.some((b) => countItem(s, b, ['bag']) > 0); }
 function ownLocker(s: GameState): string | null {
+  if (isVN(s)) return homeRoom(s)?.locker ?? null;
   const bed = currentBed(s);
-  return CELL_ROOMS.find((c) => bed && c.beds.includes(bed))?.locker ?? null;
+  return CELL_ROOMS.find((c) => bed && c.beds.includes(bed))?.locker ?? CUSTODY_ROOMS.find((c) => bed && c.beds.includes(bed))?.locker ?? null;
 }
 const ACT = (verb: string, label: string, duration: number, enabled = true, reason?: string): VerbOption => ({ verb, label, duration, enabled, reason });
 const OPEN = (verb: string, label: string, screen: string): VerbOption => ({ verb, label, duration: 0, enabled: true, instant: true, screen });
@@ -47,7 +49,7 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
   const isSession = (zone: ZoneId, kind: 'study' | 'work') => s.life.programs.some((e) => ['enrolled', 'in_progress'].includes(e.state) && PROGRAMS.find((p2) => p2.id === e.programId && p2.zone === zone && p2.kind === kind) && sessionNow(s, e.programId));
   switch (p.kind) {
     case 'bed': {
-      const own = currentBed(s) === p.id;
+      const own = (isVN(s) ? homeBed(s) : currentBed(s)) === p.id;
       out.push(ACT('sleep', 'Ngủ', 0, own, own ? undefined : 'Không phải giường của bạn'));
       out.push(ACT('rest', 'Nghỉ ngắn (1 giờ)', 60, own, own ? undefined : 'Không phải giường của bạn'));
       if (own && hasBook(s)) out.push(ACT('read', 'Đọc sách', 30));
@@ -111,7 +113,7 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
       break;
     case 'sink': out.push(ACT('wash', 'Rửa mặt, đánh răng', 10)); break;
     case 'shower': out.push(ACT('shower', 'Tắm (riêng tư)', autoComplete ? 8 : 20)); break;
-    case 'toilet': out.push(ACT('use_toilet', 'Dùng buồng vệ sinh', 5)); break;
+    case 'toilet': out.push(ACT('use_toilet', 'Đi vệ sinh', 5)); break;
     case 'water': out.push(ACT('drink', 'Uống nước', 2)); break;
     case 'shelf':
       if (p.zone === 'L07') out.push(ACT('sort_books', 'Sắp xếp kệ sách', 30, zoneOpen(s, 'L07')));
@@ -123,6 +125,7 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
         board_menu: ['read_menu', 'menu'], board_shift: ['view_programs', 'programs'], board_study: ['view_programs', 'programs'], board_kitchen: ['view_programs', 'programs'],
         board_cases: ['view_cases', 'cases'], board_visits: ['view_contacts', 'contacts'], board_contact: ['view_contacts', 'contacts'],
         board_achievements: ['view_achievements', 'achievements'], board_quiet: ['view_support', 'support'],
+        board_schedule_L19: ['view_schedule', 'schedule'], board_schedule_L20: ['view_schedule', 'schedule'], board_rules_L21: ['view_custody', 'custody'], board_rules_L22: ['view_custody', 'custody'],
       };
       const [verb, screen] = map[p.id] ?? ['read_board', 'news'];
       out.push({ verb, label: verb === 'view_schedule' ? 'Xem lịch sinh hoạt' : `Đọc: ${p.label}`, duration: 0, enabled: true, instant: true, screen });
@@ -199,7 +202,7 @@ export function commitAction(ctx: Ctx, verb: string, p: PropDef | null, actionId
     case 'rest': changeNeed(ctx, 'energy', 10, 'Nghỉ ngắn'); break;
     case 'sleep': {
       const hours = Number(params.hours ?? 0);
-      if (hours >= 7 && currentBed(s) === p?.id) s.flags.slept_well = true;
+      if (hours >= 7 && (isVN(s) ? homeBed(s) : currentBed(s)) === p?.id) s.flags.slept_well = true;
       s.stats.sleeps++;
       break;
     }
@@ -237,9 +240,14 @@ export function commitAction(ctx: Ctx, verb: string, p: PropDef | null, actionId
       break;
     }
     case 'return_tray': s.flags.tray_out = false; s.stats.helps++; break;
-    case 'wash': changeNeed(ctx, 'hygiene', 25, 'Rửa mặt'); break;
+    case 'wash': {
+      changeNeed(ctx, 'hygiene', 25, 'Rửa mặt');
+      const due = s.flags.toilet_wash_due as number | undefined;
+      if (due !== undefined && s.minute - due <= 30) { changeNeed(ctx, 'hygiene', 5, 'Rửa tay sau khi đi vệ sinh'); delete s.flags.toilet_wash_due; msg = 'Đã rửa tay sạch sẽ sau khi đi vệ sinh.'; }
+      break;
+    }
     case 'shower': changeNeed(ctx, 'hygiene', 60, 'Tắm'); changeNeed(ctx, 'mood', 3, 'Tắm'); s.stats.showers++; break;
-    case 'use_toilet': changeNeed(ctx, 'mood', 1); break;
+    case 'use_toilet': changeNeed(ctx, 'mood', 2, 'Đi vệ sinh — nhẹ người'); s.flags.toilet_wash_due = s.minute; msg = 'Xả nước xong. Nhớ rửa tay ở bồn rửa nhé.'; break;
     case 'drink': changeNeed(ctx, 'mood', 1, 'Uống nước'); changeNeed(ctx, 'hunger', 2); s.flags.hydrated_day = day; break;
     case 'read': {
       const n = ((s.flags[`reads:${day}`] as number) ?? 0) + 1;

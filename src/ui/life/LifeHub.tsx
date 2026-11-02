@@ -7,9 +7,19 @@ import * as L from '../../domain/life';
 import { ITEM_BY_ID } from '../../content/items';
 import { CASE_FACTS, DIETS, FUNCTIONAL_NEEDS, LETTER_TOPICS, ORIENTATION_TOPICS, POLICY_PROFILE, PROGRAMS, SERVICES, SERVICE_BY_ID } from '../../content/life';
 import { NPC_BY_ID } from '../../content/npcs';
-import { ZONE_BY_ID, CELL_ROOMS } from '../../content/world';
+import { ZONE_BY_ID, CELL_ROOMS, custodyRoomOfBed } from '../../content/world';
 import { WEEKDAY_LABEL, dayOf, dayOfWeek, fmtClock, fmtDayClock, fmtMoney } from '../../domain/util';
 import type { CaseState, GameState } from '../../domain/types';
+import { VnChapterCard } from '../screens/Custody';
+import { Icon } from '../icons';
+import { isVN } from '../../domain/custody';
+// F65: trong bối cảnh VN, thư gửi được từ buồng (kênh riêng, không phụ thuộc quyền ra khỏi buồng).
+const bedLabel = (bed: string | null) => {
+  if (!bed) return '—';
+  const r = custodyRoomOfBed(bed);
+  return r ? `${r.label}, giường ${bed.slice(-1).toUpperCase()}` : bed.replace('cell_', 'Phòng ').replace('_bed_', ', giường ').toUpperCase();
+};
+const canSendLetter = (s: GameState) => s.player.zone === 'L16' || (isVN(s) && ['L19', 'L20', 'L21', 'L22'].includes(s.player.zone));
 
 const close = () => useUI.getState().open(null);
 const ex = <T,>(fn: (ctx: import('../../domain/core').Ctx) => T) => controller.exec<T>(fn);
@@ -26,14 +36,15 @@ export function LifeHub() {
   const s = controller.s!;
   const c = L.lifeSummaryCounts(s);
   const admitted = s.life.episode.state !== 'arrived' && s.life.episode.state !== 'orienting';
+  if (!admitted) return <Admission s={s} />;
   return (
-    <Panel title="Đời sống" onClose={admitted ? close : undefined} footer={`${POLICY_PROFILE.jurisdictionLabel}. Thông tin ở đây là riêng tư của bạn.`}
+    <Panel title="Đời sống" onClose={close}
       tabs={<Tabs label="Đời sống" value={tab} onChange={(t) => set({ lifeTab: t })} tabs={[
-        { id: 'journey', label: 'Hồ sơ hành trình' }, { id: 'property', label: 'Tài sản' }, { id: 'store', label: 'Tài khoản & cửa hàng', badge: c.readyOrders },
-        { id: 'contacts', label: 'Liên lạc', badge: c.unreadLetters }, { id: 'cases', label: 'Yêu cầu', badge: c.answeredCases }, { id: 'support', label: 'Chăm sóc & nhu cầu' },
-        { id: 'programs', label: 'Học tập & công việc' }, { id: 'incidents', label: 'Sự việc', badge: c.incidents }, { id: 'transfer', label: 'Chuyển nơi', badge: c.transitions }, { id: 'release', label: 'Kế hoạch rời cơ sở' },
+        { id: 'journey', label: 'Hồ sơ' }, { id: 'property', label: 'Tài sản' }, { id: 'store', label: 'Cửa hàng', badge: c.readyOrders },
+        { id: 'contacts', label: 'Liên lạc', badge: c.unreadLetters }, { id: 'cases', label: 'Yêu cầu', badge: c.answeredCases }, { id: 'support', label: 'Y tế' },
+        { id: 'programs', label: 'Học & làm' }, { id: 'incidents', label: 'Sự việc', badge: c.incidents }, { id: 'transfer', label: 'Chuyển nơi', badge: c.transitions }, { id: 'release', label: 'Rời cơ sở' },
       ]} />}>
-      {!admitted && tab !== 'journey' ? <p className="notice">Hãy hoàn tất tiếp nhận ở tab “Hồ sơ hành trình” trước.</p> : <>
+      {<>
         {tab === 'journey' && <Journey s={s} />}
         {tab === 'property' && <Property s={s} />}
         {tab === 'store' && <Store s={s} />}
@@ -49,95 +60,127 @@ export function LifeHub() {
   );
 }
 
-// ---------------- U26 Admission / journey ----------------
-function Journey({ s }: { s: GameState }) {
+// ---------------- U26 Admission — wizard kiểu game: 5 bước ngắn, một nút chính ----------------
+const ADM_STEPS: { id: L.AdmissionStep; label: string; icon: string }[] = [
+  { id: 'identity', label: 'Danh tính', icon: 'user' }, { id: 'orientation', label: 'Nội quy', icon: 'book' }, { id: 'property', label: 'Tài sản', icon: 'bag' },
+  { id: 'support', label: 'Nhu cầu', icon: 'hand' }, { id: 'housing', label: 'Chỗ ở', icon: 'home' },
+];
+const TOPIC_ICON: Record<string, string> = { routine: 'calendar', rights: 'hand', services: 'map', property: 'bag', review: 'quest' };
+const FAMILY_LABEL = { family: 'Có liên lạc', estranged: 'Ít liên lạc', none: 'Không có' } as const;
+
+function Admission({ s }: { s: GameState }) {
   const ep = s.life.episode;
-  const steps: { id: L.AdmissionStep; label: string }[] = [
-    { id: 'identity', label: 'Xác nhận danh tính & tình trạng' }, { id: 'orientation', label: 'Định hướng: nội quy & quyền' }, { id: 'property', label: 'Kiểm kê & ký gửi tài sản' },
-    { id: 'support', label: 'Nhu cầu & hỗ trợ (tùy chọn)' }, { id: 'housing', label: 'Phân chỗ ở' },
-  ];
-  const cur = steps.find((x) => !ep.admissionSteps[x.id]);
+  const cur = ADM_STEPS.find((x) => !ep.admissionSteps[x.id]) ?? ADM_STEPS[ADM_STEPS.length - 1];
+  const idx = ADM_STEPS.indexOf(cur);
   const [family, setFamily] = useState(ep.familyContext);
   const [diet, setDiet] = useState(s.life.diet);
   const [needs, setNeeds] = useState<string[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const finish = () => { controller.session!.exec(() => undefined); const cell = CELL_ROOMS.find((c) => c.beds.includes(L.currentBed(s) ?? '')); if (cell) { s.player.pos = { x: cell.door.x, y: 0, z: cell.door.z - cell.inward * 0.85 }; s.player.zone = 'L02'; s.player.lastSafe = { ...s.player.pos }; if (!s.discoveredZones.includes('L02')) s.discoveredZones.push('L02'); } controller.bump(); close(); };
-  if (cur) return (
-    <div className="split">
-      <div className="adm-progress" aria-hidden>Bước {steps.findIndex((x) => x.id === cur.id) + 1}/{steps.length}<i><b style={{ width: `${(steps.findIndex((x) => x.id === cur.id) / steps.length) * 100}%` }} /></i></div>
-      <ol className="col adm-steps" aria-label="Các bước tiếp nhận">{steps.map((x) => <li key={x.id} className="small" style={{ color: ep.admissionSteps[x.id] ? 'var(--positive)' : x.id === cur.id ? 'var(--accent)' : undefined }}>{ep.admissionSteps[x.id] ? '✓ ' : ''}{x.label}</li>)}</ol>
-      <div className="card">
-        <p className="small muted">Thông tin trong thế giới hư cấu · Cán bộ tiếp nhận: {NPC_BY_ID.tam.name}</p>
-        {cur.id === 'identity' && <>
-          <h3>Xin chào, {s.character.name}</h3>
-          <dl className="kv"><dt>Mã trong thế giới game</dt><dd>{ep.id.slice(-8).toUpperCase()}</dd><dt>Tình trạng (hư cấu)</dt><dd>Đã có quyết định thi hành — hồ sơ hư cấu</dd><dt>Hồ sơ chính sách</dt><dd>{POLICY_PROFILE.id} v{POLICY_PROFILE.version}</dd></dl>
-          <p className="small muted">Không có tội danh hay chỉ số nào được gán theo ngoại hình. Mốc thời gian là theo câu chuyện, không phải công thức pháp lý.</p>
-          <button className="btn primary" onClick={() => ex((c) => L.admissionStep(c, 'identity'))} data-autofocus>Xác nhận</button>
-        </>}
-        {cur.id === 'orientation' && <>
-          <h3>Định hướng</h3>
-          {ORIENTATION_TOPICS.map((t) => (
-            <div key={t.id} className="notice" style={{ marginBottom: 6 }}>
-              <b>{t.title}</b> {ep.orientation[t.id] === 'acknowledged' && <Status kind="ok">đã hiểu</Status>}
-              {(open === t.id || true) && <p className="small">{t.body}</p>}
-              <div className="row"><button className="btn sm" onClick={() => ex((c) => L.acknowledgeTopic(c, t.id))}>Tôi đã hiểu</button><button className="btn sm ghost" onClick={() => setOpen(t.id)}>Hỏi lại cán bộ</button></div>
-              {open === t.id && <p className="small muted">Cán bộ Tâm: “Nói ngắn gọn: {t.body.split('.')[0].toLowerCase()}. Có gì chưa rõ, bạn có thể hỏi lại bất cứ lúc nào ở Sổ tay (H).”</p>}
-            </div>
+  const step = (id: L.AdmissionStep, p?: Parameters<typeof L.admissionStep>[2]) => ex((c) => L.admissionStep(c, id, p));
+  const personal = s.inventory.bag.filter((x) => x && ITEM_BY_ID[x.itemId].personal);
+  return (
+    <Panel title="Thủ tục tiếp nhận" width="mid">
+      <div className="adm">
+        <ol className="adm-dots" aria-label={`Bước ${idx + 1}/${ADM_STEPS.length}`}>
+          {ADM_STEPS.map((x, i) => (
+            <li key={x.id} className={i < idx ? 'done' : i === idx ? 'cur' : ''} aria-current={i === idx ? 'step' : undefined}>
+              <span className="adm-dot"><Icon name={i < idx ? 'check' : x.icon} size={18} /></span><span className="adm-lbl">{x.label}</span>
+            </li>
           ))}
-          <p className="small muted">Xác nhận đã hiểu không có nghĩa là từ bỏ quyền nào. Bạn có thể xem lại bất kỳ lúc nào.</p>
-          <button className="btn primary" onClick={() => ex((c) => L.admissionStep(c, 'orientation'))}>Tiếp tục</button>
-        </>}
-        {cur.id === 'property' && <>
-          <h3>Kiểm kê tài sản cá nhân</h3>
-          <table className="tbl"><thead><tr><th>Vật phẩm</th><th>Xử lý</th><th>Lý do</th></tr></thead><tbody>
-            {s.inventory.bag.filter((x) => x && ITEM_BY_ID[x.itemId].personal).map((x) => <tr key={x!.uid}><td>{ITEM_BY_ID[x!.itemId].icon} {ITEM_BY_ID[x!.itemId].name}</td><td>{x!.itemId === 'photo' ? 'Giữ trong phòng' : 'Ký gửi tại kho'}</td><td className="small muted">{x!.itemId === 'photo' ? 'Được phép giữ' : 'Theo nội quy hư cấu; trả lại khi rời cơ sở'}</td></tr>)}
-          </tbody></table>
-          <p className="small">Bạn cũng được cấp: khăn, xà phòng, bàn chải, bộ đồ sạch, chăn, 2 phong bì.</p>
-          <button className="btn primary" onClick={() => ex((c) => L.admissionStep(c, 'property'))}>Xác nhận và nhận biên nhận</button>
-        </>}
-        {cur.id === 'support' && <>
-          <h3>Nhu cầu & hỗ trợ (tùy chọn)</h3>
-          <p className="small muted">Không cần giấy tờ y tế. Không nhập thông tin thật. Có thể bỏ qua và đổi sau.</p>
-          <fieldset style={{ border: 'none', padding: 0 }}><legend>Bối cảnh gia đình (câu chuyện)</legend><div className="row">
-            {(['family', 'estranged', 'none'] as const).map((f) => <button key={f} className={`btn sm ${family === f ? 'primary' : ''}`} aria-pressed={family === f} onClick={() => setFamily(f)}>{{ family: 'Có gia đình liên lạc', estranged: 'Ít liên lạc', none: 'Không có gia đình' }[f]}</button>)}</div></fieldset>
-          <fieldset style={{ border: 'none', padding: 0 }}><legend>Chế độ ăn</legend><div className="row">{DIETS.map((d) => <button key={d.id} className={`btn sm ${diet === d.id ? 'primary' : ''}`} aria-pressed={diet === d.id} onClick={() => setDiet(d.id)}>{d.label}</button>)}</div></fieldset>
-          <fieldset style={{ border: 'none', padding: 0 }}><legend>Nhu cầu chức năng</legend>
-            {FUNCTIONAL_NEEDS.map((n) => <label key={n.id} className="row small"><input type="checkbox" checked={needs.includes(n.id)} onChange={(e) => setNeeds(e.target.checked ? [...needs, n.id] : needs.filter((x) => x !== n.id))} />{n.label} <span className="muted">— {n.effect}</span></label>)}</fieldset>
-          <div className="row"><button className="btn primary" onClick={() => ex((c) => L.admissionStep(c, 'support', { familyContext: family, diet, needs }))}>Lưu và tiếp tục</button><button className="btn" onClick={() => ex((c) => L.admissionStep(c, 'support', {}))}>Bỏ qua</button></div>
-        </>}
-        {cur.id === 'housing' && <>
-          <h3>Phân chỗ ở</h3>
-          <p>Bạn được xếp <b>Giường 3A, Phòng 3</b>, Khu phòng ở — gần lối đi chung. Bạn cùng phòng: <b>Tư</b>.</p>
-          <p className="small muted">Lý do: còn chỗ phù hợp, gần lối đi. Có thể xin đổi phòng qua cán bộ khu ở hoặc mục Yêu cầu.</p>
-          <button className="btn primary" onClick={() => { ex((c) => L.admissionStep(c, 'housing')); finish(); }}>Nhận chỗ ở và vào khu phòng ở</button>
-        </>}
-        <hr style={{ borderColor: 'var(--line)', margin: '16px 0' }} />
-        <button className="btn ghost sm" onClick={() => { ex((c) => L.skipAdmission(c, { familyContext: family })); finish(); }}>Bỏ qua phần trình bày (vẫn tạo đủ biên nhận, đồ cấp phát và chỗ ở)</button>
+        </ol>
+
+        {cur.id === 'identity' && <div className="adm-body center">
+          <div className="adm-avatar"><Icon name="user" size={40} /></div>
+          <h2>Xin chào, {s.character.name}</h2>
+          <span className="adm-code">Mã số {ep.id.slice(-8).toUpperCase()}</span>
+          <p className="muted small">{NPC_BY_ID.tam.name} sẽ hướng dẫn bạn vài bước ngắn.</p>
+          <button className="btn primary big" onClick={() => step('identity')} data-autofocus>Xác nhận</button>
+        </div>}
+
+        {cur.id === 'orientation' && <div className="adm-body">
+          <div className="topic-list">
+            {ORIENTATION_TOPICS.map((t) => {
+              const ok = ep.orientation[t.id] === 'acknowledged';
+              const isOpen = open === t.id;
+              return (
+                <div key={t.id} className={`topic ${isOpen ? 'open' : ''} ${ok ? 'ok' : ''}`}>
+                  <button className="topic-head" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : t.id)}>
+                    <Icon name={TOPIC_ICON[t.id] ?? 'bulb'} size={20} /><b>{t.title.replace(' (hư cấu)', '')}</b>
+                    {ok ? <Icon name="check" size={18} className="topic-ok" /> : <Icon name="chevron" size={18} className="topic-chev" />}
+                  </button>
+                  {isOpen && <div className="topic-body">
+                    <p className="small">{t.body}</p>
+                    {!ok && <button className="btn sm" onClick={() => { ex((c) => L.acknowledgeTopic(c, t.id)); setOpen(null); }}>Đã hiểu</button>}
+                  </div>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="adm-actions">
+            <button className="btn primary big" onClick={() => { ex((c) => { for (const t of ORIENTATION_TOPICS) if (c.s.life.episode.orientation[t.id] !== 'acknowledged') L.acknowledgeTopic(c, t.id); return L.admissionStep(c, 'orientation'); }); }}>Tiếp tục</button>
+          </div>
+          <p className="muted small center">Chạm vào mục để đọc. Xem lại bất cứ lúc nào trong Sổ tay (H).</p>
+        </div>}
+
+        {cur.id === 'property' && <div className="adm-body">
+          <h3>Ký gửi đồ cá nhân</h3>
+          <div className="item-tiles">
+            {personal.map((x) => <div key={x!.uid} className="tile"><span className="tile-ico">{ITEM_BY_ID[x!.itemId].icon}</span><span>{ITEM_BY_ID[x!.itemId].name}</span><em className={x!.itemId === 'photo' ? 'keep' : 'store'}>{x!.itemId === 'photo' ? 'Giữ lại' : 'Ký gửi'}</em></div>)}
+          </div>
+          <h3>Được cấp</h3>
+          <div className="chips-inline">{['Khăn', 'Xà phòng', 'Bàn chải', 'Bộ đồ sạch', 'Chăn', '2 phong bì'].map((x) => <span key={x}>{x}</span>)}</div>
+          <div className="adm-actions"><button className="btn primary big" onClick={() => step('property')}>Xác nhận</button></div>
+        </div>}
+
+        {cur.id === 'support' && <div className="adm-body">
+          <div className="opt-group"><span>Gia đình</span><div className="seg">
+            {(['family', 'estranged', 'none'] as const).map((f) => <button key={f} className={family === f ? 'on' : ''} aria-pressed={family === f} onClick={() => setFamily(f)}>{FAMILY_LABEL[f]}</button>)}</div></div>
+          <div className="opt-group"><span>Ăn uống</span><div className="seg">
+            {DIETS.map((d) => <button key={d.id} className={diet === d.id ? 'on' : ''} aria-pressed={diet === d.id} onClick={() => setDiet(d.id)}>{d.label}</button>)}</div></div>
+          <div className="opt-group"><span>Hỗ trợ</span><div className="seg wrap">
+            {FUNCTIONAL_NEEDS.map((n) => { const on = needs.includes(n.id); return <button key={n.id} className={on ? 'on' : ''} aria-pressed={on} title={n.effect} onClick={() => setNeeds(on ? needs.filter((x) => x !== n.id) : [...needs, n.id])}>{n.label.split(' / ')[0]}</button>; })}</div></div>
+          <div className="adm-actions">
+            <button className="btn" onClick={() => step('support', {})}>Bỏ qua</button>
+            <button className="btn primary big" onClick={() => step('support', { familyContext: family, diet, needs })}>Lưu</button>
+          </div>
+        </div>}
+
+        {cur.id === 'housing' && <div className="adm-body center">
+          <div className="adm-avatar"><Icon name="home" size={40} /></div>
+          <h2>Nhận chỗ ở</h2>
+          <p className="muted">Bạn cùng phòng: <b>Tư</b></p>
+          <button className="btn primary big" onClick={() => { step('housing'); finish(); }}>Nhận chỗ ở</button>
+        </div>}
+
+        <button className="adm-skip" onClick={() => { ex((c) => L.skipAdmission(c, { familyContext: family })); finish(); }}>Bỏ qua thủ tục →</button>
       </div>
-    </div>
+    </Panel>
   );
+}
+
+function Journey({ s }: { s: GameState }) {
+  const ep = s.life.episode;
   const legal = s.life.bookings.filter((b) => b.kind === 'legal');
   return (
     <div className="grid2">
       <div className="card">
-        <h3>Hồ sơ hành trình (hư cấu)</h3>
+        <h3>Hồ sơ</h3>
         <dl className="kv small">
           <dt>Mã</dt><dd>{ep.id.slice(-8).toUpperCase()}</dd>
           <dt>Trạng thái</dt><dd>{{ arrived: 'Mới đến', orienting: 'Đang định hướng', admitted: 'Đã tiếp nhận', transferring: 'Đang chuyển', released: 'Đã rời cơ sở', archived: 'Lưu trữ' }[ep.state]}</dd>
-          <dt>Tình trạng</dt><dd>Thi hành theo câu chuyện (không phải pháp luật thật)</dd>
           <dt>Ngày đến</dt><dd>{fmtDayClock(ep.arrivalMinute)}</dd>
-          <dt>Chỗ ở</dt><dd>{L.currentBed(s)?.replace('cell_', 'Phòng ').replace('_bed_', ', giường ').toUpperCase() ?? '—'}</dd>
-          <dt>Mốc xem xét</dt><dd>Từ Ngày {ep.releaseEligibleDay} theo câu chuyện — không có công thức “ngoan là được ra”</dd>
+          <dt>Chỗ ở</dt><dd>{bedLabel(L.currentBed(s))}</dd>
+          <dt>Mốc xem xét</dt><dd>Từ ngày {ep.releaseEligibleDay}</dd>
           <dt>Gia đình</dt><dd>{{ family: 'Có liên lạc', estranged: 'Ít liên lạc', none: 'Không có' }[ep.familyContext]}</dd>
         </dl>
       </div>
       <div className="card">
-        <h3>Thông tin pháp lý hư cấu & hẹn riêng</h3>
-        <p className="small">Buổi hẹn riêng với cán bộ hồ sơ giúp hiểu tình trạng và các mốc tiếp theo. Nội dung là riêng tư.</p>
+        <h3>Hẹn cán bộ hồ sơ</h3>
         <BookingPicker serviceId="legal" s={s} />
         {legal.map((b) => <div key={b.id} className="small">{fmtDayClock(b.start)} · {bookingState(b.state)}{b.reason ? ` · ${b.reason}` : ''}</div>)}
-        <h3 style={{ marginTop: 8 }}>Định hướng đã xem</h3>
-        {ORIENTATION_TOPICS.map((t) => <div key={t.id} className="small">{ep.orientation[t.id] === 'acknowledged' ? '✓' : '○'} {t.title}</div>)}
+        <h3 style={{ marginTop: 8 }}>Nội quy đã xem</h3>
+        {ORIENTATION_TOPICS.map((t) => <div key={t.id} className="small">{ep.orientation[t.id] === 'acknowledged' ? '✓' : '○'} {t.title.replace(' (hư cấu)', '')}</div>)}
         <button className="btn sm" onClick={() => useUI.getState().open('handbook')}>Mở Sổ tay</button>
       </div>
     </div>
@@ -260,8 +303,8 @@ function Contacts({ s }: { s: GameState }) {
         {c.channels.includes('letter') && <>
           <h3>Viết thư</h3>
           <div className="row"><select value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Chủ đề thư">{LETTER_TOPICS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
-            <button className="btn sm" disabled={s.player.zone !== 'L16'} title={s.player.zone !== 'L16' ? 'Gửi tại Góc liên lạc' : ''} onClick={() => { const r = ex((ctx) => L.sendLetter(ctx, c.id, topic, aid('letter'))); setMsg(r?.message ?? ''); }}>Gửi thư (dùng 1 phong bì)</button></div>
-          {s.player.zone !== 'L16' && <p className="small muted">Gửi thư tại Góc liên lạc (L16). Bạn vẫn có thể đọc thư ở bất kỳ đâu.</p>}
+            <button className="btn sm" disabled={!canSendLetter(s)} title={!canSendLetter(s) ? 'Gửi tại Góc liên lạc' : ''} onClick={() => { const r = ex((ctx) => L.sendLetter(ctx, c.id, topic, aid('letter'))); setMsg(r?.message ?? ''); }}>Gửi thư (dùng 1 phong bì)</button></div>
+          {!canSendLetter(s) && <p className="small muted">Gửi thư tại Góc liên lạc (L16){isVN(s) ? ' hoặc từ buồng của bạn' : ''}. Bạn vẫn có thể đọc thư ở bất kỳ đâu.</p>}
         </>}
         {c.channels.includes('call') && <><h3>Hẹn cuộc gọi</h3><BookingPicker serviceId="call" s={s} participant={c.id} /></>}
         {c.channels.includes('visit') && <><h3>Hẹn thăm gặp</h3><BookingPicker serviceId="visit" s={s} participant={c.id} /></>}
@@ -407,7 +450,7 @@ function Transfer({ s }: { s: GameState }) {
       {list.length === 0 && <Empty>Chưa có đề xuất chuyển nơi.</Empty>}
       {list.map((t) => (
         <div key={t.id} className="card">
-          <h3>Chuyển phòng: {t.fromAnchor.replace('cell_', 'P').replace('_bed_', '-').toUpperCase()} → {t.toAnchor.replace('cell_', 'P').replace('_bed_', '-').toUpperCase()}</h3>
+          <h3>Chuyển phòng: {bedLabel(t.fromAnchor)} → {bedLabel(t.toAnchor)}</h3>
           <p className="small">Trạng thái: <b>{({ proposed: 'Đề xuất', approved: 'Đã duyệt', packing: 'Đang đóng gói', staged: 'Đã giữ chỗ mới', in_transit: 'Đang chuyển', committed: 'Hoàn tất', cancelled: 'Đã hủy', recovering: 'Đang khôi phục' } as Record<string, string>)[t.state]}</b></p>
           <p className="small muted">Ảnh hưởng lịch hẹn: không (lịch theo giờ, không theo phòng). Tủ cá nhân đi theo bạn.</p>
           {t.state === 'proposed' && <div className="row">
@@ -437,6 +480,7 @@ function Release({ s }: { s: GameState }) {
   const pending = s.life.orders.filter((o) => ['preparing', 'ready'].includes(o.state)).length;
   const q06 = s.quests.Q06?.state;
   return (
+    <>{isVN(s) && <VnChapterCard />}
     <div className="grid2">
       <div className="card">
         <h3>Mục tiêu kế hoạch ({n}/6)</h3>
@@ -466,7 +510,7 @@ function Release({ s }: { s: GameState }) {
             <div className="row"><button className="btn primary" onClick={() => { const r = ex((c) => L.depart(c)); if (!r?.ok) useUI.getState().toast({ id: 'dep', text: r?.message ?? '', severity: 'warning' }); }}>Tôi đã sẵn sàng</button><button className="btn" onClick={() => setConfirm(false)}>Chưa</button></div></div>}
         {eligible && s.player.zone !== 'L18' && <p className="small muted">Đến Hướng nghiệp & chuẩn bị ra (L18) để xác nhận.</p>}
       </div>
-    </div>
+    </div></>
   );
 }
 

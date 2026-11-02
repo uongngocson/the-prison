@@ -4,7 +4,10 @@ import { HAIR, RES_OUTFIT, SKIN } from '../../presentation/palette';
 import type { Appearance } from '../../domain/types';
 import { validateName, normalizeName } from '../../domain/newgame';
 import { useUI } from '../store';
-import { controller } from '../../app/controller';
+import { loadSetupDraft, saveSetupDraft } from './Custody';
+import { Icon } from '../icons';
+
+const NAMES = ['Minh An', 'Quốc Bảo', 'Đức Huy', 'Thanh Tùng', 'Văn Long', 'Hoàng Nam', 'Gia Khang', 'Tuấn Kiệt', 'Hữu Phước', 'Công Danh'];
 
 const BODY: { id: Appearance['body']; label: string }[] = [{ id: 'slim', label: 'Mảnh' }, { id: 'medium', label: 'Vừa' }, { id: 'broad', label: 'Đậm' }];
 const HAIRS = ['Tóc ngắn', 'Cắt sát', 'Tóc dài', 'Không tóc'];
@@ -35,31 +38,35 @@ function Choice<T extends string | number>({ label, opts, value, onChange }: { l
 
 export function Create() {
   const set = useUI((s) => s.set);
-  const [look, setLook] = useState<Appearance>({ body: 'medium', skin: 1, hair: 0, hairColor: 0, outfit: 0 });
+  const prev = loadSetupDraft();
+  const [look, setLook] = useState<Appearance>(prev?.character.appearance ?? { body: 'medium', skin: 1, hair: 0, hairColor: 0, outfit: 0 });
   const [history, setHistory] = useState<Appearance[]>([]);
-  const [name, setName] = useState('');
-  const [family, setFamily] = useState<'family' | 'estranged' | 'none'>('family');
+  const [name, setName] = useState(prev?.character.name ?? '');
+  const [family, setFamily] = useState<'family' | 'estranged' | 'none'>(prev?.character.familyContext ?? 'family');
   const [rot, setRot] = useState(0);
   const [pending, setPending] = useState(false);
   const err = name ? validateName(name) : null;
   const upd = (p: Partial<Appearance>) => { setHistory((h) => [...h.slice(-19), look]); setLook({ ...look, ...p }); };
-  const random = () => upd({ body: BODY[Math.floor(Math.random() * 3)].id, skin: Math.floor(Math.random() * 5), hair: Math.floor(Math.random() * 4), hairColor: Math.floor(Math.random() * 4), outfit: Math.floor(Math.random() * 3) });
-  const start = async () => {
+  const random = () => {
+    upd({ body: BODY[Math.floor(Math.random() * 3)].id, skin: Math.floor(Math.random() * 5), hair: Math.floor(Math.random() * 4), hairColor: Math.floor(Math.random() * 4), outfit: Math.floor(Math.random() * 3) });
+    if (!name.trim()) setName(NAMES[Math.floor(Math.random() * NAMES.length)]);
+  };
+  // U03→U36: Enter/CTA chỉ sang chọn chế độ; giữ lựa chọn nếu quay lại đổi ngoại hình.
+  const start = () => {
     if (pending || validateName(name)) return;
     setPending(true);
-    await controller.startNew({ name: normalizeName(name), appearance: look, familyContext: family });
+    saveSetupDraft({ mode: prev?.mode ?? 'fictional_life', presetId: prev?.presetId ?? 'VN-T05Y', segment: prev?.segment ?? 'intake', step: prev?.step ?? 0, character: { name: normalizeName(name), appearance: look, familyContext: family } });
+    set({ screen: 'setup' });
   };
   return (
     <main className="page"><div className="page-inner">
       <h1>Tạo nhân vật</h1>
-      <p className="muted mobile-hide">Ngoại hình chỉ mang tính thẩm mỹ — không ảnh hưởng chỉ số, cách NPC đối xử hay kết quả xem xét.</p>
       <div className="create-grid">
         <div>
           <Suspense fallback={<div className="preview3d" role="status" style={{ display: 'grid', placeItems: 'center' }}>Đang tải xem trước 3D...</div>}><Preview look={look} rot={rot} /></Suspense>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button className="btn sm" onClick={() => setRot((r) => r - Math.PI / 4)} aria-label="Xoay trái">⟲ Xoay trái</button>
-            <button className="btn sm" onClick={() => setRot(0)}>Mặt trước</button>
-            <button className="btn sm" onClick={() => setRot((r) => r + Math.PI / 4)} aria-label="Xoay phải">Xoay phải ⟳</button>
+          <div className="row" style={{ marginTop: 8, justifyContent: 'center' }}>
+            <button className="btn sm" onClick={() => setRot((r) => r - Math.PI / 4)} aria-label="Xoay trái">⟲</button>
+            <button className="btn sm" onClick={() => setRot((r) => r + Math.PI / 4)} aria-label="Xoay phải">⟳</button>
           </div>
         </div>
         <div className="card">
@@ -67,18 +74,18 @@ export function Create() {
           <Swatches label="Màu da" colors={SKIN} names={SKIN_LABEL} value={look.skin} onChange={(i) => upd({ skin: i })} />
           <Choice label="Kiểu tóc" opts={HAIRS.map((l, i) => ({ id: i, label: l }))} value={look.hair} onChange={(v) => upd({ hair: v })} />
           <Swatches label="Màu tóc" colors={HAIR} names={HAIR_COLORS} value={look.hairColor} onChange={(i) => upd({ hairColor: i })} />
-          <Swatches striped label="Đồng phục kẻ sọc" colors={RES_OUTFIT} names={OUTFITS} value={look.outfit} onChange={(i) => upd({ outfit: i })} />
-          <Choice label="Bối cảnh gia đình (câu chuyện hư cấu, đổi được khi tiếp nhận)" opts={[{ id: 'family' as const, label: 'Có gia đình liên lạc' }, { id: 'estranged' as const, label: 'Ít liên lạc' }, { id: 'none' as const, label: 'Không có gia đình' }]} value={family} onChange={setFamily} />
-          <label className="field" style={{ marginTop: 8 }}>Tên hiển thị (2–24 ký tự)
-            <input type="text" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} aria-invalid={!!err} aria-describedby="nameerr" onKeyDown={(e) => { if (e.key === 'Enter') void start(); }} />
+          <Swatches striped label="Đồng phục" colors={RES_OUTFIT} names={OUTFITS} value={look.outfit} onChange={(i) => upd({ outfit: i })} />
+          <Choice label="Gia đình" opts={[{ id: 'family' as const, label: 'Có liên lạc' }, { id: 'estranged' as const, label: 'Ít liên lạc' }, { id: 'none' as const, label: 'Không có' }]} value={family} onChange={setFamily} />
+          <label className="field" style={{ marginTop: 8 }}>Tên nhân vật
+            <input type="text" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} aria-invalid={!!err} aria-describedby="nameerr" onKeyDown={(e) => { if (e.key === 'Enter') start(); }} />
           </label>
           <p id="nameerr" className="small" style={{ color: 'var(--error)', minHeight: 20 }}>{err ?? ''}</p>
           <div className="row create-cta">
-            <button className="btn" onClick={random}>Ngẫu nhiên</button>
-            <button className="btn" disabled={!history.length} onClick={() => { setLook(history[history.length - 1]); setHistory((h) => h.slice(0, -1)); }}>Hoàn tác</button>
+            <button className="btn ghost" onClick={() => set({ screen: 'menu' })} aria-label="Quay lại"><Icon name="back" size={18} /></button>
+            <button className="btn" onClick={random}><Icon name="dice" size={18} /> Ngẫu nhiên</button>
+            <button className="btn" disabled={!history.length} onClick={() => { setLook(history[history.length - 1]); setHistory((h) => h.slice(0, -1)); }} aria-label="Hoàn tác">↶</button>
             <span className="spacer" />
-            <button className="btn ghost" onClick={() => set({ screen: 'menu' })}>Quay lại</button>
-            <button className="btn primary" disabled={!name || !!err || pending} onClick={start}>{pending ? 'Đang tạo...' : 'Bắt đầu hành trình'}</button>
+            <button className="btn primary" disabled={!name || !!err || pending} onClick={start}>Tiếp tục</button>
           </div>
         </div>
       </div>

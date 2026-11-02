@@ -12,6 +12,8 @@ import { NPCS, NPC_BY_ID } from '../content/npcs';
 import { DAILY, ROLL_CALLS, npcBlockAt } from '../content/schedule';
 import { Rng, dayOf, dist2, fmtClock, hm, minuteOfDay } from '../domain/util';
 import { cellOf } from './nav';
+import { constrainMove, custodyTick, homeBed, homeRoom, isVN, positionAllowed, propAllowed, reasonText, resolveOnLoad } from '../domain/custody';
+import { CUSTODY_ROOM_BY_ID, custodyRoomAt, custodyRoomOfBed } from '../content/world';
 
 export const TICK_HZ = 30;
 const DT = 1 / TICK_HZ;
@@ -57,6 +59,8 @@ export class GameSession {
     this.refreshDoors(true);
     this.refreshStaffDuty();
     resetWeeklyStock(this.ctx);
+    // CR-VN-01: xử lý mốc đến hạn + vị trí hợp lệ TRƯỚC khi cho input (không có frame tự do khi khôi phục).
+    resolveOnLoad(this.ctx);
     if (!options.resume) {
       this.ai.snapAll(this.ctx);
       if (s.player.mode === 'acting' || s.player.mode === 'talking' || s.player.mode === 'sleeping') { s.player.mode = 'grounded'; s.player.action = null; }
@@ -129,7 +133,8 @@ export class GameSession {
     const s = this.s;
     s.tick++;
     const rate = 1440 / (this.settings.dayLengthRealMin * 60);
-    const accel = s.player.action && !s.player.action.committed ? ACTION_ACCEL : 1;
+    // Đi vệ sinh tua chậm hơn (~5 giây thực) để thấy nhân vật ngồi trên bồn; vẫn bỏ qua được bằng phím tua.
+    const accel = s.player.action && !s.player.action.committed ? (s.player.action.verb === 'use_toilet' ? 2 : ACTION_ACCEL) : 1;
     const dm = rate * DT * accel;
     this.movePlayer(DT);
     this.advanceMinutes(dm, false);
@@ -165,7 +170,7 @@ export class GameSession {
       decayMemories(s);
       this.dirty = true;
     }
-    for (const row of DAILY) if (row.from === m) {
+    for (const row of isVN(s) ? [] : DAILY) if (row.from === m) {
       this.emit({ type: 'boundary', minute: absMin, label: row.label });
       if (!sleeping && (row.kind === 'meal' || row.kind === 'rollcall' || row.id === 'yard' || row.id === 'night')) {
         this.emit({ type: 'subtitle', speaker: 'Loa thông báo', text: `${row.label} (${fmtClock(row.from)}–${fmtClock(row.to)}). ${row.hint}`, durationMs: 6000 });
@@ -173,9 +178,10 @@ export class GameSession {
       }
     }
     for (const rc of ROLL_CALLS) {
-      if (m === rc.at - 10 && !sleeping) notify(ctx, `${rc.label} lúc ${fmtClock(rc.at)} tại Khu phòng ở.`, 'info', 'life');
+      if (m === rc.at - 10 && !sleeping) notify(ctx, `${rc.label} lúc ${fmtClock(rc.at)} ${isVN(s) ? 'tại buồng' : 'tại Khu phòng ở'}.`, 'info', 'life');
       if (m === rc.end) {
-        const inL02 = s.player.zone === 'L02' || !!s.flags[`muster:${rc.id}:${dayOf(absMin)}`];
+        const vnHome = isVN(s) ? homeRoom(s) : null;
+        const inL02 = isVN(s) ? !!vnHome && custodyRoomAt(s.player.pos.x, s.player.pos.z)?.id === vnHome.id : s.player.zone === 'L02' || !!s.flags[`muster:${rc.id}:${dayOf(absMin)}`];
         rollCallResolve(ctx, rc.id, inL02 || (sleeping && s.player.zone === 'L02'), !!s.player.action || !!this.dialogue);
       }
     }
@@ -184,6 +190,7 @@ export class GameSession {
     if (s.minute >= s.world.nextWeatherMinute) this.rollWeather();
     if (m % 60 === 0) this.director();
     lifeTick(ctx);
+    custodyTick(ctx);
     autoStartQuests(ctx);
     questsCheckState(ctx);
     if (m % 10 === 0) checkAchievements(ctx);
@@ -231,7 +238,8 @@ export class GameSession {
       this.phys.setDoor(id, next === 'closed');
       if (!initial) {
         this.emit({ type: 'doorChanged', doorId: id, state: next, reason });
-        if (next === 'closing') notify(this.ctx, `${z.name} sắp đóng (${reason}). Bạn có thể ra bất cứ lúc nào.`, 'info', 'system');
+        // Chỉ báo cho người đang ở trong khu (trước đây NPC đứng ở cửa cũng làm phát thông báo).
+        if (next === 'closing' && s.player.zone === z.id) notify(this.ctx, `${z.name} sắp đóng (${reason}). Bạn có thể ra bất cứ lúc nào.`, 'info', 'system');
       }
     }
   }
@@ -310,9 +318,18 @@ export class GameSession {
     this.vel.x += Math.max(-acc, Math.min(acc, tx - this.vel.x));
     this.vel.z += Math.max(-acc, Math.min(acc, tz - this.vel.z));
     if (Math.hypot(this.vel.x, this.vel.z) < 0.01) { this.vel.x = this.vel.z = 0; if (p.mode === 'moving') p.mode = p.crouch ? 'crouched' : 'grounded'; return; }
-    const np = this.phys.moveCharacter(p.pos, this.vel.x * dt, this.vel.z * dt, 0.3);
+    let np = this.phys.moveCharacter(p.pos, this.vel.x * dt, this.vel.z * dt, 0.3);
+    if (isVN(s)) {
+      // F64: cùng một evaluator cho bàn phím/cảm ứng/tay cầm — kiểm tại bước băng qua ranh giới.
+      const c = constrainMove(s, p.pos, np);
+      if (c.denied) {
+        this.denyMovement(c.denied);
+        if (c.x === p.pos.x && c.z === p.pos.z) { this.vel.x = this.vel.z = 0; return; }
+      }
+      np = { x: c.x, y: np.y, z: c.z };
+    }
     const moved = Math.hypot(np.x - p.pos.x, np.z - p.pos.z);
-    if (!Number.isFinite(np.x) || np.x < -75 || np.x > 115 || np.z < -40 || np.z > 40) {
+    if (!Number.isFinite(np.x) || np.x < -107 || np.x > 115 || np.z < -40 || np.z > 40) {
       p.pos = { ...p.lastSafe };
       p.mode = 'recovering';
       notify(this.ctx, 'Đã đưa bạn về vị trí an toàn gần nhất.', 'info', 'system');
@@ -330,7 +347,16 @@ export class GameSession {
       this.emit({ type: 'enteredZone', zone: z });
     }
     this.safeTimer += dt;
-    if (this.safeTimer > 1 && !this.phys.overlaps(p.pos.x, p.pos.z, 0.32)) { p.lastSafe = { ...p.pos }; this.safeTimer = 0; }
+    if (this.safeTimer > 1 && !this.phys.overlaps(p.pos.x, p.pos.z, 0.32) && positionAllowed(s, p.pos.x, p.pos.z).ok) { p.lastSafe = { ...p.pos }; this.safeTimer = 0; }
+  }
+
+  private lastDenial = { code: '', at: -1e9 };
+  /** Thông báo bị chặn có lý do — dedup để không spam mỗi frame. */
+  private denyMovement(code: string) {
+    const now = this.s.tick;
+    if (code === this.lastDenial.code && now - this.lastDenial.at < 30 * 6) return;
+    this.lastDenial = { code, at: now };
+    notify(this.ctx, reasonText(code), 'warning', 'life');
   }
 
   tutorialDone(step: string, next?: string) {
@@ -368,7 +394,7 @@ export class GameSession {
       const hx = (pr.w * c + pr.d * sn) / 2, hz = (pr.w * sn + pr.d * c) / 2;
       const ex = Math.max(0, Math.abs(p.pos.x - pr.x) - hx);
       const ez = Math.max(0, Math.abs(p.pos.z - pr.z) - hz);
-      const verbs = verbsFor(s, pr, this.settings.autoComplete);
+      const verbs = this.gatedVerbs(pr);
       if (!verbs.length) continue;
       consider(pr.id, 'prop', pr.x, pr.z, Math.hypot(ex, ez), pr.label);
     }
@@ -385,7 +411,7 @@ export class GameSession {
     }
     this.focusHold = 0;
     const t = found.t;
-    if (t.kind === 'prop') t.verbs = verbsFor(s, PROP_BY_ID[t.id], this.settings.autoComplete);
+    if (t.kind === 'prop') t.verbs = this.gatedVerbs(PROP_BY_ID[t.id]);
     else {
       const rt = s.npcs[t.id];
       const def = NPC_BY_ID[t.id];
@@ -396,6 +422,15 @@ export class GameSession {
       t.busy = busy;
     }
     this.focus = t;
+  }
+
+  /** Verbs filtered by custody evaluator (cùng luật với commit). */
+  gatedVerbs(prop: PropDef): VerbOption[] {
+    const verbs = verbsFor(this.s, prop, this.settings.autoComplete);
+    if (!isVN(this.s)) return verbs;
+    const e = propAllowed(this.s, prop);
+    if (e.ok) return verbs;
+    return verbs.map((v) => ({ ...v, enabled: false, reason: reasonText(e.reasonCode) }));
   }
 
   /** Validate range+LOS again at commit (authority không tin client focus). */
@@ -415,7 +450,7 @@ export class GameSession {
     if (verb === 'talk') return this.talk(targetId);
     const prop = PROP_BY_ID[targetId];
     if (!prop || !this.inRange(prop)) return { ok: false, message: 'Quá xa hoặc bị che khuất.' };
-    const opt = verbsFor(s, prop, this.settings.autoComplete).find((v) => v.verb === verb);
+    const opt = this.gatedVerbs(prop).find((v) => v.verb === verb);
     if (!opt) return { ok: false, message: 'Không thể làm việc này ở đây.' };
     if (!opt.enabled) return { ok: false, message: opt.reason ?? 'Chưa khả dụng.' };
     if (this.s.tutorial.interact === 'active') this.tutorialDone('interact', 'schedule');
@@ -451,7 +486,7 @@ export class GameSession {
     s.player.action = { actionId, verb, targetId, startMinute: s.minute, durationMin: Math.max(0.5, duration), elapsedMin: 0, committed: false, params };
     s.player.mode = 'acting';
     const slot = SLOTS.find((sl) => sl.propId === prop.id && (!s.world.reservations[sl.id] || s.world.reservations[sl.id] === 'player'));
-    if (slot && ['shower', 'medbed', 'quiet_mat', 'mat', 'bar', 'visit_table', 'table', 'phone'].includes(prop.kind)) {
+    if (slot && ['shower', 'medbed', 'quiet_mat', 'mat', 'bar', 'visit_table', 'table', 'phone', 'toilet'].includes(prop.kind)) {
       s.player.pos = { ...slot.pos };
       s.player.yaw = slot.yaw;
       s.player.seatedAt = slot.id;
@@ -508,7 +543,9 @@ export class GameSession {
   private placeAtExit(slotId: string) {
     const sl = SLOTS.find((x) => x.id === slotId);
     if (!sl) return;
-    const back = { x: sl.pos.x - Math.sin(sl.yaw) * 0.85, y: 0, z: sl.pos.z - Math.cos(sl.yaw) * 0.85 };
+    // Bồn cầu: đứng dậy bước ra phía trước (sau lưng là két nước/tường).
+    const dir = sl.kind === 'toilet' ? -1 : 1;
+    const back = { x: sl.pos.x - dir * Math.sin(sl.yaw) * 0.85, y: 0, z: sl.pos.z - dir * Math.cos(sl.yaw) * 0.85 };
     const fixed = this.phys.moveCharacter(back, 0.001, 0.001, 0.3);
     this.s.player.pos = this.phys.overlaps(fixed.x, fixed.z, 0.29) ? { ...this.s.player.lastSafe } : fixed;
   }
@@ -549,7 +586,8 @@ export class GameSession {
   sleep(bedId: string, wakeAbs: number): { ok: boolean; message?: string } {
     const s = this.s;
     const prop = PROP_BY_ID[bedId];
-    if (!prop || currentBed(s) !== bedId || !this.inRange(prop)) return { ok: false, message: 'Chỉ ngủ được trên giường của bạn.' };
+    const ownBed = isVN(s) ? homeBed(s) : currentBed(s);
+    if (!prop || ownBed !== bedId || !this.inRange(prop)) return { ok: false, message: 'Chỉ ngủ được trên giường của bạn.' };
     if (wakeAbs <= s.minute + 30 || wakeAbs > s.minute + 14 * 60) return { ok: false, message: 'Giờ thức không hợp lệ.' };
     const actionId = `sleep_${s.tick}`;
     const hours = (wakeAbs - s.minute) / 60;
@@ -559,7 +597,9 @@ export class GameSession {
     this.exec((ctx) => { if (!actionSeen(s, actionId)) commitAction(ctx, 'sleep', prop, actionId, { hours }); });
     s.player.mode = 'grounded';
     const cell = CELL_ROOMS.find((c) => c.beds.includes(bedId));
-    if (cell) s.player.pos = this.phys.moveCharacter({ x: cell.door.x, y: 0, z: cell.door.z + cell.inward * 1.6 }, 0.001, 0, 0.3);
+    const vnRoom = custodyRoomOfBed(bedId);
+    if (vnRoom) { s.player.pos = { x: vnRoom.anchor.x, y: 0, z: vnRoom.anchor.z }; s.player.zone = vnRoom.zone; }
+    else if (cell) s.player.pos = this.phys.moveCharacter({ x: cell.door.x, y: 0, z: cell.door.z + cell.inward * 1.6 }, 0.001, 0, 0.3);
     s.player.lastSafe = { ...s.player.pos };
     this.dirty = true;
     this.exec((ctx) => notify(ctx, `Bạn đã ngủ ${hours.toFixed(1)} giờ. Năng lượng ${Math.round(s.needs.energy)}.`, 'success', 'system'));
@@ -654,5 +694,16 @@ export class GameSession {
     const c = cellOf(this.s.player.pos);
     return c ? c.label : null;
   }
-  safeAnchorFor(z: ZoneId) { return zoneCenter(z); }
+  safeAnchorFor(z: ZoneId) {
+    // F71: room-specific anchor hợp lệ với actor, không dùng tâm khu.
+    const home = isVN(this.s) ? homeRoom(this.s) : null;
+    if (home) return { x: home.anchor.x, y: 0, z: home.anchor.z };
+    return zoneCenter(z);
+  }
+  custodyRoomLabel(): string | null {
+    if (!isVN(this.s)) return null;
+    const r = custodyRoomAt(this.s.player.pos.x, this.s.player.pos.z);
+    return r ? r.label : null;
+  }
+  custodyRoom(id: string) { return CUSTODY_ROOM_BY_ID[id]; }
 }

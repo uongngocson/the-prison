@@ -12,7 +12,7 @@ import type { Overlay } from '../ui/store';
 export const RESUME_KEY = 'mot-ngay-moi:resume:v1';
 export const RESUME_PREVIOUS_KEY = `${RESUME_KEY}:previous`;
 const MAX_BYTES = 768 * 1024;
-const overlays: Overlay[] = [null, 'pause', 'inventory', 'journal', 'map', 'schedule', 'profile', 'handbook', 'saves', 'settings', 'life', 'sleep', 'scene', 'library', 'news', 'menu_board', 'notifications'];
+const overlays: Overlay[] = [null, 'pause', 'inventory', 'journal', 'map', 'schedule', 'profile', 'handbook', 'saves', 'settings', 'life', 'sleep', 'scene', 'library', 'news', 'menu_board', 'notifications', 'quickmenu', 'custody', 'incell'];
 
 export interface ResumeUI {
   screen: 'game' | 'ending';

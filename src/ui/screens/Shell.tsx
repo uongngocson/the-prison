@@ -135,27 +135,33 @@ export function Menu() {
   );
 }
 
+const LOAD_TIPS = ['Nhấn K để xem lịch trong ngày', 'Nhấn L để mở Đời sống', 'Nhấn H để mở Sổ tay', 'Nhấn E để tương tác với đồ vật và người', 'Giữ Shift để chạy', 'Đi ngủ đúng giờ để hồi năng lượng'];
+const LOAD_TIPS_TOUCH = ['Kéo cần trái để di chuyển', 'Chạm nút bàn tay để tương tác', 'Mở Menu ở góc phải để xem lịch, túi đồ, hồ sơ', 'Đi ngủ đúng giờ để hồi năng lượng'];
+
 export function Loading() {
   const l = useUI((s) => s.loading);
-  const set = useUI((s) => s.set);
-  const idx = l.stages.indexOf(l.stage);
+  const touch = useDevice((d) => d.touch);
+  const [tip] = useState(() => Math.floor(Math.random() * 100));
+  const tips = touch ? LOAD_TIPS_TOUCH : LOAD_TIPS;
+  const pct = Math.round(l.progress * 100);
   return (
-    <main className="page" aria-busy={!l.error}><div className="page-inner" style={{ maxWidth: 640, paddingTop: '10vh' }}>
-      <div className="loading-art">Đang chuẩn bị không gian...</div>
-      <h2 style={{ marginTop: 16 }}>{l.error ? 'Không thể tải' : l.stage}</h2>
-      {!l.error && <div aria-live="polite" className="sr">{Math.round(l.progress * 100) % 25 === 0 ? `${Math.round(l.progress * 100)}%` : ''}</div>}
-      <ol className="stage-list">
-        {l.stages.map((s, i) => <li key={s} className={i < idx ? 'done' : i === idx ? 'active' : ''}>{i < idx ? '✓ ' : ''}{s}</li>)}
-      </ol>
-      {l.error && (
-        <div className="notice" role="alert">
-          <p>{l.error}</p>
-          <p className="muted small">Tiến trình của bạn không bị thay đổi.</p>
-          <div className="row"><button className="btn primary" onClick={() => location.reload()}>Thử lại</button><button className="btn" onClick={() => controller.quitToMenu()}>Về menu</button></div>
-        </div>
-      )}
-      <p className="muted small" style={{ marginTop: 16 }}>Mẹo: Nhấn <span className="kbd">K</span> xem lịch, <span className="kbd">L</span> mở Đời sống, <span className="kbd">H</span> mở Sổ tay.</p>
-    </div></main>
+    <main className="loading-screen" aria-busy={!l.error}>
+      <div className="ld-inner">
+        <div className="ld-title">Một Ngày Mới</div>
+        {!l.error ? <>
+          <div className="ld-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Đang tải"><i style={{ width: `${Math.max(4, pct)}%` }} /></div>
+          <div className="ld-row"><span>{l.stage}</span><b>{pct}%</b></div>
+          <div aria-live="polite" className="sr">{pct % 25 === 0 ? `${pct}%` : ''}</div>
+          <p className="ld-tip">{tips[tip % tips.length]}</p>
+        </> : (
+          <div className="ld-err" role="alert">
+            <b>Không thể tải</b>
+            <p>{l.error}</p>
+            <div className="row" style={{ justifyContent: 'center' }}><button className="btn primary" onClick={() => location.reload()}>Thử lại</button><button className="btn" onClick={() => controller.quitToMenu()}>Về menu</button></div>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
 

@@ -7,6 +7,19 @@ import { CASE_FACTS, CONTACTS_BY_CONTEXT, LETTER_TOPICS, POLICY_PROFILE, PROGRAM
 import { ROLL_CALLS } from '../content/schedule';
 import { NPCS } from '../content/npcs';
 import { dayOf, dayOfWeek, fmtClock, fmtDayClock, fmtMoney, hm, minuteOfDay, MIN_PER_DAY, pushBounded } from './util';
+import { custodyRoomOfBed } from '../content/world';
+
+/** CR-VN-01: custody module registers these at import (tránh vòng phụ thuộc). Legacy mode: hooks trả null/false. */
+export const custodyHooks: {
+  placementBed?: (ctx: Ctx) => { bed: string; label: string; reason: string } | null;
+  afterHousingCommit?: (ctx: Ctx) => void;
+  incidentDecided?: (ctx: Ctx, inc: IncidentReview) => boolean;
+  incidentOverturned?: (ctx: Ctx, inc: IncidentReview) => void;
+  compatibleBed?: (ctx: Ctx) => string | null;
+  departAllowed?: (s: GameState) => boolean | null;
+  onDeparted?: (ctx: Ctx) => void;
+  serviceCheck?: (s: GameState, kind: string) => string | null;
+} = {};
 
 export const ROOM_MOVE_DEST_BED = 'cell_7_bed_b';
 export const PLAYER_START_BED = 'cell_3_bed_a';
@@ -87,11 +100,15 @@ export function admissionStep(ctx: Ctx, step: AdmissionStep, params: { familyCon
       break;
     }
     case 'housing': {
-      assignHousing(ctx, PLAYER_START_BED, 'Phân chỗ ban đầu, gần lối đi chung');
+      const vn = s.experienceMode === 'vn_custody' ? custodyHooks.placementBed?.(ctx) ?? null : null;
+      if (s.experienceMode === 'vn_custody' && !vn) return { ok: false, message: 'Chưa có buồng tương thích với quyết định phân loại — vị trí hiện tại được giữ (NO_COMPATIBLE_ROOM).' };
+      assignHousing(ctx, vn ? vn.bed : PLAYER_START_BED, vn ? vn.reason : 'Phân chỗ ban đầu, gần lối đi chung');
       ep.state = 'admitted';
       s.flags.admission_complete = true;
       ctx.emit({ type: 'flag', key: 'admission_complete', value: true });
-      notify(ctx, 'Đã hoàn tất tiếp nhận. Bạn được xếp giường 3A, khu phòng ở.', 'success', 'life');
+      notify(ctx, vn ? `Đã hoàn tất tiếp nhận. Bạn được bố trí ${vn.label}.` : 'Đã hoàn tất tiếp nhận. Bạn được xếp giường 3A, khu phòng ở.', 'success', 'life');
+      ep.admissionSteps[step] = true;
+      custodyHooks.afterHousingCommit?.(ctx);
       break;
     }
   }
@@ -148,7 +165,7 @@ export function returnProperty(ctx: Ctx): boolean {
 export function assignHousing(ctx: Ctx, bedSlotId: string, reason: string) {
   const s = ctx.s;
   if (s.life.housing.some((h) => h.bedSlotId === bedSlotId && (h.state === 'active' || h.state === 'reserved'))) return;
-  s.life.housing.push({ id: lid(ctx, 'hs'), zone: 'L02', roomId: bedSlotId.split('_bed')[0], bedSlotId, state: 'active', startMinute: s.minute, reason });
+  s.life.housing.push({ id: lid(ctx, 'hs'), zone: custodyRoomOfBed(bedSlotId)?.zone ?? 'L02', roomId: bedSlotId.split('_bed')[0], bedSlotId, state: 'active', startMinute: s.minute, reason });
   s.world.reservations[bedSlotId] = 'player';
 }
 export function currentBed(s: GameState): string | null {
@@ -332,6 +349,8 @@ export function book(ctx: Ctx, serviceId: string, start: number, participant: st
   const end = start + sv.durationMin;
   const overlap = s.life.bookings.find((b) => ['booked', 'waiting', 'active'].includes(b.state) && b.start < end && start < b.end);
   if (overlap) return { ok: false, message: `Trùng lịch với ${SERVICE_BY_ID[overlap.serviceId]?.name ?? 'lịch khác'} lúc ${fmtClock(overlap.start)}.` };
+  const blocked = custodyHooks.serviceCheck?.(s, sv.kind) ?? null;
+  if (blocked) return { ok: false, message: blocked };
   if (participant) {
     const c = s.life.contacts.find((x) => x.id === participant);
     if (!c || !c.channels.includes(sv.kind as never)) return { ok: false, message: 'Liên hệ này không dùng kênh đó.' };
@@ -485,7 +504,7 @@ function resolveCaseOutcome(ctx: Ctx, c: ServiceCase) {
       const overturn = inc.responses.length > 0 || inc.facts.some((f) => f.confidence < 0.7);
       inc.state = overturn ? 'overturned' : 'decided';
       inc.history.push({ minute: s.minute, actorRole: 'reviewer', text: overturn ? 'Quyết định được hủy bỏ sau xem xét độc lập; quyền lợi được khôi phục.' : 'Quyết định được giữ nguyên; lý do đã được giải thích đầy đủ.', state: 'resolved' });
-      if (overturn) s.life.privileges.recreationRestrictedUntil = 0;
+      if (overturn) { s.life.privileges.recreationRestrictedUntil = 0; custodyHooks.incidentOverturned?.(ctx, inc); }
       c.response = overturn ? 'Xem xét lại: hủy quyết định, khôi phục quyền lợi.' : 'Xem xét lại: giữ nguyên quyết định. Bạn có thể trao đổi thêm với cố vấn hồ sơ.';
     } else c.response = 'Đã xem xét lại bởi cán bộ độc lập. Phản hồi ban đầu được giải thích chi tiết hơn và ghi nhận ý kiến của bạn.';
     c.state = 'answered';
@@ -554,13 +573,15 @@ function advanceIncidents(ctx: Ctx) {
       if (valid || inc.facts.every((f) => f.confidence < 0.7)) {
         inc.state = 'dismissed';
         inc.decision = 'Không xử lý: có lý do hợp lệ hoặc dữ kiện chưa đủ.';
+      } else if (custodyHooks.incidentDecided?.(ctx, (inc.state = 'decided', inc))) {
+        // VN policy ladder handled by custody module (khiển trách / cảnh cáo / buồng kỷ luật có thời hạn).
       } else {
         inc.state = 'decided';
         inc.decision = 'Nhắc nhở; tạm hạn chế đăng ký hoạt động giải trí buổi tối 1 ngày. Không ảnh hưởng ăn uống, vệ sinh, chăm sóc, liên lạc hay quyền gửi đơn.';
         inc.consequence = { privilege: 'evening_recreation', untilMinute: s.minute + MIN_PER_DAY };
         s.life.privileges.recreationRestrictedUntil = s.minute + MIN_PER_DAY;
       }
-      inc.history.push({ minute: s.minute, actorRole: 'reviewer', text: inc.decision, state: 'answered' });
+      inc.history.push({ minute: s.minute, actorRole: 'reviewer', text: inc.decision ?? '', state: 'answered' });
       notify(ctx, `Kết quả xem xét sự việc: ${inc.decision}`, inc.state === 'dismissed' ? 'success' : 'info', 'life', inc.state === 'decided');
       changed(ctx, 'incidents');
     }
@@ -756,9 +777,10 @@ export function requestRoomMove(ctx: Ctx) {
 function proposeRoomMove(ctx: Ctx) {
   const s = ctx.s;
   const from = currentBed(s);
-  if (!from || from === ROOM_MOVE_DEST_BED) return;
+  const dest = s.experienceMode === 'vn_custody' ? custodyHooks.compatibleBed?.(ctx) ?? null : ROOM_MOVE_DEST_BED;
+  if (!from || !dest || from === dest) return;
   if (s.life.transitions.some((t) => t.kind === 'room_move' && !['committed', 'cancelled'].includes(t.state))) return;
-  s.life.transitions.push({ id: lid(ctx, 'tr'), kind: 'room_move', state: 'proposed', fromAnchor: from, toAnchor: ROOM_MOVE_DEST_BED, minute: s.minute, sourceActionId: `room_move_tr:${dayOf(s.minute)}`, packingConfirmed: false });
+  s.life.transitions.push({ id: lid(ctx, 'tr'), kind: 'room_move', state: 'proposed', fromAnchor: from, toAnchor: dest, minute: s.minute, sourceActionId: `room_move_tr:${dayOf(s.minute)}`, packingConfirmed: false });
   notify(ctx, 'Có đề xuất chuyển phòng. Xem chuẩn bị tại Đời sống › Chuyển nơi.', 'info', 'life', true);
   changed(ctx, 'transitions');
 }
@@ -774,7 +796,7 @@ export function confirmTransition(ctx: Ctx, id: string): { ok: boolean; message:
   t.state = 'staged';
   const old = s.life.housing.find((h) => h.state === 'active');
   if (s.life.housing.some((h) => h.bedSlotId === t.toAnchor && ['reserved', 'active'].includes(h.state))) { t.state = 'cancelled'; return { ok: false, message: 'Giường đích không còn trống; yêu cầu đã được hoàn lại.' }; }
-  const dest = { id: lid(ctx, 'hs'), zone: 'L02' as ZoneId, roomId: t.toAnchor.split('_bed')[0], bedSlotId: t.toAnchor, state: 'reserved' as const, startMinute: s.minute, reason: 'Chuyển phòng theo yêu cầu', transferId: t.id };
+  const dest = { id: lid(ctx, 'hs'), zone: (custodyRoomOfBed(t.toAnchor)?.zone ?? 'L02') as ZoneId, roomId: t.toAnchor.split('_bed')[0], bedSlotId: t.toAnchor, state: 'reserved' as const, startMinute: s.minute, reason: 'Chuyển phòng theo yêu cầu', transferId: t.id };
   s.life.housing.push(dest);
   if (old) old.state = 'moving';
   t.state = 'in_transit';
@@ -785,7 +807,9 @@ export function confirmTransition(ctx: Ctx, id: string): { ok: boolean; message:
   t.state = 'committed';
   t.committedMinute = s.minute;
   addReceipt(ctx, 'transfer', 'committed', [{ itemId: 'handbook', qty: 0, from: t.fromAnchor, to: t.toAnchor, reason: 'Chuyển phòng: tủ cá nhân và đồ đạc đi theo, không mất món nào' }], `transfer:${t.id}`);
-  notify(ctx, `Đã chuyển sang ${t.toAnchor.replace('cell_', 'phòng ').replace('_bed_', ' giường ').toUpperCase()}.`, 'success', 'life');
+  const vnRoom = custodyRoomOfBed(t.toAnchor);
+  notify(ctx, `Đã chuyển sang ${vnRoom ? vnRoom.label : t.toAnchor.replace('cell_', 'phòng ').replace('_bed_', ' giường ').toUpperCase()}.`, 'success', 'life');
+  custodyHooks.afterHousingCommit?.(ctx);
   changed(ctx, 'transitions');
   return { ok: true, message: 'Chuyển phòng hoàn tất.' };
 }
@@ -798,6 +822,8 @@ export function cancelTransition(ctx: Ctx, id: string) {
 
 // ======================= F57 Release / reintegration =======================
 export function releaseEligible(s: GameState): boolean {
+  const vn = custodyHooks.departAllowed?.(s);
+  if (vn !== null && vn !== undefined) return vn; // VN: chỉ khi đến mốc hết hạn theo kịch bản, không theo Q06/ngày 7
   return dayOf(s.minute) >= s.life.episode.releaseEligibleDay && s.quests.Q06?.state === 'active';
 }
 export function setPlanGoal(ctx: Ctx, key: keyof LifeState['reintegration']['goals'], value: string | null) {
@@ -825,6 +851,7 @@ export function depart(ctx: Ctx): { ok: boolean; message: string } {
   s.life.episode.closedMinute = s.minute;
   s.flags.departed = true;
   s.flags.settled_amount = bal;
+  custodyHooks.onDeparted?.(ctx);
   ctx.emit({ type: 'flag', key: 'departed', value: true });
   changed(ctx, 'reintegration');
   return { ok: true, message: 'Rời cơ sở.' };

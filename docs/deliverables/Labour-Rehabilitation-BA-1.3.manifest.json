@@ -1,0 +1,70 @@
+{
+  "artifact": "docs/deliverables/Labour-Rehabilitation-BA-1.3.docx",
+  "sourceFiles": [
+    "docs/blueprint/18-labour-rehabilitation-spec.md",
+    "docs/blueprint/19-labour-ui-art-direction.md"
+  ],
+  "mockups": [
+    {
+      "id": "U39",
+      "title": "Bảng phân công và lựa chọn công việc",
+      "path": "docs/assets/labour/u39-work-hub.png",
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "U40",
+      "title": "Vườn rau",
+      "path": "docs/assets/labour/u40-garden.png",
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "U41",
+      "title": "Ao cá",
+      "path": "docs/assets/labour/u41-fish.png",
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "U42",
+      "title": "Xưởng mộc",
+      "path": "docs/assets/labour/u42-wood.png",
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "U43",
+      "title": "Nhận và trả dụng cụ",
+      "path": "docs/assets/labour/u43-tools.png",
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "U44",
+      "title": "Kiểm nhận và tổng kết ca",
+      "path": "docs/assets/labour/u44-handover.png",
+      "width": 1600,
+      "height": 1000
+    }
+  ],
+  "scope": "Documentation and illustrative UI concepts only",
+  "status": "Documentation only; exported by Microsoft Word and reviewed via PDF; no gameplay implementation or tests performed",
+  "version": "1.3",
+  "date": "2026-11-02",
+  "pdf": "docs/deliverables/Labour-Rehabilitation-BA-1.3.pdf",
+  "validation": {
+    "wordPdfPages": 27,
+    "textSpansOutsidePages": [],
+    "docxXml": "parsed",
+    "pngMockups": 6,
+    "tables": 21,
+    "visualReview": "six original concepts plus PDF gallery and sample content pages"
+  },
+  "sha256": {
+    "docs/deliverables/Labour-Rehabilitation-BA-1.3.docx": "b5ee74c30cfa0d950a860b9e0f49342b63ee4a965060f4132b9cc155e96769d2",
+    "docs/deliverables/Labour-Rehabilitation-BA-1.3.pdf": "c49537a1315f1f30f25361cf3dc9ecfd44685552dc4126a4d2411646e5e45d20",
+    "docs/blueprint/18-labour-rehabilitation-spec.md": "4b460ffb38416f4d6caf319398babbd78836543b17c5a2f64be826bfdb7102cb",
+    "docs/blueprint/19-labour-ui-art-direction.md": "5f745de37736e2cdabf97f9d9c2dd44b2061399aa389cd0b4d00c8daa2b34e4b"
+  }
+}

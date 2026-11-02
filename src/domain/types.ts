@@ -1,14 +1,15 @@
 // Domain types — pure data, no engine/DOM/React imports (02: domain không import engine).
 // Mọi state ở đây JSON-serializable để dùng trực tiếp làm save DTO (F18).
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const CONTENT_VERSION = 'nd-1.1.0';
 
 export type NeedKey = 'energy' | 'hunger' | 'hygiene' | 'mood';
 export type SkillId = 'focus' | 'fitness' | 'communication';
 export type ZoneId =
   | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09'
-  | 'L10' | 'L11' | 'L12' | 'L13' | 'L14' | 'L15' | 'L16' | 'L17' | 'L18';
+  | 'L10' | 'L11' | 'L12' | 'L13' | 'L14' | 'L15' | 'L16' | 'L17' | 'L18'
+  | 'L19' | 'L20' | 'L21' | 'L22';
 
 export interface Vec3 { x: number; y: number; z: number }
 
@@ -194,8 +195,75 @@ export interface LifeState {
 
 export interface GameStats { distanceWalked: number; mealsEaten: number; booksSorted: number; exercises: number; lettersSent: number; talks: number; helps: number; daysCompleted: number; sleeps: number; showers: number }
 
+// ---------- CR-VN-01 custody (14/16): DB45–DB50 as snapshot aggregates ----------
+export type ExperienceMode = 'fictional_life' | 'vn_custody';
+export type PlacementGroup = 'A' | 'B' | 'review_required';
+export type CustodyPhase = 'intake' | 'in_cell' | 'scheduled_movement' | 'authorized_activity' | 'returning' | 'night_confinement'
+  | 'separate_housing' | 'disciplinary_confinement' | 'care_transfer' | 'transfer_pending' | 'released';
+export type StartSegment = 'intake' | 'midway' | 'discipline_demo' | 'separation_demo';
+
+export interface JudgmentAmendment { version: number; minute: number; kind: 'reduction' | 'correction'; months: number; decisionRef: string; note: string; supersedes: number }
+/** DB46 — bản án trong kịch bản (hư cấu). `declaredTermMonths` null khi chung thân. */
+export interface Judgment {
+  judgmentId: string;
+  version: number;
+  sentenceKind: 'term' | 'life';
+  basis: 'single' | 'aggregate';
+  declaredTermMonths: number | null;
+  calendarStart: string; // YYYY-MM-DD — ngày lịch của Ngày 1 trong game
+  creditedDays: number; // thời gian tạm giam trước đó được trừ (fixture)
+  servedDaysAtStart: number; // đã chấp hành trước điểm bắt đầu (đoạn giữa)
+  dangerousRecidivism: boolean;
+  sourceEventId: string;
+  amendments: JudgmentAmendment[];
+  scenarioReleaseDate: string | null;
+}
+/** DB47 */
+export interface ClassificationDecision { decisionId: string; group: PlacementGroup; reasonCode: string; judgmentVersion: number; issuerRole: string; validFromMinute: number; policyRef: string; supersedes: string | null }
+/** DB48 */
+export interface CustodyOrder {
+  orderId: string;
+  kind: 'discipline_confinement' | 'separation' | 'family_visit_restriction';
+  reasonCode: string;
+  issuerRole: string;
+  sourceDecisionId: string;
+  state: 'proposed' | 'notified' | 'active' | 'suspended' | 'revoked' | 'expired' | 'completed';
+  startMinute: number;
+  reviewAtMinute: number | null;
+  endMinute: number | null;
+  roomId: string | null; // vị trí áp dụng (L21/L22)
+  returnHousingRef: string | null;
+  supersedes: string | null;
+  note: string;
+}
+/** DB49 */
+export interface MovementGrant { grantId: string; purpose: 'return' | 'booking' | 'program' | 'release' | 'escort'; destination: ZoneId; validFromMinute: number; validUntilMinute: number; state: 'active' | 'used' | 'expired' | 'revoked'; sourceKey: string }
+/** DB50 */
+export interface CustodyJournalEntry { eventId: string; canonicalSourceKey: string; kind: string; minute: number; revision: number; reasonCode: string; summary: string }
+export interface CustodyState {
+  mode: 'vn_custody';
+  scenarioRef: { id: string; version: string; hash: string };
+  presetId: string;
+  startSegment: StartSegment;
+  judgment: Judgment;
+  classification: ClassificationDecision[];
+  orders: CustodyOrder[];
+  grants: MovementGrant[];
+  phase: CustodyPhase;
+  phaseSinceMinute: number;
+  revision: number;
+  journal: CustodyJournalEntry[];
+  sourceKeys: string[];
+  chapter: { state: 'active' | 'recap' | 'completed'; closedMinute: number | null };
+  releaseState: 'serving' | 'release_due' | 'released';
+  npcBeds: Record<string, string>;
+  disciplineHistory: { minute: number; level: 'reprimand' | 'warning' | 'confinement'; incidentId: string }[];
+}
+
 export interface GameState {
   schemaVersion: number;
+  experienceMode: ExperienceMode;
+  custody: CustodyState | null;
   contentVersion: string;
   lineageId: string;
   generation: number;

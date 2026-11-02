@@ -4,7 +4,7 @@ import type { SkillId, ZoneId } from '../domain/types';
 export type PredName =
   | 'releaseEligible' | 'hasLetterReply' | 'enrolledAny' | 'attendedAnySession' | 'sleptWell' | 'wageReceived'
   | 'planGoals3' | 'faultReported' | 'faultResolved' | 'hasBook' | 'admitted' | 'isRaining' | 'notRaining'
-  | 'hasCertificate' | 'callDone' | 'longResolved' | 'binhArrived' | 'cultureSessionNow' | 'readingGroupNow';
+  | 'hasCertificate' | 'callDone' | 'longResolved' | 'binhArrived' | 'cultureSessionNow' | 'readingGroupNow' | 'storyMilestone' | 'chapterClosed';
 
 export type Match =
   | { talk: string }
@@ -110,8 +110,8 @@ export const QUESTS: QuestDef[] = [
     objectives: [
       { id: 'o1', text: 'Gặp Anh Phong ở Hướng nghiệp & chuẩn bị ra', match: { talk: 'phong' }, where: 'L18', npc: 'phong' },
       { id: 'o2', text: 'Chọn ít nhất 3 mục tiêu kế hoạch (nơi ở, việc làm, học tập...)', match: { pred: 'planGoals3' } },
-      { id: 'o3', text: 'Chờ mốc xem xét theo câu chuyện (Ngày 7 trở đi)', match: { pred: 'releaseEligible' } },
-      { id: 'o4', text: 'Xác nhận rời cơ sở tại bàn kế hoạch', match: { flag: 'departed' }, where: 'L18' },
+      { id: 'o3', text: 'Chờ mốc xem xét theo câu chuyện (Ngày 7 trở đi)', match: { pred: 'storyMilestone' } },
+      { id: 'o4', text: 'Xác nhận tại bàn kế hoạch (rời cơ sở, hoặc kết thúc chương nếu vẫn còn án)', match: { pred: 'chapterClosed' }, where: 'L18' },
     ],
     reward: { chapter: 3 },
     recap: 'Hành trình khép lại với một kế hoạch cho những ngày tiếp theo.',

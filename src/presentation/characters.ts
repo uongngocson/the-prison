@@ -6,7 +6,7 @@ import type { Appearance } from '../domain/types';
 import { SKIN, HAIR } from './palette';
 export { SKIN, HAIR, RES_OUTFIT, STAFF_OUTFIT, COSMETIC_OUTFIT } from './palette';
 
-export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat';
+export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet';
 
 interface Sources { torso: Mesh; hips: Mesh; head: Mesh; hair0: Mesh; hair1: Mesh; hair2: Mesh; arm: Mesh; leg: Mesh; eye: Mesh; shadow: Mesh }
 
@@ -208,6 +208,14 @@ export class Humanoid {
         b.position.y = Math.abs(Math.cos(this.phase)) * (pose === 'run' ? 0.06 : 0.03);
         if (pose === 'run') this.torso.rotation.x = 0.12;
         if (pose === 'crouch') { b.position.y = -0.32; this.legL.rotation.x -= 0.7; this.legR.rotation.x -= 0.7; this.torso.rotation.x = 0.35; }
+        break;
+      }
+      case 'toilet': {
+        b.position.y = -0.44;
+        this.legL.rotation.x = -1.35; this.legR.rotation.x = -1.35;
+        this.legL.rotation.z = -0.08; this.legR.rotation.z = 0.08;
+        this.torso.rotation.x = 0.28; this.head.rotation.x = 0.25;
+        this.armL.rotation.x = -0.75; this.armR.rotation.x = -0.75; this.armL.rotation.z = 0.12; this.armR.rotation.z = -0.12;
         break;
       }
       case 'sit': case 'eat': case 'read': {

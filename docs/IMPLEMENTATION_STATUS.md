@@ -3,24 +3,48 @@
 Ngày 02/11/2026. Báo cáo theo quy tắc của [phần 12](blueprint/12-realism-delivery.md): mỗi mục tách 4 cột **Documented / Implemented / Tested / RealismReviewed**. Cột *RealismReviewed* đều là **chưa**: chưa có chuyên gia jurisdiction, người có trải nghiệm hay reviewer nội dung nào xem xét. Không mục nào được gọi là "100% thực tế".
 
 Quy ước cột Tested:
-- **A**: có test tự động (Vitest, `npm test`, hiện 17 test, tất cả pass)
+- **A**: có test tự động (Vitest, `npm test`, hiện 38 test, tất cả pass)
 - **B**: đã chạy thử trong trình duyệt qua script Playwright (Chrome headless, SwiftShader)
 - **—**: chưa có bằng chứng kiểm thử
 
 ## Tóm tắt
 
-### Đặc tả mới CR-VN-01 — chưa triển khai, 02/11/2026
+### CR-LAB-01 — tài liệu lao động 1.3, chưa triển khai — 02/11/2026
 
-Đã bổ sung hồ sơ BA [13–17](blueprint/13-vietnam-custody-audit.md) cho baseline mục tiêu 1.2: chọn mức án có thời hạn/chung thân ngay setup; bản án và tiến độ; phân nhóm/phân buồng; quyền đi lại và giờ về buồng; giam giữ riêng khác buồng kỷ luật; dịch vụ tại buồng; chuyển khu; tách kết thúc chương khỏi release; save v3 dự kiến. Mapping có delta U01–U35 và contracts U36–U38, không gian L19–L22, RTM và 24 kịch bản nghiệm thu. Không sửa source, SQL, cấu hình hoặc tests trong lần bàn giao tài liệu này.
+Đã bổ sung [đặc tả BA](blueprint/18-labour-rehabilitation-spec.md), [UI/đồ họa](blueprint/19-labour-ui-art-direction.md) và [bản DOCX](deliverables/Labour-Rehabilitation-BA-1.3.docx). Phạm vi mới: 20 nhóm công việc, F73–84, U39–44, L23–28, DB51–58, API18–20, QA33–38 và 20 scenario. Có sáu ảnh concept; không phải UI runtime hay asset 3D đã tích hợp. Bản hiện tại có ca xưởng/bếp/giặt trừu tượng và khóa mộc, chưa đồng nghĩa có crop/pond/production loop mới.
 
-| Hạng mục mới | Documented | Implemented | Tested | RealismReviewed |
+| Nhóm mới | Documented | Implemented | Tested | RealismReviewed |
 |---|---|---|---|---|
-| F61–F72 / chọn án và custody | Có đặc tả [14](blueprint/14-sentence-custody-spec.md) | Chưa | Chưa | Chưa |
-| U36–U38 và delta U01–U35; L19–L22 | Có mapping [15](blueprint/15-custody-ui-mapping.md) | Chưa | Chưa | Chưa |
-| DB45–DB50 / API14–API17 / save v3 | Có hợp đồng [16](blueprint/16-custody-contracts.md) | Chưa | Chưa | Chưa |
-| QA25–QA32 / VN-SC01–24 | Có test specification [17](blueprint/17-custody-delivery-qa.md) | Chưa tự động hóa | Chưa chạy | Chưa |
+| F73–84 / W01–20 | Có đặc tả, scope P0/P1/P2 | Chưa theo CR-LAB-01 | Chưa | Chưa |
+| U39–44 / L23–28 | Contracts/art brief và sáu mockup | Chưa | Chưa trên game | Chưa |
+| Tools/stock/production/module save | DB/API contracts | Chưa | Chưa | Chưa |
+| QA33–38 / LAB-SC01–20 | Test specification | Chưa tự động hóa | Chưa chạy | Chưa |
 
-Các con số 72 features/38 screens/22 logical spaces/50 data IDs là **target thiết kế cộng dồn**, không thay các số implementation trong bảng cũ bên dưới. Hiện game vẫn dùng profile hư cấu, chưa có chọn mức án hoặc giam buồng theo án; cửa theo lịch/va chạm và hạn chế giải trí đang có không tương đương custody 1.2. Nghiên cứu pháp lý có nguồn và các điểm cần xác minh tại [13](blueprint/13-vietnam-custody-audit.md); chưa có chứng nhận mô phỏng “100% thực tế”.
+Đợt bàn giao này chỉ tạo/cập nhật tài liệu và hình minh họa, không sửa source game, tests, SQL hoặc push Git. Thay đổi custody đang có trong working tree là công việc riêng, giữ nguyên. Kiểm tra cấu trúc DOCX/Markdown không được tính là test gameplay.
+
+### CR-VN-01 — đã triển khai bản đầu (chưa review độ chân thực), 02/11/2026
+
+Đã code theo hồ sơ [13–17](blueprint/13-vietnam-custody-audit.md). Bối cảnh mới `vn_custody` chạy song song với `fictional_life` (hành trình cũ không đổi). Kiểm thử: `tests/custody.test.ts` (15 test, cùng 23 test cũ — tổng 38 test pass), `tsc` và `vite build` sạch; luồng Chrome headless trong `scripts/custody.mjs` (U03→U36, reload giữ draft, tiếp nhận vào buồng B-02, U37, chặn rời buồng lúc 22:30 bằng input bàn phím thật, U38 tua qua đêm, lịch/bản đồ). Màn hình di động đã chụp kiểm tra (phase chip, U38). Chưa kiểm tra trên thiết bị thật.
+
+| Feature | Implemented | Tested | RealismReviewed | Ghi chú |
+|---|---|---|---|---|
+| F61 Chọn chế độ & mức án (U36) | Có | A, B | Chưa | Một màn: 2 chế độ (Cốt truyện / Thụ án) + 6 mức án (1, 3, 5, 10, 20 năm, chung thân) + nút Ngẫu nhiên; draft trong sessionStorage. Đã bỏ chữ tham chiếu luật/Việt Nam khỏi UI theo yêu cầu |
+| F62 Hồ sơ bản án & tiến độ | Có | A | Chưa | Lịch theo ngày (addMonths kẹp cuối tháng); trừ thời gian tạm giam một lần; chung thân không có ngày/đếm ngược |
+| F63 Phân nhóm & phân buồng | Có | A | Chưa | Bảng 14 §3: đúng 15 năm → A, 181 tháng → B; giảm án không có quyết định vẫn B; không fallback sang cohort khác |
+| F64 Ranh giới & quyền đi lại | Có | A, B | Chưa | Một evaluator cho bàn phím/cảm ứng/tay cầm; thông báo lý do có dedup; props trong buồng khác bị khóa |
+| F65 Ra/về buồng, ban đêm | Có | A, B | Chưa | Lịch nhóm A/B hư cấu [D]; quyền trở về 45 phút rồi áp giải trừu tượng "không ghi nhận vi phạm"; thư gửi được từ buồng |
+| F66 Kỷ luật & buồng kỷ luật | Có | A | Chưa | Thang: khiển trách → cảnh cáo → buồng kỷ luật 3 ngày; tối đa 10 ngày; không trùng nguồn; hết hạn đưa về buồng tương thích; hạn chế gặp là lệnh riêng |
+| F67 Bố trí riêng | Có | — | Chưa | Kịch bản minh họa có hạn xem xét lại; không phải kỷ luật |
+| F68 Dịch vụ dưới ràng buộc | Một phần | — | Chưa | Quyền di chuyển theo lịch hẹn/lớp/ca; suất ăn tại buồng khi bị giới hạn. Chưa có nội dung tại buồng riêng cho từng dịch vụ |
+| F69 Chuyển khu & thay đổi bản án | Một phần | — | Chưa | Kịch bản "giữa hành trình": giảm 30 tháng → quyết định phân loại → đề xuất chuyển buồng. Chưa có các loại sửa án khác |
+| F70 Chương ≠ ra trại | Có | A | Chưa | "Kết thúc chương" không đổi trạng thái chấp hành; rời cơ sở chỉ khi đến mốc hết hạn |
+| F71 Lưu/khôi phục | Có | A | Chưa | Save v3; v2→v3 = `fictional_life`, không gán án; kiểm tra pin profile/hash, lệnh, cohort; khôi phục xử lý mốc trước input |
+| F72 Màn chế độ thụ án (U37) | Có | B | Chưa | 3 tab Tổng quan / Lịch / Quyết định; đã bỏ tab Nguồn và trích dẫn văn bản luật khỏi UI |
+| L19–L22 | Có (blockout) | B | Chưa | Khu A, khu B, bố trí riêng, buồng kỷ luật; cửa buồng động chỉ là hình ảnh, quyền do evaluator quyết định |
+
+**Cần làm trước khi deploy:** chạy `supabase/migrations/0002_schema_v3.sql` trên Supabase (nới check `schema_version` lên 1..3); nếu chưa chạy, cloud save v3 bị từ chối (client hiện thông báo rõ, save cục bộ vẫn an toàn).
+
+**Chưa làm / giới hạn:** nhập số tháng tùy chỉnh; tử hình, tạm giam, án treo, nữ/người nước ngoài (khóa có lý do); quy định chi tiết của NĐ 170/2026 và TT 96/2026 chưa đối chiếu (giờ giấc là hư cấu); QA25–QA32 mới tự động hóa một phần; chưa có review pháp lý T11-01.
 
 ### Sửa khôi phục phiên khi reload — 02/11/2026
 

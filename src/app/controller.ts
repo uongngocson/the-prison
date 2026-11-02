@@ -1,4 +1,7 @@
 // Composition root: session + view + persistence + audio + UI projection. Không service locator toàn cục ngoài singleton này.
+import { homeRoom, isConfinedPhase, isVN, windowAt } from '../domain/custody';
+/** Trong bối cảnh VN, khu ở cũ (L02) được thay bằng khu của buồng đang ở. */
+const vnWhere = (s: GameState, z: ZoneId): ZoneId => (z === 'L02' && isVN(s) ? homeRoom(s)?.zone ?? z : z);
 import { GameSession } from '../simulation/session';
 import type { GameView } from '../presentation/gameView';
 import { createNewGame, type CharacterDraft } from '../domain/newgame';
@@ -150,7 +153,7 @@ class Controller {
     this.hudTimer = this.autosaveTimer = this.recoveryTimer = 0;
     this.lastZoneAudio = '';
     const ui = useUI.getState();
-    const stages = ['Khởi tạo mô phỏng', 'Chuẩn bị va chạm & điều hướng', 'Dựng không gian', 'Tạo nhân vật', 'Biên dịch vật liệu', 'Sẵn sàng'];
+    const stages = ['Khởi động', 'Chuẩn bị bản đồ', 'Dựng khu trại', 'Tạo nhân vật', 'Hoàn thiện hình ảnh', 'Sẵn sàng'];
     ui.set({ screen: 'loading', loading: { stage: stages[0], progress: 0, error: null, stages }, overlay: null, dialogue: null, toasts: [], ending: null, fatal: null, focus: null, hud: null, subtitle: null, waypoint: null, overlayParams: {} });
     const step = async (i: number) => { useUI.getState().set({ loading: { stage: stages[i], progress: i / (stages.length - 1), error: null, stages } }); await new Promise((r) => setTimeout(r, 30)); };
     try {
@@ -274,12 +277,12 @@ class Controller {
       clock: fmtClock(s.minute),
       dayLabel: fmtDayClock(s.minute),
       period: PERIOD_LABEL[periodOf(s.minute)],
-      activity: row ? row.label : 'Tự do',
+      activity: isVN(s) ? windowAt(s).label : row ? row.label : 'Tự do',
       zone: ZONE_BY_ID[s.player.zone].name,
       cell: sess.cellLabel(),
       weather: s.world.weather === 'rain' ? 'Mưa nhẹ' : s.world.weather === 'overcast' ? 'Âm u' : 'Trời quang',
       needs: (['energy', 'hunger', 'hygiene', 'mood'] as const).map((key) => ({ key, label: NEED_LABEL[key], value: Math.round(s.needs[key]), cause: s.needCauses[key] })),
-      quest: q && qp ? { id: q.id, title: q.title, objectives: q.objectives.slice(qp.stage, qp.stage + 2).map((o) => ({ text: o.text + (('count' in o.match && o.match.count) ? ` (${qp.counts[o.id] ?? 0}/${o.match.count})` : ''), done: false })), where: q.objectives[qp.stage]?.where ? ZONE_BY_ID[q.objectives[qp.stage].where!].name : undefined } : null,
+      quest: q && qp ? { id: q.id, title: q.title, objectives: q.objectives.slice(qp.stage, qp.stage + 2).map((o) => ({ text: o.text + (('count' in o.match && o.match.count) ? ` (${qp.counts[o.id] ?? 0}/${o.match.count})` : ''), done: false })), where: q.objectives[qp.stage]?.where ? ZONE_BY_ID[vnWhere(s, q.objectives[qp.stage].where!)].name : undefined } : null,
       action: a && !a.committed ? { label: verbLabel(a.verb, a.targetId), progress: Math.min(1, a.elapsedMin / a.durationMin), canSkip: true } : null,
       mode: s.player.mode,
       money: fmtMoney(available(s)),
@@ -344,6 +347,7 @@ class Controller {
       case 'profile': ui.set({ overlay: 'profile', profileTab: 'profile' }); break;
       case 'life': ui.set({ overlay: 'life' }); break;
       case 'handbook': ui.open('handbook'); break;
+      case 'custody': if (isVN(sess.s)) ui.open(isConfinedPhase(sess.s.custody!.phase) ? 'incell' : 'custody'); break;
       case 'cancel': if (sess.s.player.action) sess.cancelAction(); else if (sess.s.player.mode === 'seated') sess.standUp(); break;
       case 'skip': sess.skipAction(); this.bump(); break;
       case 'interact': {
@@ -448,7 +452,7 @@ class Controller {
 }
 
 export function verbLabel(verb: string, target: string): string {
-  const L: Record<string, string> = { eat: 'Đang ăn', read: 'Đang đọc', exercise: 'Đang tập', rest: 'Đang nghỉ', wash: 'Đang rửa mặt', shower: 'Đang tắm', use_toilet: 'Vệ sinh cá nhân', drink: 'Đang uống nước', sort_books: 'Đang sắp sách', help: 'Đang giúp việc', work_shift: 'Đang làm ca', attend_class: 'Đang học', quiet_time: 'Giờ yên tĩnh', culture_session: 'Sinh hoạt', grooming: 'Cắt tóc', laundry_exchange: 'Đổi đồ giặt', take_meal: 'Nhận suất ăn', take_spare_meal: 'Nhận suất dự phòng', return_tray: 'Trả khay', call: 'Cuộc gọi', visit: 'Thăm gặp', legal_meeting: 'Buổi hẹn cố vấn', care_appointment: 'Buổi hẹn chăm sóc', rest_care: 'Nghỉ phục hồi', arrange: 'Trải thảm', collect_orders: 'Nhận hàng', essentials: 'Nhận vật dụng' };
+  const L: Record<string, string> = { eat: 'Đang ăn', read: 'Đang đọc', exercise: 'Đang tập', rest: 'Đang nghỉ', wash: 'Đang rửa mặt', shower: 'Đang tắm', use_toilet: 'Đang đi vệ sinh', drink: 'Đang uống nước', sort_books: 'Đang sắp sách', help: 'Đang giúp việc', work_shift: 'Đang làm ca', attend_class: 'Đang học', quiet_time: 'Giờ yên tĩnh', culture_session: 'Sinh hoạt', grooming: 'Cắt tóc', laundry_exchange: 'Đổi đồ giặt', take_meal: 'Nhận suất ăn', take_spare_meal: 'Nhận suất dự phòng', return_tray: 'Trả khay', call: 'Cuộc gọi', visit: 'Thăm gặp', legal_meeting: 'Buổi hẹn cố vấn', care_appointment: 'Buổi hẹn chăm sóc', rest_care: 'Nghỉ phục hồi', arrange: 'Trải thảm', collect_orders: 'Nhận hàng', essentials: 'Nhận vật dụng' };
   return L[verb] ?? verb;
 }
 

@@ -1,5 +1,7 @@
 # 11 — Hợp đồng runtime, dữ liệu và UI cho Full Life
 
+**CR-LAB-01 / thiết kế 1.3:** [18](18-labour-rehabilitation-spec.md) bổ sung DB51–58/API18–20/module save; [19](19-labour-ui-art-direction.md) bổ sung U39–44. Logical data IDs không tự là bảng SQL, module/schema chưa đổi trong lần viết docs.
+
 **CR-VN-01 / thiết kế 1.2:** [15](15-custody-ui-mapping.md) cập nhật UI và [16](16-custody-contracts.md) mở rộng dữ liệu/runtime; v2 là baseline, v3 chỉ là đề xuất.
 
 Phần bổ sung1.1 cho [02](02-architecture.md), [05](05-ui-ux.md) và [06](06-data-api-security.md). Mọi nội dung là thiết kế, không migration/source code. F33–F60 tại [10](10-prison-life-systems.md) là yêu cầu đầu vào; phạm vi và mức mô phỏng tại [09](09-realism-audit.md).

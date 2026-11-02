@@ -2,7 +2,7 @@
 import type { GameState, NpcActivity, NpcRuntime, Vec3, ZoneId } from '../domain/types';
 import { NPCS, NPC_BY_ID, type NpcDef } from '../content/npcs';
 import { npcBlockAt, type NpcBlock } from '../content/schedule';
-import { SLOTS, SLOT_BY_ID, ZONE_BY_ID, doorNodes, zoneAt, zoneCenter, type SlotDef } from '../content/world';
+import { SLOTS, SLOT_BY_ID, ZONE_BY_ID, custodyRoomOfBed, doorNodes, zoneAt, zoneCenter, type SlotDef } from '../content/world';
 import type { PhysicsPort } from '../physics/physics';
 import { pathToPoint, pathToSlot } from './nav';
 import { dayOf, hash32, minuteOfDay, pushBounded } from '../domain/util';
@@ -15,7 +15,15 @@ const POSE_ACTIVITY: Record<string, NpcActivity> = { sit: 'seated', stand: 'idle
 export class NpcAi {
   constructor(private phys: PhysicsPort) {}
 
+  /** CR-VN-01: khu ở cũ (L02) được ánh xạ sang khu của buồng NPC trong bối cảnh VN. */
   private effectiveBlock(s: GameState, def: NpcDef): NpcBlock {
+    const b = this.baseBlock(s, def);
+    if (!s.custody || b.zone !== 'L02') return b;
+    const room = custodyRoomOfBed(s.custody.npcBeds[def.id] ?? null);
+    return room ? { ...b, zone: room.zone } : b;
+  }
+
+  private baseBlock(s: GameState, def: NpcDef): NpcBlock {
     const m = minuteOfDay(s.minute);
     if (def.id === 'binh' && dayOf(s.minute) < 3) return { from: 0, to: 0, zone: 'L01', slot: 'absent' };
     if (def.id === 'binh' && s.flags.binh_following && s.quests.S06?.state === 'active') return { from: 0, to: 1440, zone: s.player.zone, slot: 'follow' };
@@ -26,7 +34,8 @@ export class NpcAi {
     const q = (id: string) => s.quests[id];
     const awake = m >= 6 * 60 + 30 && m < 21 * 60 + 30;
     const rain = s.world.weather === 'rain';
-    if (awake && def.id === 'tu' && q('Q01')?.state === 'active' && q('Q01').stage === 0) return { from: 0, to: 1440, zone: 'L02', slot: 'sit' };
+    const homeZone: ZoneId = (s.custody && custodyRoomOfBed(s.custody.npcBeds.tu ?? null)?.zone) || 'L02';
+    if (awake && def.id === 'tu' && q('Q01')?.state === 'active' && q('Q01').stage === 0) return { from: 0, to: 1440, zone: homeZone, slot: 'sit' };
     if (awake && def.id === 'tu' && q('S03')?.state === 'active' && q('S03').stage === 2) return { from: 1, to: 1440, zone: 'L02', slot: 'sit' };
     if (awake && def.id === 'binh' && q('S06')?.state === 'active' && q('S06').stage === 0) return { from: 0, to: 1440, zone: 'L02', slot: 'sit' };
     if (awake && def.id === 'hoa') {
@@ -43,7 +52,7 @@ export class NpcAi {
   }
 
   private pickSlot(s: GameState, rt: NpcRuntime, def: NpcDef, b: NpcBlock): SlotDef | null {
-    if (b.slot === 'sleep') return def.bed ? SLOT_BY_ID[def.bed] ?? null : null;
+    if (b.slot === 'sleep') { const bed = s.custody?.npcBeds[def.id] ?? def.bed; return bed ? SLOT_BY_ID[bed] ?? null : null; }
     if (b.slot === 'post') {
       const slot = def.post ? SLOT_BY_ID[def.post] : undefined;
       if (slot) return slot;

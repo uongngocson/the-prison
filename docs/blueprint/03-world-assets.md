@@ -1,5 +1,7 @@
 # 03 — World & Level Design / Asset Production Pipeline
 
+**CR-LAB-01 / thiết kế 1.3:** [19](19-labour-ui-art-direction.md) bổ sung L23–L28, nâng cấp art/slot xưởng L10 và sáu concept; nghiệp vụ tại [18](18-labour-rehabilitation-spec.md). Không phải asset đã sản xuất hoặc benchmark.
+
 **CR-VN-01 / thiết kế 1.2:** [15](15-custody-ui-mapping.md) bổ sung L19–L22 và contract room/boundary/service; L01–L18 dưới đây vẫn là baseline cũ.
 
 **Bổ sung1.1:** L01–L14 là campus baseline ban đầu; [audit09](09-realism-audit.md) và [F33–F60](10-prison-life-systems.md) bổ sung gameplay còn thiếu. L15–L18 cuối file mở rộng thành18 khu/chức năng không gian cho Full Life, có thể đặt trong phòng tái sử dụng thay xây4 tòa nhà. Số này không đồng nghĩa đã có asset hoặc phải render toàn bộ cùng lúc.

@@ -7,11 +7,12 @@ import type { GameSession } from '../simulation/session';
 import { NPCS, NPC_BY_ID } from '../content/npcs';
 import { PROP_BY_ID, ZONE_BY_ID } from '../content/world';
 import { minuteOfDay } from '../domain/util';
+import { cellDoorClosed } from '../domain/custody';
 import type { NpcActivity } from '../domain/types';
 import type { Settings, ActionName } from '../ui/settings';
 
 const ACT_POSE: Record<NpcActivity, Pose> = { idle: 'idle', walking: 'walk', acting: 'work', sleeping: 'lie', talking: 'talk', seated: 'sit', eating: 'eat', exercising: 'exercise', reading: 'read', working: 'work', queue: 'idle' };
-const VERB_POSE: Record<string, Pose> = { eat: 'eat', read: 'read', exercise: 'exercise', work_shift: 'work', help: 'work', sort_books: 'work', attend_class: 'read', quiet_time: 'sit', culture_session: 'sit', rest: 'lie', rest_care: 'lie', call: 'sit', visit: 'sit', legal_meeting: 'sit', care_appointment: 'sit', wash: 'work', shower: 'idle', laundry_exchange: 'work', grooming: 'sit', arrange: 'work' };
+const VERB_POSE: Record<string, Pose> = { use_toilet: 'toilet', eat: 'eat', read: 'read', exercise: 'exercise', work_shift: 'work', help: 'work', sort_books: 'work', attend_class: 'read', quiet_time: 'sit', culture_session: 'sit', rest: 'lie', rest_care: 'lie', call: 'sit', visit: 'sit', legal_meeting: 'sit', care_appointment: 'sit', wash: 'work', shower: 'idle', laundry_exchange: 'work', grooming: 'sit', arrange: 'work' };
 
 export class GameView {
   engine: Engine;
@@ -227,6 +228,13 @@ export class GameView {
     pr.rotation.y += dyaw * Math.min(1, dt * 12);
     let pose: Pose = 'idle';
     const m = s.player.mode;
+    // Đi vệ sinh: camera quay ra trước mặt để thấy nhân vật ngồi trên bồn.
+    if (m === 'acting' && s.player.action?.verb === 'use_toilet') {
+      let dc = s.player.yaw + Math.PI - this.yaw;
+      while (dc > Math.PI) dc -= Math.PI * 2;
+      while (dc < -Math.PI) dc += Math.PI * 2;
+      this.yaw += dc * Math.min(1, dt * 3);
+    }
     if (m === 'sleeping') pose = 'lie';
     else if (m === 'seated') pose = 'sit';
     else if (m === 'talking') pose = 'talk';
@@ -330,6 +338,11 @@ export class GameView {
       d.t += (target - d.t) * Math.min(1, dt * 4);
       d.mesh.position = Vector3.Lerp(d.openPos, d.closedPos, d.t);
       d.mesh.setEnabled(d.t > 0.02);
+    }
+    for (const [roomId, d] of this.world.cellDoors) {
+      const target = cellDoorClosed(this.session.s, roomId) ? 1 : 0;
+      d.t += (target - d.t) * Math.min(1, dt * 3);
+      d.mesh.position = Vector3.Lerp(d.openPos, d.closedPos, d.t);
     }
   }
 

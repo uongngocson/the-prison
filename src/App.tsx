@@ -11,6 +11,7 @@ import { SavesPanel, SettingsPanel } from './ui/screens/SavesSettings';
 import { LifeHub } from './ui/life/LifeHub';
 import { TouchControls, RotateHint, useGamepadUI } from './ui/screens/TouchControls';
 import { QuickMenu } from './ui/screens/MobileHud';
+import { Setup, CustodyPanel, InCellPanel } from './ui/screens/Custody';
 import { startDeviceWatch } from './ui/device';
 import { audio } from './audio/audio';
 
@@ -44,6 +45,7 @@ export default function App() {
       {screen === 'auth' && <Auth />}
       {screen === 'menu' && <Menu />}
       {screen === 'create' && <Create />}
+      {screen === 'setup' && <Setup />}
       {screen === 'loading' && <Loading />}
       {screen === 'lobby' && <Lobby />}
       {screen === 'credits' && <Credits />}
@@ -54,6 +56,8 @@ export default function App() {
       {inGame && <Dialogue />}
       {inGame && overlay === 'quickmenu' && <QuickMenu />}
       {inGame && overlay === 'pause' && <Pause />}
+      {inGame && overlay === 'custody' && <CustodyPanel />}
+      {inGame && overlay === 'incell' && <InCellPanel />}
       {inGame && overlay === 'inventory' && <Inventory />}
       {inGame && overlay === 'journal' && <Journal />}
       {inGame && overlay === 'map' && <MapPanel />}

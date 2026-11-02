@@ -8,6 +8,8 @@ import { ACHIEVEMENTS } from '../../content/quests';
 import { NEED_LABEL, SKILL_LABEL, SKILL_THRESHOLDS, levelOf, relTier, repTier } from '../../domain/core';
 import { dayOf, fmtDayClock } from '../../domain/util';
 import type { SkillId } from '../../domain/types';
+import { isVN, sentenceLabel } from '../../domain/custody';
+import { PHASE_LABEL } from '../../content/custody';
 
 const close = () => useUI.getState().open(null);
 const SKILL_UNLOCK: Record<SkillId, string[]> = {
@@ -42,7 +44,8 @@ function ProfileTab() {
         <h3>{s.character.name}</h3>
         <dl className="kv small">
           <dt>Chương</dt><dd>{s.chapter} / 3</dd>
-          <dt>Ngày thứ</dt><dd>{dayOf(s.minute)} (đã qua {s.stats.daysCompleted} ngày)</dd>
+          <dt>Ngày chơi</dt><dd>{dayOf(s.minute)} (đã qua {s.stats.daysCompleted} ngày)</dd>
+          {isVN(s) && <><dt>Chế độ</dt><dd>Thụ án · {sentenceLabel(s.custody!.judgment)} · {PHASE_LABEL[s.custody!.phase]} <button className="btn sm" onClick={() => useUI.getState().open('custody')}>Xem</button></dd></>}
           <dt>Nhiệm vụ hoàn thành</dt><dd>{done}</dd>
           <dt>Quãng đường đi bộ</dt><dd>{(s.stats.distanceWalked / 1000).toFixed(2)} km</dd>
           <dt>Bữa đã ăn</dt><dd>{s.stats.mealsEaten}</dd>
