@@ -21,14 +21,14 @@ export interface Settings {
   graphics: { preset: 'auto' | 'low' | 'medium' | 'high'; resolutionScale: number; shadows: boolean; lockManual: boolean };
   audio: { master: number; music: number; sfx: number; dialogue: number; ambience: number; ui: number };
   controls: { bindings: Record<ActionName, string>; sensitivity: number; invertY: boolean; runToggle: boolean; crouchToggle: boolean; touchMode: 'auto' | 'on' | 'off'; touchSensitivity: number; joystickSize: number; leftHanded: boolean; gamepadSensitivity: number };
-  access: { subtitles: boolean; subtitleScale: number; reducedMotion: boolean; highContrast: boolean; lightNeeds: boolean; autoComplete: boolean; dayLength: 48 | 72; textScale: number; hudMinimal: boolean; tutorialHints: boolean };
+  access: { subtitles: boolean; subtitleScale: number; reducedMotion: boolean; highContrast: boolean; lightNeeds: boolean; autoComplete: boolean; dayLength: 48 | 72; textScale: number; hudMinimal: boolean; tutorialHints: boolean; conflicts: boolean };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   graphics: { preset: 'auto', resolutionScale: 1, shadows: true, lockManual: false },
   audio: { master: 0.8, music: 0.5, sfx: 0.8, dialogue: 1, ambience: 0.6, ui: 0.6 },
   controls: { bindings: { ...DEFAULT_BINDINGS }, sensitivity: 1, invertY: false, runToggle: false, crouchToggle: true, touchMode: 'auto', touchSensitivity: 1, joystickSize: 1, leftHanded: false, gamepadSensitivity: 1 },
-  access: { subtitles: true, subtitleScale: 1, reducedMotion: false, highContrast: false, lightNeeds: false, autoComplete: false, dayLength: 48, textScale: 1, hudMinimal: false, tutorialHints: true },
+  access: { subtitles: true, subtitleScale: 1, reducedMotion: false, highContrast: false, lightNeeds: false, autoComplete: false, dayLength: 48, textScale: 1, hudMinimal: false, tutorialHints: true, conflicts: true },
 };
 
 const KEY = 'mnm.settings.v1';
@@ -50,7 +50,7 @@ export function sanitize(raw: unknown): Settings {
     controls: { bindings, sensitivity: num(c.sensitivity, 0.2, 3, 1), invertY: bool(c.invertY, false), runToggle: bool(c.runToggle, false), crouchToggle: bool(c.crouchToggle, true), touchMode: (['auto', 'on', 'off'] as const).includes(c.touchMode as never) ? c.touchMode! : 'auto', touchSensitivity: num(c.touchSensitivity, 0.3, 3, 1), joystickSize: num(c.joystickSize, 0.7, 1.5, 1), leftHanded: bool(c.leftHanded, false), gamepadSensitivity: num(c.gamepadSensitivity, 0.3, 3, 1) },
     access: {
       subtitles: bool(x.subtitles, true), subtitleScale: num(x.subtitleScale, 0.8, 1.8, 1), reducedMotion: bool(x.reducedMotion, false), highContrast: bool(x.highContrast, false),
-      lightNeeds: bool(x.lightNeeds, false), autoComplete: bool(x.autoComplete, false), dayLength: x.dayLength === 72 ? 72 : 48, textScale: num(x.textScale, 1, 2, 1), hudMinimal: bool(x.hudMinimal, false), tutorialHints: bool(x.tutorialHints, true),
+      lightNeeds: bool(x.lightNeeds, false), autoComplete: bool(x.autoComplete, false), dayLength: x.dayLength === 72 ? 72 : 48, textScale: num(x.textScale, 1, 2, 1), hudMinimal: bool(x.hudMinimal, false), tutorialHints: bool(x.tutorialHints, true), conflicts: bool(x.conflicts, true),
     },
   };
 }

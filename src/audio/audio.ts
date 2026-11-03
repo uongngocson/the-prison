@@ -126,6 +126,35 @@ export class AudioSystem {
     o.start(t);
     o.stop(t + dur + 0.05);
   }
+
+  /** CR-CONFLICT-01: còi báo động (2,4 s), tiếng va chạm trầm, tiếng bộ đàm, tiếng còng tay — tạo thủ tục, không dùng file. */
+  conflictCue(kind: 'alarm' | 'impact' | 'radio' | 'cuffs') {
+    if (!this.ctx || this.state !== 'active') return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const out = this.ch.sfx!;
+    if (kind === 'alarm') {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type = 'sawtooth'; o.connect(g).connect(out);
+      for (let i = 0; i < 6; i++) { o.frequency.setValueAtTime(880, t + i * 0.4); o.frequency.linearRampToValueAtTime(620, t + i * 0.4 + 0.38); }
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.05); g.gain.setValueAtTime(0.12, t + 2.3); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.45);
+      o.start(t); o.stop(t + 2.5);
+      return;
+    }
+    if (kind === 'impact') {
+      const len = Math.floor(ctx.sampleRate * 0.12);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate); const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const src = ctx.createBufferSource(); const f = ctx.createBiquadFilter(); const g = ctx.createGain();
+      src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 420; g.gain.value = 0.5;
+      src.connect(f).connect(g).connect(out); src.start(t);
+      return;
+    }
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g).connect(out);
+    if (kind === 'radio') { o.type = 'square'; o.frequency.setValueAtTime(1250, t); o.frequency.setValueAtTime(950, t + 0.09); g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); o.start(t); o.stop(t + 0.22); }
+    else { o.type = 'triangle'; o.frequency.setValueAtTime(2400, t); o.frequency.setValueAtTime(1800, t + 0.06); o.frequency.setValueAtTime(2600, t + 0.12); g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.start(t); o.stop(t + 0.24); }
+  }
 }
 
 export const audio = new AudioSystem();

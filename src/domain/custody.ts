@@ -566,6 +566,36 @@ function shuTick(ctx: Ctx) {
   // 5) kiểm đếm tại cửa buồng
   if (m === hm(6, 15) || m === hm(21)) notify(ctx, 'Kiểm đếm: đứng dậy ở cửa buồng để sĩ quan nhìn qua ô kính hẹp.', 'info', 'life');
 }
+/** Sau ẩu đả (chế độ Thụ án): tách vào SHU dạng Ad-Seg chờ điều tra — mọi người tham gia đều bị tách, kể cả người tự vệ. */
+export function adSegForConflict(ctx: Ctx, conflictId: string, hearingAt: number): boolean {
+  const s = ctx.s;
+  const c = s.custody;
+  if (!c) return false;
+  const cur = shuOrder(s);
+  if (cur) { if (c.shu) shuSetback(ctx, { id: `conflict:${conflictId}`, decision: '' } as IncidentReview); return true; }
+  c.shu = { level: 1, levelSinceMinute: s.minute, enteredMinute: s.minute, setbacks: 0, done: [] };
+  const o = issueOrder(ctx, {
+    kind: 'restrictive_housing', reasonCode: 'ADSEG_PENDING_INVESTIGATION', issuerRole: 'shift_commander', sourceDecisionId: `conflict:${conflictId}`,
+    startMinute: s.minute, reviewAtMinute: hearingAt, endMinute: hearingAt + 120, roomId: null, returnHousingRef: null, supersedes: null,
+    note: 'Tách riêng chờ điều tra sau ẩu đả (Ad-Seg) — chưa phải kết luận vi phạm.',
+  });
+  return !!o;
+}
+/** Điều trần xong: có lỗi → chuyển thành SHU step-down; tự vệ → về khu thường. */
+export function adSegResolve(ctx: Ctx, conflictId: string, guiltyDays: number | null, text: string) {
+  const s = ctx.s;
+  const o = s.custody?.orders.find((x) => x.kind === 'restrictive_housing' && x.state === 'active' && x.sourceDecisionId === `conflict:${conflictId}`);
+  if (!o) return;
+  if (guiltyDays === null) { endShu(ctx, o, text); return; }
+  const sh = s.custody!.shu!;
+  sh.level = 1; sh.levelSinceMinute = s.minute;
+  o.reasonCode = 'SHU_FIGHT';
+  o.note = text;
+  o.reviewAtMinute = null;
+  o.endMinute = s.minute + guiltyDays * MIN_PER_DAY;
+  journal(ctx, 'shu_hearing', 'SHU_FIGHT', text, `shu_hr:${conflictId}`);
+}
+
 /** Vi phạm trong SHU: về cấp 1, thời hạn SHU tính lại từ đầu (án có thời hạn). */
 function shuSetback(ctx: Ctx, inc: IncidentReview): boolean {
   const s = ctx.s;

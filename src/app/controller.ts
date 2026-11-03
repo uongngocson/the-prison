@@ -147,7 +147,7 @@ class Controller {
   }
 
   simSettings(st: Settings) {
-    return { lightNeeds: st.access.lightNeeds, autoComplete: st.access.autoComplete || this.hasMobility(), dayLengthRealMin: st.access.dayLength };
+    return { lightNeeds: st.access.lightNeeds, autoComplete: st.access.autoComplete || this.hasMobility(), dayLengthRealMin: st.access.dayLength, conflicts: st.access.conflicts };
   }
   private hasMobility() { return !!this.session?.s.life.support.some((p) => p.kind === 'functional' && p.state === 'active' && p.flags.includes('mobility')); }
 

@@ -4,7 +4,7 @@ import { ITEM_BY_ID } from '../content/items';
 import { NPC_BY_ID } from '../content/npcs';
 import { Rng, clamp, dayOf, pushBounded } from './util';
 
-export interface SimSettings { lightNeeds: boolean; autoComplete: boolean; dayLengthRealMin: 48 | 72 }
+export interface SimSettings { lightNeeds: boolean; autoComplete: boolean; dayLengthRealMin: 48 | 72; /** Nội dung xung đột (ẩu đả). Thiếu = bật. */ conflicts?: boolean }
 export interface Ctx { s: GameState; rng: Rng; emit: (e: DomainEvent) => void; settings: SimSettings }
 
 // ---------- Ledger / idempotency ----------

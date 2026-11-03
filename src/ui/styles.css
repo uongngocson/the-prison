@@ -1154,3 +1154,78 @@ h3 { font-family: var(--sign); letter-spacing: .04em; text-transform: uppercase;
 .shu-steps i.cur { background: #d6392f; color: #fff; box-shadow: 0 0 0 2px rgba(255,106,92,.35); }
 .shu-priv { margin: 0; padding-left: 18px; color: var(--text-2); }
 .custody-line .ph.conf { background: #8e1a14; }
+
+/* ================= CR-CONFLICT-01 — xung đột / ẩu đả ================= */
+.cf-root { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
+.cf-root > * { pointer-events: auto; }
+.cf-alarm { position: absolute; inset: 0; pointer-events: none !important; box-shadow: inset 0 0 0 6px rgba(214,57,47,.85), inset 0 0 140px 40px rgba(214,57,47,.45); animation: cfpulse .8s ease-in-out infinite; }
+@keyframes cfpulse { 50% { box-shadow: inset 0 0 0 3px rgba(214,57,47,.4), inset 0 0 80px 10px rgba(214,57,47,.18); } }
+.cf-alarm-banner { position: absolute; top: calc(14px + var(--sat)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 4px; background: #b8231c; color: #fff; font: 800 clamp(13px, 1.6vw, 18px) var(--sign); letter-spacing: .14em; box-shadow: 0 8px 30px rgba(0,0,0,.5); white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis; }
+.cf-beacon { width: 12px; height: 12px; border-radius: 50%; background: #ffd5d0; box-shadow: 0 0 0 0 rgba(255,213,208,.8); animation: cfbeacon .6s infinite; flex: none; }
+@keyframes cfbeacon { to { box-shadow: 0 0 0 12px rgba(255,213,208,0); } }
+.cf-card { position: absolute; left: 50%; bottom: calc(110px + var(--sab)); transform: translateX(-50%); width: min(720px, 94vw); padding: 14px 16px 12px; border-radius: 10px; background: linear-gradient(180deg, rgba(24,18,20,.96), rgba(14,12,14,.96)); border: 1px solid #4a2b2b; border-top: 3px solid #d6392f; box-shadow: 0 20px 60px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 8px; animation: up .18s ease-out; }
+.cf-card.cf-tension { border-top-color: var(--accent); border-color: #4a3b26; }
+.cf-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cf-tag { padding: 2px 9px; border-radius: 3px; font: 800 12px var(--sign); letter-spacing: .16em; color: #fff; background: #d6392f; }
+.cf-tag.tension { background: var(--accent); color: #14171c; }
+.cf-tag.restrain { background: #1c3561; }
+.cf-name { font: 700 18px var(--sign); letter-spacing: .04em; }
+.cf-resp { margin-left: auto; font-size: 13px; color: #ffb4ab; }
+.cf-line { margin: 0; font-size: 18px; font-style: italic; color: #f3e6e4; max-width: none; }
+.cf-order { margin: 0; font: 800 clamp(18px, 2.4vw, 26px) var(--sign); letter-spacing: .06em; color: #fff; text-transform: uppercase; max-width: none; }
+.cf-warn { margin: 0; font-size: 13px; color: var(--warning); max-width: none; }
+.cf-timer { height: 4px; border-radius: 2px; background: #2a2226; overflow: hidden; }
+.cf-timer i { display: block; height: 100%; background: linear-gradient(90deg, #d6392f, var(--accent)); transition: width .1s linear; }
+.cf-btns { display: grid; gap: 8px; grid-template-columns: repeat(5, 1fr); }
+.cf-btns.n3 { grid-template-columns: repeat(3, 1fr); }
+.cf-btns.n1 { grid-template-columns: 1fr; }
+.cf-btn { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 8px 10px; border-radius: 6px; text-align: left; cursor: pointer; background: linear-gradient(180deg, #2a2f38, #1f232a); border: 1px solid #3a414c; color: var(--text); }
+.cf-btn:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.cf-btn:disabled { opacity: .4; cursor: not-allowed; }
+.cf-btn kbd { flex: none; min-width: 24px; height: 24px; display: grid; place-items: center; border-radius: 4px; background: #0e1116; border: 1px solid #4b5563; font: 700 12px var(--sign); }
+.cf-btn span { display: flex; flex-direction: column; min-width: 0; }
+.cf-btn b { font: 700 15px var(--sign); letter-spacing: .03em; }
+.cf-btn small { font-size: 11.5px; color: var(--text-2); }
+.cf-btn.danger { background: linear-gradient(180deg, #5a1f1b, #3e1512); border-color: #8a3a32; }
+.cf-btn.primary { background: linear-gradient(180deg, #1f3a68, #152a4e); border-color: #3a5f9c; }
+.cf-btn.calm { background: linear-gradient(180deg, #23342c, #1a2721); border-color: #3c5a4a; }
+.cf-restrain .cf-btn.primary { min-height: 64px; font-size: 17px; animation: cfpulse2 1s infinite; }
+@keyframes cfpulse2 { 50% { box-shadow: 0 0 0 4px rgba(240,165,49,.35); } }
+.cf-meters { display: flex; flex-direction: column; gap: 4px; }
+.cf-meters div { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.cf-meters div i { display: block; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #d6392f, #f0a531); }
+.cf-meters p { margin: 0; color: var(--text-2); }
+.cf-log { margin: 0; padding-left: 16px; color: #b9a7a5; }
+.cf-bars { position: absolute; left: 0; right: 0; height: 11vh; background: #000; pointer-events: none !important; }
+.cf-bars.top { top: 0; } .cf-bars.bottom { bottom: 0; }
+.cf-escort { position: absolute; left: 50%; bottom: 3vh; transform: translateX(-50%); font: 700 clamp(15px, 2vw, 20px) var(--sign); letter-spacing: .1em; text-transform: uppercase; color: #e6ecf3; pointer-events: none !important; }
+.cf-escort b { color: #ff8a7f; }
+.cf-fade { position: absolute; inset: 0; background: #000; pointer-events: none !important; }
+@media (max-width: 760px) {
+  .cf-card { bottom: calc(160px + var(--sab)); padding: 10px; }
+  .cf-btns { grid-template-columns: repeat(2, 1fr); }
+  .cf-btns.n3 { grid-template-columns: repeat(3, 1fr); }
+  .cf-btns.n1 { grid-template-columns: 1fr; }
+  .cf-btn { min-height: 52px; }
+  .cf-btn kbd { display: none; }
+  .cf-line { font-size: 16px; }
+}
+/* Biên bản vi phạm (RVR) */
+.rvr-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.rvr { padding: 12px 14px; border-radius: 6px; background: #f3f1ea; color: #16191e; border-left: 6px solid #b8231c; }
+.rvr header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.rvr header b { font: 800 13px var(--sign); letter-spacing: .1em; }
+.rvr-no { padding: 1px 7px; border-radius: 3px; background: #16191e; color: #fff; font: 700 12px var(--sign); letter-spacing: .08em; }
+.rvr .kv dt { color: #5b6470; } .rvr .kv { grid-template-columns: 150px 1fr; }
+.rvr-facts { margin: 6px 0; padding-left: 18px; color: #2b3138; } .rvr-facts em { color: #6b7480; }
+.rvr .notice { background: #e5e2d8; color: #16191e; border-left-color: #1c3561; }
+.rvr .status.ok { background: #d9f0e2; color: #1d6b3d; } .rvr .status.err { background: #f6d6d2; color: #9b2119; } .rvr .status.warn { background: #f7e8c8; color: #8a5a0e; }
+@media (max-height: 480px) {
+  .cf-card { bottom: calc(8px + var(--sab)); padding: 8px 10px; gap: 6px; width: min(760px, 70vw); }
+  .cf-log, .cf-warn { display: none; }
+  .cf-btn { min-height: 44px; padding: 6px 8px; }
+  .cf-btn small { display: none; }
+  .cf-line { font-size: 15px; }
+  .cf-order { font-size: 18px; }
+  .cf-alarm-banner { top: calc(6px + var(--sat)); font-size: 12px; padding: 5px 12px; }
+}

@@ -6,7 +6,8 @@ import type { Appearance } from '../domain/types';
 import { SKIN, HAIR, STAFF_OUTFIT } from './palette';
 export { SKIN, HAIR, RES_OUTFIT, STAFF_OUTFIT, COSMETIC_OUTFIT } from './palette';
 
-export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet' | 'tend' | 'water' | 'sweep';
+export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet' | 'tend' | 'water' | 'sweep'
+  | 'fight' | 'prone' | 'prone_cuffed' | 'cuffed' | 'restrain';
 /** Dụng cụ cầm tay khi làm việc (chỉ hiển thị; không phải vật phẩm túi đồ). */
 export type Held = 'can' | 'broom' | 'hoe' | 'scoop' | 'sander' | 'tray' | 'notebook' | null;
 
@@ -263,7 +264,7 @@ export class Humanoid {
     this.legL.rotation.set(0, 0, 0); this.legR.rotation.set(0, 0, 0);
     this.head.rotation.set(0, 0, 0);
     this.torso.rotation.set(0, 0, 0);
-    this.shadow.setEnabled(pose !== 'lie');
+    this.shadow.setEnabled(pose !== 'lie' && pose !== 'prone' && pose !== 'prone_cuffed');
     switch (pose) {
       case 'walk': case 'run': case 'crouch': {
         this.phase += dt * Math.max(2, speed * (pose === 'run' ? 3.2 : 4.2));
@@ -335,6 +336,41 @@ export class Humanoid {
         this.armL.rotation.x = -1.0 + Math.sin(this.phase) * 0.25;
         this.armR.rotation.x = -1.0 - Math.sin(this.phase) * 0.25;
         this.torso.rotation.x = 0.15; this.head.rotation.x = 0.3;
+        break;
+      }
+      // ---------- CR-CONFLICT-01 ----------
+      case 'fight': {
+        // thế thủ, đấm luân phiên (không có hiệu ứng thương tích)
+        this.phase += dt * (reducedMotion ? 4 : 9);
+        const p = Math.sin(this.phase);
+        this.armL.rotation.x = -1.35 - Math.max(0, p) * 0.35; this.armR.rotation.x = -1.35 - Math.max(0, -p) * 0.35;
+        this.armL.rotation.z = 0.35; this.armR.rotation.z = -0.35;
+        this.legL.rotation.x = -0.25; this.legR.rotation.x = 0.2; this.legL.rotation.z = -0.08; this.legR.rotation.z = 0.08;
+        this.torso.rotation.x = 0.18; this.torso.rotation.y = p * 0.18; this.head.rotation.x = 0.1;
+        b.position.y = -0.05 + Math.abs(Math.cos(this.phase * 0.5)) * 0.03;
+        break;
+      }
+      case 'prone': case 'prone_cuffed': {
+        // nằm sấp sát sàn: báo động "GET DOWN" (tay dang ngang) hoặc bị khống chế (tay sau lưng)
+        b.rotation.x = Math.PI / 2;
+        b.position.set(0, 0.13, -0.85);
+        this.head.rotation.x = -0.5;
+        if (pose === 'prone') { this.armL.rotation.z = -1.45; this.armR.rotation.z = 1.45; }
+        else { this.armL.rotation.x = 0.55; this.armR.rotation.x = 0.55; this.armL.rotation.z = 0.35; this.armR.rotation.z = -0.35; }
+        break;
+      }
+      case 'cuffed': {
+        // tay còng sau lưng, cúi đầu; chân bước nếu đang được áp giải
+        this.armL.rotation.x = 0.5; this.armR.rotation.x = 0.5; this.armL.rotation.z = 0.28; this.armR.rotation.z = -0.28;
+        this.head.rotation.x = 0.28;
+        if (speed > 0.1) { this.phase += dt * 4.2; const s = Math.sin(this.phase); this.legL.rotation.x = s * 0.45; this.legR.rotation.x = -s * 0.45; b.position.y = Math.abs(Math.cos(this.phase)) * 0.025; }
+        break;
+      }
+      case 'restrain': {
+        // cán bộ khống chế: khom người, hai tay đưa xuống phía trước
+        this.armL.rotation.x = -1.0; this.armR.rotation.x = -1.15; this.armL.rotation.z = 0.15; this.armR.rotation.z = -0.15;
+        this.torso.rotation.x = 0.35; this.head.rotation.x = 0.35; this.legL.rotation.x = -0.35; this.legR.rotation.x = 0.15;
+        b.position.y = -0.08;
         break;
       }
       case 'talk': {

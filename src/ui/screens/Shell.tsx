@@ -66,7 +66,7 @@ export function Landing() {
       )}
       {modal === 'about' && (
         <Panel title="Giới thiệu" onClose={() => setModal(null)} width="mid">
-          <p>Mô phỏng đời sống 3D trong một cơ sở cải huấn <b>hư cấu</b> theo phong cách Mỹ: sinh hoạt, học tập, lao động, giữ liên lạc với gia đình và chuẩn bị ngày trở về. Không có chiến đấu, vượt ngục hay tiền thật.</p>
+          <p>Mô phỏng đời sống 3D trong một cơ sở cải huấn <b>hư cấu</b> theo phong cách Mỹ: sinh hoạt, học tập, lao động, giữ liên lạc với gia đình và chuẩn bị ngày trở về. Không có vũ khí, vượt ngục hay tiền thật. Có thể xảy ra ẩu đả và bị đưa vào biệt giam (tắt được trong Cài đặt).</p>
           <dl className="kv small">
             <dt>Nội dung</dt><dd>18 khu · 60 nhân vật · 18 nhiệm vụ</dd>
             <dt>Thiết bị</dt><dd>Máy tính, máy tính bảng, điện thoại, tay cầm</dd>

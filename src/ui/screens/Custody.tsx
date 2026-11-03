@@ -14,6 +14,7 @@ import {
   orderKindLabel, progress, sentenceLabel, validateSelection, windowAt, shuOrder, shuNextWindow, shuWindowAt, shuWindowApplies,
 } from '../../domain/custody';
 import { dayOf } from '../../domain/util';
+import { ConflictReports } from './Conflict';
 import { fmtClock, fmtDayClock } from '../../domain/util';
 
 // ======================= U36 — một màn duy nhất: chế độ + mức án + ngẫu nhiên =======================
@@ -178,6 +179,7 @@ export function CustodyPanel() {
         </tbody></table>
       )}
       {tab === 'decisions' && <>
+        <ConflictReports />
         {!c.orders.length && <Empty>Không có quyết định nào.</Empty>}
         {c.orders.slice().reverse().map((o) => (
           <div key={o.orderId} className="order-row">

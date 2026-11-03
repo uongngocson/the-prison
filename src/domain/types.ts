@@ -59,7 +59,8 @@ export interface Relationship { trust: number; respect: number; familiarity: num
 
 export interface Memory { eventId: string; type: string; subject: string; minute: number; zone: ZoneId; salience: number; expires: number }
 
-export type NpcActivity = 'idle' | 'walking' | 'acting' | 'sleeping' | 'talking' | 'seated' | 'eating' | 'exercising' | 'reading' | 'working' | 'queue';
+export type NpcActivity = 'idle' | 'walking' | 'acting' | 'sleeping' | 'talking' | 'seated' | 'eating' | 'exercising' | 'reading' | 'working' | 'queue'
+  | 'fighting' | 'prone' | 'restrained' | 'responding';
 
 export interface NpcRuntime {
   id: string;
@@ -277,6 +278,14 @@ export interface GameState {
   custody: CustodyState | null;
   /** CR-LAB-01: module lao động (tùy chọn; save cũ thiếu → tạo khi tải, không gán ca). */
   labour?: LabourState;
+  /** Xung đột đang diễn ra (căng thẳng → ẩu đả → báo động → khống chế → áp giải). null/thiếu = không có. */
+  conflict?: ConflictState | null;
+  /** Hồ sơ các vụ xung đột (điều tra, điều trần). */
+  conflicts?: ConflictRecord[];
+  /** Chế độ Cốt truyện: tạm giữ trong buồng SHU sau ẩu đả (chế độ Thụ án dùng lệnh custody). */
+  hold?: HoldState | null;
+  /** NPC đang bị giữ ở SHU sau ẩu đả. */
+  npcHolds?: Record<string, { roomId: string; untilMinute: number }>;
   /** CR-TIME-01: lịch của save đã khớp lịch chung trực tuyến (tùy chọn; save cũ không có = chưa từng vào phòng). */
   online?: { dayShift: number; weekShift: number; clockVersion: number; syncedMinute: number };
   contentVersion: string;
@@ -367,3 +376,48 @@ export interface LabourState {
 export interface EmittedEvent { id: string; tick: number; minute: number; event: DomainEvent }
 
 export interface CommandResult { ok: boolean; code?: string; message?: string }
+
+// ---------- Xung đột / ẩu đả (CR-CONFLICT-01) ----------
+export type ConflictPhase = 'tension' | 'brawl' | 'restrain' | 'escort';
+export type ConflictChoice = 'leave' | 'calm' | 'call_staff' | 'shove' | 'strike' | 'block' | 'break_away' | 'comply';
+export interface ConflictState {
+  id: string;
+  npcId: string;
+  zone: ZoneId;
+  pos: { x: number; z: number };
+  phase: ConflictPhase;
+  /** tick bắt đầu pha hiện tại (30 tick/giây thực, dừng khi tạm dừng) */
+  phaseTick: number;
+  startedMinute: number;
+  /** Ai ra tay trước — người đầu tiên có hành vi thân thể (lời nói không tính). */
+  initiator: 'player' | 'npc' | null;
+  /** Ai mở đầu căng thẳng bằng lời. */
+  provokedBy: 'player' | 'npc';
+  line: string;
+  playerStrikes: number;
+  npcStrikes: number;
+  blocks: number;
+  escaped: boolean;
+  alarm: boolean;
+  complied: boolean;
+  sprayed: boolean;
+  responders: string[];
+  nextNpcStrikeTick: number;
+  log: string[];
+}
+export type ConflictVerdict = 'pending' | 'initiator' | 'mutual' | 'self_defense' | 'deescalated' | 'reported';
+export interface ConflictRecord {
+  id: string;
+  minute: number;
+  npcId: string;
+  zone: ZoneId;
+  initiator: 'player' | 'npc' | null;
+  playerStrikes: number;
+  npcStrikes: number;
+  sprayed: boolean;
+  verdict: ConflictVerdict;
+  incidentId?: string;
+  hearingAt?: number;
+  reportNo: string;
+}
+export interface HoldState { roomId: string; untilMinute: number; reason: string; conflictId: string }

@@ -9,6 +9,7 @@ import { dayOf, hash32, minuteOfDay, pushBounded } from '../domain/util';
 import { zoneOpen } from '../domain/actions';
 import type { Ctx } from '../domain/core';
 import { adjustRel } from '../domain/core';
+import { RESPONDER_IDS, npcConflictRole, npcHoldAnchor } from '../domain/conflict';
 
 const POSE_ACTIVITY: Record<string, NpcActivity> = { sit: 'seated', stand: 'idle', lie: 'sleeping', exercise: 'exercising', work: 'working', read: 'reading' };
 
@@ -158,6 +159,7 @@ export class NpcAi {
     for (const def of NPCS) {
       const rt = s.npcs[def.id];
       if (!rt) continue;
+      if (this.conflictOverride(s, rt, def, dt)) continue;
       const dPlayer = Math.hypot(pp.x - rt.pos.x, pp.z - rt.pos.z);
       if (s.tick >= rt.nextThink) {
         this.think(ctx, rt, def);
@@ -213,6 +215,58 @@ export class NpcAi {
       const d = Math.hypot(pp.x - n.pos.x, pp.z - n.pos.z);
       if (d < 0.55 && d > 0.001) { n.pos.x -= ((pp.x - n.pos.x) / d) * (0.55 - d); n.pos.z -= ((pp.z - n.pos.z) / d) * (0.55 - d); }
     }
+  }
+
+  /** CR-CONFLICT-01: đối thủ / đội phản ứng / người nằm sấp khi báo động / NPC bị giữ ở SHU. true = đã xử lý, bỏ qua AI thường. */
+  private conflictOverride(s: GameState, rt: NpcRuntime, def: NpcDef, dt: number): boolean {
+    const isResponder = RESPONDER_IDS.includes(def.id);
+    const role = npcConflictRole(s, def.id);
+    const hold = npcHoldAnchor(s, def.id);
+    const pp = s.player.pos;
+    if (!role) {
+      if (isResponder) { if (!rt.absent) { this.release(s, rt); rt.absent = true; rt.path = []; rt.activity = 'idle'; } return true; }
+      if (hold) {
+        this.release(s, rt);
+        rt.absent = false; rt.pos = { x: hold.x, y: 0, z: hold.z }; rt.zone = hold.zone; rt.path = []; rt.pathZones = []; rt.goalKey = 'shu_hold'; rt.activity = 'idle';
+        return true;
+      }
+      if (['fighting', 'prone', 'restrained', 'responding'].includes(rt.activity) || rt.goalKey === 'shu_hold') { rt.activity = 'idle'; rt.goalKey = ''; rt.nextThink = s.tick; }
+      return false;
+    }
+    const c = s.conflict!;
+    const face = (x: number, z: number) => { rt.yaw = Math.atan2(x - rt.pos.x, z - rt.pos.z); };
+    if (role === 'prone') { if (rt.activity !== 'prone') this.release(s, rt); rt.path = []; rt.activity = 'prone'; return true; }
+    if (role === 'opponent') {
+      this.release(s, rt);
+      rt.path = []; rt.talkingWithPlayer = false;
+      face(pp.x, pp.z);
+      if (c.phase === 'tension') rt.activity = 'talking';
+      else if (c.phase === 'brawl') {
+        rt.activity = 'fighting';
+        const d = Math.hypot(pp.x - rt.pos.x, pp.z - rt.pos.z);
+        const want = c.escaped ? 1.6 : 0.85;
+        if (Math.abs(d - want) > 0.08 && d > 0.01) { const k = Math.min(1, (2.2 * dt) / Math.abs(d - want)) * (d - want) / d; rt.pos.x += (pp.x - rt.pos.x) * k; rt.pos.z += (pp.z - rt.pos.z) * k; }
+      } else rt.activity = 'restrained';
+      return true;
+    }
+    // đội phản ứng: chạy tới hiện trường (5,5 m/s), khống chế, rồi kèm hai bên khi áp giải
+    const idx = c.responders.indexOf(def.id);
+    if (c.phase === 'escort' && idx < 2) {
+      const side = idx === 0 ? 1 : -1;
+      const yaw = s.player.yaw;
+      rt.pos.x = pp.x + Math.cos(yaw) * 0.7 * side; rt.pos.z = pp.z - Math.sin(yaw) * 0.7 * side; rt.yaw = yaw; rt.zone = s.player.zone;
+      rt.activity = 'walking';
+      return true;
+    }
+    if (rt.path.length) {
+      const tgt = rt.path[0];
+      const dx = tgt.x - rt.pos.x, dz = tgt.z - rt.pos.z, d = Math.hypot(dx, dz);
+      const step = 5.5 * dt;
+      if (d <= step) { rt.pos.x = tgt.x; rt.pos.z = tgt.z; rt.path = []; }
+      else { rt.pos.x += (dx / d) * step; rt.pos.z += (dz / d) * step; rt.yaw = Math.atan2(dx, dz); }
+      rt.activity = 'walking';
+    } else { rt.activity = 'responding'; face(c.pos.x, c.pos.z); }
+    return true;
   }
 
   private arrive(s: GameState, rt: NpcRuntime) {

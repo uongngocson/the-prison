@@ -1,4 +1,5 @@
 // "Đời sống" hub — U26–U35 (11). Owner-only projections; mọi nút gửi intent qua controller.exec → domain authority.
+import { ConflictReports } from '../screens/Conflict';
 import { useEffect, useState } from 'react';
 import { useUI } from '../store';
 import { Panel, Tabs, Empty, Status } from '../components';
@@ -422,12 +423,13 @@ function Programs({ s }: { s: GameState }) {
 
 // ---------------- U33 Incidents ----------------
 function Incidents({ s }: { s: GameState }) {
-  const list = [...s.life.incidents].reverse();
+  const list = [...s.life.incidents].filter((i) => i.ruleId !== 'fight').reverse();
   const st: Record<string, string> = { reported: 'Đã ghi nhận', notified: 'Đã thông báo — mời trình bày', in_review: 'Đang xem xét', decided: 'Đã quyết định', appealed: 'Đang xem xét lại', overturned: 'Đã hủy quyết định', expired: 'Hết hiệu lực', dismissed: 'Không xử lý' };
   return (
     <div className="col">
       <p className="small muted">Cáo buộc khác với kết luận. Quyết định dựa trên dữ kiện và lời trình bày — không dựa trên ngoại hình hay uy tín. Không hệ quả nào ảnh hưởng ăn uống, vệ sinh, chăm sóc, liên lạc hay quyền gửi đơn.</p>
-      {list.length === 0 && <Empty>Không có sự việc nào.</Empty>}
+      <ConflictReports />
+      {list.length === 0 && !(s.conflicts ?? []).some((r) => r.incidentId) && <Empty>Không có sự việc nào.</Empty>}
       {list.map((i) => (
         <div key={i.id} className="card">
           <h3>{i.facts[0]?.text} <Status kind={i.state === 'dismissed' || i.state === 'overturned' ? 'ok' : i.state === 'decided' ? 'warn' : undefined}>{st[i.state]}</Status></h3>

@@ -14,7 +14,7 @@ import { cellDoorClosed } from '../domain/custody';
 import type { NpcActivity } from '../domain/types';
 import type { Settings, ActionName } from '../ui/settings';
 
-const ACT_POSE: Record<NpcActivity, Pose> = { idle: 'idle', walking: 'walk', acting: 'work', sleeping: 'lie', talking: 'talk', seated: 'sit', eating: 'eat', exercising: 'exercise', reading: 'read', working: 'work', queue: 'idle' };
+const ACT_POSE: Record<NpcActivity, Pose> = { idle: 'idle', walking: 'walk', acting: 'work', sleeping: 'lie', talking: 'talk', seated: 'sit', eating: 'eat', exercising: 'exercise', reading: 'read', working: 'work', queue: 'idle', fighting: 'fight', prone: 'prone', restrained: 'prone_cuffed', responding: 'restrain' };
 const LAB_POSE: Record<string, [Pose, Held]> = {
   lab_prepare: ['tend', 'hoe'], lab_sow: ['tend', null], lab_water: ['water', 'can'], lab_weed: ['tend', null], lab_harvest: ['tend', 'tray'], lab_clean: ['tend', 'hoe'],
   lab_observe: ['idle', 'notebook'], lab_feed: ['water', 'scoop'], lab_log: ['read', 'notebook'], lab_harvest_fish: ['work', null], lab_weed_patch: ['tend', null], lab_plant: ['tend', null],
@@ -263,6 +263,8 @@ export class GameView {
     else if (m === 'acting' && s.player.action) pose = LAB_POSE[s.player.action.verb]?.[0] ?? VERB_POSE[s.player.action.verb] ?? 'work';
     else if (moving > 0.2) pose = s.player.crouch ? 'crouch' : moving > 2.4 ? 'run' : 'walk';
     else if (s.player.crouch) pose = 'crouch';
+    const cf = s.conflict;
+    if (cf) pose = cf.phase === 'tension' ? (moving > 0.2 ? pose : 'talk') : cf.phase === 'brawl' ? (cf.escaped ? 'idle' : 'fight') : cf.phase === 'restrain' ? (cf.complied ? 'prone_cuffed' : 'fight') : 'cuffed';
     if (pose === 'lie') { const bed = s.player.action ? PROP_BY_ID[s.player.action.targetId] : null; if (bed) { pr.rotation.y = bed.yaw; pr.position.set(bed.x, 0, bed.z); } }
     this.player.setHeld(m === 'acting' && s.player.action ? LAB_POSE[s.player.action.verb]?.[1] ?? null : null);
     this.player.animate(dt, pose, moving, rm);
@@ -280,7 +282,10 @@ export class GameView {
       if (far) continue;
       h.root.position.set(p.x, 0, p.z);
       h.root.rotation.y = rt.yaw;
-      const np: Pose = rt.talkingWithPlayer ? 'talk' : ACT_POSE[rt.activity] ?? 'idle';
+      let np: Pose = rt.talkingWithPlayer ? 'talk' : ACT_POSE[rt.activity] ?? 'idle';
+      const cfx = s.conflict;
+      if (cfx && rt.activity === 'restrained' && cfx.phase === 'escort') np = 'cuffed';
+      if (cfx && rt.activity === 'walking' && cfx.responders.includes(id)) np = cfx.phase === 'escort' ? 'walk' : 'run';
       h.animate(dt, np, rt.activity === 'walking' ? (NPC_BY_ID[id].role === 'staff' ? 1.45 : 1.3) : 0, rm);
     }
     // Trực tuyến: người chơi khác (chỉ hiển thị khi đang kết nối)

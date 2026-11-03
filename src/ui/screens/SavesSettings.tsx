@@ -167,6 +167,7 @@ export function SettingsPanel() {
         {toggle('Tương phản cao', st.access.highContrast, (v) => set((x) => { x.access.highContrast = v; }))}
         {toggle('HUD tối giản', st.access.hudMinimal, (v) => set((x) => { x.access.hudMinimal = v; }), 'Vẫn hiển thị lỗi lưu và nhiệm vụ chính')}
         {toggle('Gợi ý hướng dẫn', st.access.tutorialHints, (v) => set((x) => { x.access.tutorialHints = v; }))}
+        {toggle('Nội dung xung đột (ẩu đả)', st.access.conflicts, (v) => set((x) => { x.access.conflicts = v; }), 'Bạn tù có thể gây sự; cán bộ phản ứng, đưa vào SHU. Không máu, không vũ khí')}
         {toggle('Nhu cầu nhẹ', st.access.lightNeeds, (v) => set((x) => { x.access.lightNeeds = v; }), 'Nhu cầu giảm chậm 50%, không ảnh hưởng thành tựu')}
         {toggle('Hoàn tất tự động hoạt động', st.access.autoComplete, (v) => set((x) => { x.access.autoComplete = v; }), 'Rút ngắn ăn, tắm, tập; không cần thao tác lặp')}
         <div className="row" style={{ justifyContent: 'space-between' }}>Độ dài một ngày game<span className="row">{([48, 72] as const).map((d) => <button key={d} className={`btn sm ${st.access.dayLength === d ? 'primary' : ''}`} aria-pressed={st.access.dayLength === d} onClick={() => set((x) => { x.access.dayLength = d; })}>{d} phút thực</button>)}</span></div>

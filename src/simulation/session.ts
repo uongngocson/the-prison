@@ -16,6 +16,7 @@ import { cellOf } from './nav';
 import { ensureLabour, labourPanelVerbs, labourTick } from '../domain/labour';
 import { constrainMove, custodyTick, homeBed, homeRoom, isVN, positionAllowed, propAllowed, reasonText, resolveOnLoad } from '../domain/custody';
 import { CUSTODY_ROOM_BY_ID, custodyRoomAt, custodyRoomOfBed } from '../content/world';
+import { canConflict, conflictLocksMovement, conflictMinute, conflictStep, startPlayerConflict } from '../domain/conflict';
 
 export const TICK_HZ = 30;
 const DT = 1 / TICK_HZ;
@@ -170,6 +171,7 @@ export class GameSession {
       progress = dm;
     }
     this.movePlayer(DT);
+    if (s.conflict) conflictStep(this.ctx);
     this.advanceMinutes(dm, this.onlineSleep !== null);
     if (this.onlineSleep && s.minute >= this.onlineSleep.wakeAt) this.wakeUp();
     if (a && !a.committed && s.player.action === a) {
@@ -226,6 +228,7 @@ export class GameSession {
     if (m % 60 === 0) this.director();
     lifeTick(ctx);
     custodyTick(ctx);
+    conflictMinute(ctx);
     labourTick(ctx);
     autoStartQuests(ctx);
     questsCheckState(ctx);
@@ -343,7 +346,7 @@ export class GameSession {
   private movePlayer(dt: number) {
     const s = this.s;
     const p = s.player;
-    const blocked = p.mode === 'acting' || p.mode === 'sleeping' || p.mode === 'talking' || this.dialogue;
+    const blocked = p.mode === 'acting' || p.mode === 'sleeping' || p.mode === 'talking' || this.dialogue || conflictLocksMovement(s);
     let ix = blocked ? 0 : this.input.moveX;
     let iz = blocked ? 0 : this.input.moveZ;
     const len = Math.hypot(ix, iz);
@@ -372,6 +375,10 @@ export class GameSession {
         if (c.x === p.pos.x && c.z === p.pos.z) { this.vel.x = this.vel.z = 0; return; }
       }
       np = { x: c.x, y: np.y, z: c.z };
+    } else if (s.hold) {
+      // Cốt truyện: đang bị giữ ở SHU sau ẩu đả — chỉ đi lại trong buồng
+      const room = CUSTODY_ROOM_BY_ID[s.hold.roomId];
+      if (room && custodyRoomAt(np.x, np.z)?.id !== room.id) { this.denyMovement('SHU_ACTIVE'); this.vel.x = this.vel.z = 0; return; }
     }
     const moved = Math.hypot(np.x - p.pos.x, np.z - p.pos.z);
     if (!Number.isFinite(np.x) || np.x < -128 || np.x > 115 || np.z < -40 || np.z > 40) {
@@ -417,7 +424,7 @@ export class GameSession {
   private updateFocus(dt: number) {
     const s = this.s;
     const p = s.player;
-    if (p.mode === 'sleeping' || this.dialogue) { this.focus = null; return; }
+    if (p.mode === 'sleeping' || this.dialogue || s.conflict) { this.focus = null; return; }
     const fx = Math.sin(this.input.camYaw);
     const fz = Math.cos(this.input.camYaw);
     let best: { score: number; t: FocusTarget } | null = null;
@@ -464,6 +471,10 @@ export class GameSession {
       const known = s.relationships[t.id]?.known;
       t.label = known ? `${def.name} · ${def.title}` : def.role === 'staff' ? def.title : 'Người lạ';
       t.verbs = [{ verb: 'talk', label: 'Nói chuyện', duration: 0, enabled: !busy, reason: busy, instant: true }];
+      if (def.role === 'resident' && this.settings.conflicts !== false) {
+        const why = canConflict(this.ctx, t.id);
+        t.verbs.push({ verb: 'confront', label: 'Gây sự', duration: 0, enabled: !why && !busy, reason: why ?? busy, instant: true });
+      }
       t.busy = busy;
     }
     this.focus = t;
@@ -499,8 +510,10 @@ export class GameSession {
   interact(targetId: string, verb: string, params: Record<string, string | number | boolean> = {}): { ok: boolean; message?: string; screen?: string } {
     const s = this.s;
     if (this.paused || this.dialogue) return { ok: false, message: 'Không thể thao tác lúc này.' };
+    if (s.conflict) return { ok: false, message: 'Đang có xung đột — chọn trong khung xung đột.' };
     if (s.player.action && !s.player.action.committed) return { ok: false, message: 'Đang thực hiện hành động khác.' };
     if (verb === 'talk') return this.talk(targetId);
+    if (verb === 'confront') { const ok = this.exec((ctx) => startPlayerConflict(ctx, targetId)); return ok ? { ok: true } : { ok: false, message: canConflict(this.ctx, targetId) ?? 'Không thể gây sự lúc này.' }; }
     const prop = PROP_BY_ID[targetId];
     if (!prop || !this.inRange(prop)) return { ok: false, message: 'Quá xa hoặc bị che khuất.' };
     const opt = this.gatedVerbs(prop).find((v) => v.verb === verb) ?? this.gatedPanelVerbs(prop).find((v) => v.verb === verb);

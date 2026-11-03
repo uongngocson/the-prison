@@ -17,6 +17,7 @@ import { OnlineLobby, ChatDock, QueueScreen, ClockPrompt } from './ui/screens/On
 import { startDeviceWatch } from './ui/device';
 import { audio } from './audio/audio';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+import { ConflictOverlay } from './ui/screens/Conflict';
 
 export default function App() {
   const screen = useUI((s) => s.screen);
@@ -71,6 +72,7 @@ export default function App() {
       {inGame && <ErrorBoundary name="chat" silent><ChatDock /></ErrorBoundary>}
       {inGame && <RotateHint />}
       {inGame && <ErrorBoundary name="Dialogue" silent><Dialogue /></ErrorBoundary>}
+      {inGame && <ErrorBoundary name="conflict" silent><ConflictOverlay /></ErrorBoundary>}
       {inGame && overlay === 'quickmenu' && <ErrorBoundary name="quickmenu"><QuickMenu /></ErrorBoundary>}
       {inGame && overlay === 'pause' && <ErrorBoundary name="pause"><Pause /></ErrorBoundary>}
       {inGame && overlay === 'custody' && <ErrorBoundary name="custody"><CustodyPanel /></ErrorBoundary>}
