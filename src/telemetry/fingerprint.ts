@@ -16,8 +16,12 @@ export function fingerprint(kind: string, message: string, stack: string): strin
 }
 
 /** Lỗi không đáng ghi (tiện ích trình duyệt, ResizeObserver, hủy yêu cầu). */
-export function ignorable(message: string, source?: string): boolean {
+export function ignorable(message: string, source?: string, stack = ''): boolean {
   if (/ResizeObserver loop|Script error\.?$|AbortError|The user aborted|cancelled|NotAllowedError: play\(\)/i.test(message)) return true;
-  if (source && /^(chrome|moz|safari)-extension:/.test(source)) return true;
+  // script do trình duyệt trong app (Zalo, Facebook…) tự chèn vào trang — không phải code game
+  if (/zaloJSV2|zalo_h5|FB_IAB|__gCrWeb|WeixinJSBridge/i.test(message)) return true;
+  if (source && /^(chrome|moz|safari|safari-web)-extension:/.test(source)) return true;
+  // lỗi phát sinh trong tiện ích trình duyệt của người chơi
+  if (/(chrome|moz|safari|safari-web)-extension:\/\//.test(stack)) return true;
   return false;
 }

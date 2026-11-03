@@ -54,6 +54,9 @@ describe('dấu vân tay lỗi', () => {
     expect(ignorable('Script error.')).toBe(true);
     expect(ignorable('x', 'chrome-extension://abc/x.js')).toBe(true);
     expect(ignorable('TypeError: x is undefined')).toBe(false);
+    expect(ignorable("ReferenceError: Can't find variable: zaloJSV2")).toBe(true); // trình duyệt trong Zalo
+    expect(ignorable("TypeError: Cannot read properties of undefined (reading 'M_ID')", undefined, 'at Y (chrome-extension://eppio/executors/200.js:1:761)')).toBe(true);
+    expect(ignorable('InvalidStateError: Failed to start the audio device', undefined, '')).toBe(false); // lỗi thật: đã xử lý trong audio
   });
   it('nhận diện hệ điều hành / trình duyệt', () => {
     expect(parseUA('Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36')).toEqual({ os: 'Android', browser: 'Chrome' });

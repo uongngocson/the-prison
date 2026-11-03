@@ -52,8 +52,8 @@ export function reportError(kind: ErrorKind, err: unknown, extra: Record<string,
     if (!cloud.configured()) return;
     const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err ?? 'unknown')?.slice(0, 300));
     const message = `${e.name && e.name !== 'Error' ? e.name + ': ' : ''}${e.message || 'Lỗi không rõ'}`.slice(0, 500);
-    if (ignorable(message)) return;
     const stack = (e.stack ?? '').slice(0, 4000);
+    if (ignorable(message, undefined, stack)) return;
     const fp = fingerprint(kind, message, stack);
     const now = Date.now();
     if ((sentAt.get(fp) ?? 0) > now - 60_000 || sentCount >= MAX_ERRORS_PER_SESSION) return;

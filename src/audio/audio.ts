@@ -26,12 +26,13 @@ export class AudioSystem {
         for (const c of ['music', 'sfx', 'dialogue', 'ambience', 'ui'] as Channel[]) { const g = this.ctx.createGain(); g.connect(this.master); this.ch[c] = g; }
         this.buildAmbience();
       }
-      void this.ctx.resume();
-      this.state = 'active';
-      this.apply();
+      if (this.ctx.state === 'running') { if (this.state !== 'active') { this.state = 'active'; this.apply(); } return; }
+      // iOS có thể từ chối mở loa (đang gọi điện, app khác giữ loa, vừa quay lại từ nền): không ném lỗi,
+      // giữ trạng thái tạm dừng và thử lại ở lần chạm kế tiếp.
+      this.ctx.resume().then(() => { this.state = 'active'; this.apply(); }).catch(() => { this.state = 'suspended'; });
     } catch { this.state = 'unavailable'; }
   }
-  suspend() { void this.ctx?.suspend(); this.state = this.ctx ? 'suspended' : this.state; }
+  suspend() { this.ctx?.suspend().catch(() => undefined); this.state = this.ctx ? 'suspended' : this.state; }
 
   setVolumes(v: typeof this.volumes) { this.volumes = { ...v }; this.apply(); }
   private apply() {

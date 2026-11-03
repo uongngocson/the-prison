@@ -3,6 +3,18 @@ import { createRoot } from 'react-dom/client';
 import { DEFAULT_SITE, fetchRemoteConfig, type SiteConfig } from './config/remote';
 
 const root = createRoot(document.getElementById('root')!);
+
+// Sau mỗi lần deploy, tên các file JS đổi: người đang mở bản cũ sẽ tải hỏng phần code tải sau (vd. màn tạo nhân vật).
+// Tự tải lại trang MỘT lần để lấy bản mới (tiến trình đã được lưu khi rời trang); không lặp lại trong 60 giây.
+window.addEventListener('vite:preloadError', (e) => {
+  try {
+    const KEY = 'mnm.chunkReloadAt';
+    if (Date.now() - Number(sessionStorage.getItem(KEY) ?? 0) < 60_000) return;
+    sessionStorage.setItem(KEY, String(Date.now()));
+    e.preventDefault();
+    location.reload();
+  } catch { /* không có sessionStorage: để lỗi hiển thị như cũ */ }
+});
 const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
