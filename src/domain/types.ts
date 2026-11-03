@@ -9,7 +9,7 @@ export type SkillId = 'focus' | 'fitness' | 'communication';
 export type ZoneId =
   | 'L01' | 'L02' | 'L03' | 'L04' | 'L05' | 'L06' | 'L07' | 'L08' | 'L09'
   | 'L10' | 'L11' | 'L12' | 'L13' | 'L14' | 'L15' | 'L16' | 'L17' | 'L18'
-  | 'L19' | 'L20' | 'L21' | 'L22' | 'L23' | 'L24' | 'L25' | 'L27';
+  | 'L19' | 'L20' | 'L21' | 'L22' | 'L23' | 'L24' | 'L25' | 'L27' | 'L28';
 
 export interface Vec3 { x: number; y: number; z: number }
 
@@ -199,8 +199,8 @@ export interface GameStats { distanceWalked: number; mealsEaten: number; booksSo
 export type ExperienceMode = 'fictional_life' | 'vn_custody';
 export type PlacementGroup = 'A' | 'B' | 'review_required';
 export type CustodyPhase = 'intake' | 'in_cell' | 'scheduled_movement' | 'authorized_activity' | 'returning' | 'night_confinement'
-  | 'separate_housing' | 'disciplinary_confinement' | 'care_transfer' | 'transfer_pending' | 'released';
-export type StartSegment = 'intake' | 'midway' | 'discipline_demo' | 'separation_demo';
+  | 'separate_housing' | 'disciplinary_confinement' | 'restrictive_housing' | 'care_transfer' | 'transfer_pending' | 'released';
+export type StartSegment = 'intake' | 'midway' | 'discipline_demo' | 'separation_demo' | 'shu';
 
 export interface JudgmentAmendment { version: number; minute: number; kind: 'reduction' | 'correction'; months: number; decisionRef: string; note: string; supersedes: number }
 /** DB46 — bản án trong kịch bản (hư cấu). `declaredTermMonths` null khi chung thân. */
@@ -223,7 +223,7 @@ export interface ClassificationDecision { decisionId: string; group: PlacementGr
 /** DB48 */
 export interface CustodyOrder {
   orderId: string;
-  kind: 'discipline_confinement' | 'separation' | 'family_visit_restriction';
+  kind: 'discipline_confinement' | 'separation' | 'family_visit_restriction' | 'restrictive_housing';
   reasonCode: string;
   issuerRole: string;
   sourceDecisionId: string;
@@ -258,6 +258,17 @@ export interface CustodyState {
   releaseState: 'serving' | 'release_due' | 'released';
   npcBeds: Record<string, string>;
   disciplineHistory: { minute: number; level: 'reprimand' | 'warning' | 'confinement'; incidentId: string }[];
+  /** Biệt giam kiểu Mỹ (SHU): chương trình step-down 3 cấp. Thiếu = chưa từng vào SHU. */
+  shu?: ShuState;
+}
+export interface ShuState {
+  level: 1 | 2 | 3;
+  levelSinceMinute: number;
+  enteredMinute: number;
+  /** Số lần vi phạm trong SHU (mỗi lần về lại cấp 1). */
+  setbacks: number;
+  /** Hoạt động ngoài buồng đã dùng (khóa ngày:loại) — chống lặp hiệu ứng. */
+  done: string[];
 }
 
 export interface GameState {

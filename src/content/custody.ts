@@ -22,16 +22,16 @@ export const VN_PROFILE = {
 
 export interface SentencePreset { id: string; label: string; kind: 'term' | 'life'; months: number | null; basis: 'single' | 'aggregate'; creditedDays: number; note: string; segments: StartSegment[] }
 export const SENTENCE_PRESETS: SentencePreset[] = [
-  { id: 'VN-T03M', label: '3 tháng', kind: 'term', months: 3, basis: 'single', creditedDays: 30, note: 'Án ngắn vẫn theo cùng lịch ở buồng của nhóm A.', segments: ['intake', 'discipline_demo'] },
-  { id: 'VN-T06M', label: '6 tháng', kind: 'term', months: 6, basis: 'single', creditedDays: 45, note: 'Không tự do ra khỏi khu vì án ngắn.', segments: ['intake'] },
-  { id: 'VN-T01Y', label: '1 năm', kind: 'term', months: 12, basis: 'single', creditedDays: 60, note: 'Có giờ ra/về buồng và hoạt động được phân công.', segments: ['intake'] },
-  { id: 'VN-T03Y', label: '3 năm', kind: 'term', months: 36, basis: 'single', creditedDays: 90, note: '', segments: ['intake', 'separation_demo'] },
-  { id: 'VN-T05Y', label: '5 năm', kind: 'term', months: 60, basis: 'single', creditedDays: 90, note: 'Không tự chuyển cơ sở chỉ vì mốc 5 năm.', segments: ['intake', 'discipline_demo'] },
-  { id: 'VN-T10Y', label: '10 năm', kind: 'term', months: 120, basis: 'single', creditedDays: 90, note: 'Học tập, công việc và gặp theo điều kiện riêng.', segments: ['intake'] },
-  { id: 'VN-T15Y', label: '15 năm', kind: 'term', months: 180, basis: 'single', creditedDays: 90, note: 'Mốc biên: đúng 15 năm không phải "trên 15 năm".', segments: ['intake'] },
-  { id: 'VN-T20Y', label: '20 năm', kind: 'term', months: 240, basis: 'single', creditedDays: 90, note: 'Nhóm B, không mặc định biệt giam.', segments: ['intake', 'midway'] },
-  { id: 'VN-T30Y', label: '30 năm · án tổng hợp', kind: 'term', months: 360, basis: 'aggregate', creditedDays: 120, note: 'Ghi rõ án tổng hợp; không phải mức của một tội.', segments: ['intake'] },
-  { id: 'VN-LIFE', label: 'Chung thân', kind: 'life', months: null, basis: 'single', creditedDays: 0, note: 'Không có ngày hết án mặc định; kết thúc chương vẫn chơi tiếp được.', segments: ['intake', 'separation_demo'] },
+  { id: 'VN-T03M', label: '3 tháng', kind: 'term', months: 3, basis: 'single', creditedDays: 30, note: 'Án ngắn vẫn theo cùng lịch ở buồng của nhóm A.', segments: ['intake', 'discipline_demo', 'shu'] },
+  { id: 'VN-T06M', label: '6 tháng', kind: 'term', months: 6, basis: 'single', creditedDays: 45, note: 'Không tự do ra khỏi khu vì án ngắn.', segments: ['intake', 'shu'] },
+  { id: 'VN-T01Y', label: '1 năm', kind: 'term', months: 12, basis: 'single', creditedDays: 60, note: 'Có giờ ra/về buồng và hoạt động được phân công.', segments: ['intake', 'shu'] },
+  { id: 'VN-T03Y', label: '3 năm', kind: 'term', months: 36, basis: 'single', creditedDays: 90, note: '', segments: ['intake', 'separation_demo', 'shu'] },
+  { id: 'VN-T05Y', label: '5 năm', kind: 'term', months: 60, basis: 'single', creditedDays: 90, note: 'Không tự chuyển cơ sở chỉ vì mốc 5 năm.', segments: ['intake', 'discipline_demo', 'shu'] },
+  { id: 'VN-T10Y', label: '10 năm', kind: 'term', months: 120, basis: 'single', creditedDays: 90, note: 'Học tập, công việc và gặp theo điều kiện riêng.', segments: ['intake', 'shu'] },
+  { id: 'VN-T15Y', label: '15 năm', kind: 'term', months: 180, basis: 'single', creditedDays: 90, note: 'Mốc biên: đúng 15 năm không phải "trên 15 năm".', segments: ['intake', 'shu'] },
+  { id: 'VN-T20Y', label: '20 năm', kind: 'term', months: 240, basis: 'single', creditedDays: 90, note: 'Nhóm B, không mặc định biệt giam.', segments: ['intake', 'midway', 'shu'] },
+  { id: 'VN-T30Y', label: '30 năm · án tổng hợp', kind: 'term', months: 360, basis: 'aggregate', creditedDays: 120, note: 'Ghi rõ án tổng hợp; không phải mức của một tội.', segments: ['intake', 'shu'] },
+  { id: 'VN-LIFE', label: 'Chung thân', kind: 'life', months: null, basis: 'single', creditedDays: 0, note: 'Không có ngày hết án mặc định; kết thúc chương vẫn chơi tiếp được.', segments: ['intake', 'separation_demo', 'shu'] },
 ];
 export const PRESET_BY_ID: Record<string, SentencePreset> = Object.fromEntries(SENTENCE_PRESETS.map((p) => [p.id, p]));
 
@@ -40,6 +40,7 @@ export const SEGMENT_INFO: Record<StartSegment, { label: string; desc: string; i
   midway: { label: 'Một đoạn giữa hành trình', desc: 'Đã chấp hành 6 năm (kịch bản). Có sự kiện quyết định giảm án và quyết định phân loại trong những ngày đầu.', illustration: true },
   discipline_demo: { label: 'Minh họa kỷ luật', desc: 'Bản án giữ nguyên; mở đầu bằng quyết định buồng kỷ luật 2 ngày đã có (hư cấu). Có thể xem quyết định và xin xem xét lại.', illustration: true },
   separation_demo: { label: 'Minh họa bố trí riêng', desc: 'Bố trí riêng để hỗ trợ an toàn (không phải kỷ luật), có hạn xem xét lại.', illustration: true },
+  shu: { label: 'Biệt giam SHU (khắc nghiệt)', desc: 'Ở buồng 23 giờ/ngày · lên 3 cấp để về khu thường.', illustration: true },
 };
 
 // ---------- Custody schedule (24h, [from,to), không có khoảng trống) ----------
@@ -82,6 +83,7 @@ export const PHASE_LABEL: Record<CustodyPhase, string> = {
   night_confinement: 'Ban đêm',
   separate_housing: 'Bố trí riêng',
   disciplinary_confinement: 'Kỷ luật',
+  restrictive_housing: 'Biệt giam SHU',
   care_transfer: 'Đang chuyển chăm sóc',
   transfer_pending: 'Đang chuẩn bị chuyển nơi',
   released: 'Đã rời cơ sở',
@@ -112,5 +114,36 @@ export const REASON_TEXT: Record<string, string> = {
   INTAKE_ONLY: 'Hãy hoàn tất tiếp nhận trước khi tới khu khác.',
   OTHER_ROOM: 'Đây là buồng của người khác.',
   RELEASED: 'Bạn đã rời cơ sở.',
+  SHU_ACTIVE: 'Đang biệt giam SHU — chỉ ra khỏi buồng khi được áp giải theo lịch.',
+  SHU_LEVEL: 'Chưa đủ cấp step-down cho đặc quyền này.',
 };
 export const SERVICE_ZONES: ZoneId[] = ['L08', 'L11', 'L12', 'L16', 'L17', 'L13'];
+
+// ======================= Biệt giam kiểu Mỹ — Security Housing Unit (thiết kế game hư cấu) =======================
+// Tham chiếu hình thức phổ biến của SHU/supermax: ở buồng ~23 giờ/ngày, suất ăn qua khe cửa, áp giải bằng còng,
+// thể dục 1 giờ một mình trong cũi, tắm cách ngày, sinh hoạt nhóm trong cũi cá nhân, gặp người thân không tiếp xúc.
+export type ShuActivity = 'rec' | 'shower' | 'group';
+export interface ShuWindow { from: number; to: number; kind: ShuActivity | 'cell' | 'night'; label: string; minLevel: 1 | 2 | 3; days: 'all' | 'odd' | 'even' }
+const SW = (from: number, to: number, kind: ShuWindow['kind'], label: string, minLevel: 1 | 2 | 3 = 1, days: ShuWindow['days'] = 'all'): ShuWindow => ({ from, to, kind, label, minLevel, days });
+export const SHU_SCHEDULE: ShuWindow[] = [
+  SW(0, hm(6), 'night', 'Đêm — đèn buồng mờ, kiểm tra mỗi 30 phút'),
+  SW(hm(6), hm(9), 'cell', 'Kiểm đếm tại cửa buồng · bữa sáng qua khe cửa'),
+  SW(hm(9), hm(10), 'rec', 'Thể dục 1 giờ trong cũi (áp giải)'),
+  SW(hm(10), hm(14), 'cell', 'Ở buồng · bữa trưa qua khe cửa'),
+  SW(hm(14), hm(14, 30), 'shower', 'Tắm (cách ngày, áp giải)', 1, 'odd'),
+  SW(hm(14, 30), hm(15), 'cell', 'Ở buồng'),
+  SW(hm(15), hm(16), 'group', 'Sinh hoạt nhóm trong cũi trị liệu', 2, 'even'),
+  SW(hm(16), hm(22), 'cell', 'Ở buồng · bữa tối qua khe cửa · kiểm đếm 21:00'),
+  SW(hm(22), hm(24), 'night', 'Đêm — đèn buồng mờ, kiểm tra mỗi 30 phút'),
+];
+export interface ShuLevel { level: 1 | 2 | 3; title: string; days: number; privileges: string[] }
+/** Chương trình step-down: giữ kỷ luật đủ số ngày để lên cấp; vi phạm → về cấp 1. */
+export const SHU_LEVELS: ShuLevel[] = [
+  { level: 1, title: 'Cấp 1 · Hạn chế tối đa', days: 3, privileges: ['Thể dục 1 giờ/ngày trong cũi', 'Tắm cách ngày', 'Viết thư', 'Yêu cầu y tế tại buồng'] },
+  { level: 2, title: 'Cấp 2 · Chương trình', days: 3, privileges: ['Thêm: sinh hoạt nhóm trong cũi trị liệu', 'Mượn sách (xe sách)', '1 cuộc gọi có giám sát'] },
+  { level: 3, title: 'Cấp 3 · Chuẩn bị chuyển khu', days: 4, privileges: ['Thêm: mua căng-tin hạn chế', 'Đủ ngày → xét chuyển về khu thường'] },
+];
+/** Chung thân: không có ngày ra SHU cố định — xét lại định kỳ (ngày game). */
+export const SHU_LIFE_REVIEW_DAYS = 5;
+export const shuTotalDays = () => SHU_LEVELS.reduce((t, l) => t + l.days, 0);
+export const SHU_ROOM_COHORT: Record<ShuActivity, 'shu_rec' | 'shu_shower' | 'shu_module'> = { rec: 'shu_rec', shower: 'shu_shower', group: 'shu_module' };

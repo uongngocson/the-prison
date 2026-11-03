@@ -7,12 +7,13 @@ import { Icon } from '../icons';
 import { controller } from '../../app/controller';
 import type { Appearance, ExperienceMode, StartSegment } from '../../domain/types';
 import type { CharacterDraft } from '../../domain/newgame';
-import { PHASE_LABEL, PRESET_BY_ID, CUSTODY_SCHEDULE } from '../../content/custody';
+import { PHASE_LABEL, PRESET_BY_ID, CUSTODY_SCHEDULE, SEGMENT_INFO, SHU_LEVELS, SHU_SCHEDULE } from '../../content/custody';
 import { ZONE_BY_ID } from '../../content/world';
 import {
   allowedZones, chapterEligible, closeChapter, currentGroup, homeRoom, isConfinedPhase, isVN, nextWindow,
-  orderKindLabel, progress, sentenceLabel, validateSelection, windowAt,
+  orderKindLabel, progress, sentenceLabel, validateSelection, windowAt, shuOrder, shuNextWindow, shuWindowAt, shuWindowApplies,
 } from '../../domain/custody';
+import { dayOf } from '../../domain/util';
 import { fmtClock, fmtDayClock } from '../../domain/util';
 
 // ======================= U36 — một màn duy nhất: chế độ + mức án + ngẫu nhiên =======================
@@ -48,7 +49,7 @@ export function Setup() {
   const random = () => {
     const mode = pick(MODES).id;
     const p = pick(QUICK_PRESETS);
-    upd({ mode, presetId: p, segment: pick(PRESET_BY_ID[p].segments) });
+    upd({ mode, presetId: p, segment: pick(PRESET_BY_ID[p].segments.filter((x) => x !== 'shu')) }); // SHU chỉ khi người chơi tự chọn
   };
   const start = async () => {
     if (pending) return; // double-submit guard: một lineage
@@ -85,9 +86,16 @@ export function Setup() {
         <div className={`sentence-row ${custody ? '' : 'off'}`} role="radiogroup" aria-label="Mức án" aria-disabled={!custody}>
           {QUICK_PRESETS.map((id) => (
             <button key={id} role="radio" aria-checked={custody && presetId === id} disabled={!custody} className={`chip ${custody && presetId === id ? 'on' : ''}`}
-              onClick={() => upd({ presetId: id, segment: 'intake' })}>{PRESET_BY_ID[id].label}</button>
+              onClick={() => upd({ presetId: id, segment: d.segment === 'shu' ? 'shu' : 'intake' })}>{PRESET_BY_ID[id].label}</button>
           ))}
         </div>
+        <div className={`sentence-row ${custody ? '' : 'off'}`} role="radiogroup" aria-label="Điểm bắt đầu" aria-disabled={!custody}>
+          {(['intake', 'shu'] as StartSegment[]).map((seg) => (
+            <button key={seg} role="radio" aria-checked={custody && d.segment === seg} disabled={!custody} className={`chip ${seg === 'shu' ? 'chip-shu' : ''} ${custody && (d.segment === seg || (seg === 'intake' && d.segment !== 'shu')) ? 'on' : ''}`}
+              onClick={() => upd({ segment: seg })}>{seg === 'shu' ? '⛓ Biệt giam SHU' : 'Tiếp nhận thường'}</button>
+          ))}
+        </div>
+        {custody && d.segment === 'shu' && <p className="shu-warn" role="note"><b>⛓ Khắc nghiệt</b> · {SEGMENT_INFO.shu.desc}{PRESET_BY_ID[presetId].kind === 'life' ? ' · Chung thân: xét lại mỗi 5 ngày' : ''}</p>}
         {error && <p className="setup-err" role="alert">{error}</p>}
         <div className="setup-actions">
           <button className="btn" onClick={random} disabled={pending}><Icon name="dice" size={18} /> Ngẫu nhiên</button>
@@ -102,6 +110,7 @@ export function Setup() {
 // ======================= HUD chip =======================
 /** Mốc thay đổi tiếp theo: lệnh (kỷ luật/bố trí riêng) ưu tiên hơn lịch nhóm. */
 function nextChange(s: NonNullable<typeof controller.s>): { label: string; at: number; text: string } {
+  if (shuOrder(s) && s.custody!.shu) { const nx = shuNextWindow(s); return { label: nx.label, at: nx.at, text: `${nx.label} ${fmtDayClock(nx.at)}` }; }
   const o = s.custody!.orders.find((x) => x.state === 'active' && (x.kind === 'discipline_confinement' || x.kind === 'separation'));
   if (o) {
     const at = o.endMinute ?? o.reviewAtMinute;
@@ -148,6 +157,7 @@ export function CustodyPanel() {
   return (
     <Panel title="Chế độ thụ án" onClose={close} width="mid" tabs={<Tabs label="Chế độ" value={tab} onChange={setTab} tabs={[{ id: 'record', label: 'Tổng quan' }, { id: 'schedule', label: 'Lịch' }, { id: 'decisions', label: 'Quyết định', badge: active.length || undefined }]} />}>
       {tab === 'record' && <>
+        <ShuCard />
         <div className="stat-grid">
           <div className="stat"><span>Mức án</span><b>{sentenceLabel(c.judgment)}</b></div>
           <div className="stat"><span>Còn lại</span><b>{pr.remainingDays === null ? '—' : `${pr.remainingDays} ngày`}</b></div>
@@ -157,7 +167,12 @@ export function CustodyPanel() {
         <p className="small"><span className={`ph ${isConfinedPhase(c.phase) ? 'conf' : 'act'}`}>{PHASE_LABEL[c.phase]}</span> · Tiếp: {nextChange(s).text}</p>
         <p className="small muted">Được tới: {zones.size ? [...zones].map((z) => ZONE_BY_ID[z].name).join(', ') : 'chỉ trong buồng'}</p>
       </>}
-      {tab === 'schedule' && (
+      {tab === 'schedule' && c.shu && shuOrder(s) && (
+        <table className="tbl small sched"><tbody>
+          {SHU_SCHEDULE.map((w) => { const ok = shuWindowApplies(w, c.shu!.level, dayOf(s.minute)); return <tr key={w.from} className={shuWindowAt(s.minute).from === w.from ? 'current' : ''} style={ok ? undefined : { opacity: 0.45 }}><td>{fmtClock(w.from)}–{fmtClock(w.to % 1440)}</td><td>{w.label}{!ok && w.minLevel > c.shu!.level ? `· từ cấp ${w.minLevel}` : !ok ? ' · không phải hôm nay' : ''}</td></tr>; })}
+        </tbody></table>
+      )}
+      {tab === 'schedule' && !(c.shu && shuOrder(s)) && (
         <table className="tbl small sched"><tbody>
           {CUSTODY_SCHEDULE[g].map((w) => <tr key={w.from} className={windowAt(s).from === w.from ? 'current' : ''}><td>{fmtClock(w.from)}–{fmtClock(w.to % 1440)}</td><td>{w.label}</td></tr>)}
         </tbody></table>
@@ -193,8 +208,18 @@ export function InCellPanel() {
     sess.fastForward(mins, false);
     controller.bump();
   };
-  const win = nextWindow(s);
-  const acts: { icon: string; label: string; go: () => void }[] = [
+  const shu = !!(shuOrder(s) && c.shu);
+  const win = shu ? shuNextWindow(s) : nextWindow(s);
+  const workout = { icon: 'energy', label: 'Tập tại buồng', go: () => { controller.exec((ctx) => { ctx.s.needs.energy = Math.max(0, ctx.s.needs.energy - 6); ctx.s.needs.mood = Math.min(100, ctx.s.needs.mood + 4); ctx.s.needCauses.mood = 'Hít đất, gập bụng trong buồng'; return true; }); skipTo(s.minute + 30); } };
+  const acts: { icon: string; label: string; go: () => void }[] = shu ? [
+    ...(c.shu!.level >= 2 ? [{ icon: 'book', label: 'Xe sách', go: () => { close(); controller.openScreen('library'); } }] : []),
+    workout,
+    { icon: 'energy', label: 'Nghỉ 1 giờ', go: () => { controller.exec((ctx) => { ctx.s.needs.energy = Math.min(100, ctx.s.needs.energy + 8); ctx.s.needCauses.energy = 'Nghỉ trên bệ nằm'; return true; }); skipTo(s.minute + 60); } },
+    { icon: 'talk', label: 'Viết thư', go: () => controller.openScreen('contacts') },
+    { icon: 'hand', label: 'Yêu cầu', go: () => controller.openScreen('cases') },
+    { icon: 'user', label: 'Y tế tại buồng', go: () => controller.openScreen('support') },
+    { icon: 'quest', label: 'Cấp SHU', go: () => useUI.getState().open('custody') },
+  ] : [
     { icon: 'book', label: 'Đọc sách', go: () => { close(); controller.openScreen('library'); } },
     { icon: 'energy', label: 'Nghỉ 1 giờ', go: () => { controller.exec((ctx) => { ctx.s.needs.energy = Math.min(100, ctx.s.needs.energy + 8); ctx.s.needCauses.energy = 'Nghỉ tại buồng'; return true; }); skipTo(s.minute + 60); } },
     { icon: 'talk', label: 'Viết thư', go: () => controller.openScreen('contacts') },
@@ -232,6 +257,27 @@ export function VnChapterCard() {
           const r = controller.exec<{ ok: boolean; message: string }>((ctx) => closeChapter(ctx));
           useUI.getState().toast({ id: 'chapter', text: r?.message ?? '', severity: r?.ok ? 'success' : 'warning' });
         }}>{chapterEligible(s) ? 'Kết thúc chương' : 'Mở vào ngày 7'}</button>}
+    </div>
+  );
+}
+
+// ======================= SHU — thẻ cấp step-down =======================
+export function ShuCard() {
+  useUI((s) => s.rev);
+  const s = controller.s;
+  const o = s ? shuOrder(s) : null;
+  const sh = s?.custody?.shu;
+  if (!s || !o || !sh) return null;
+  const lv = SHU_LEVELS[sh.level - 1];
+  const daysIn = Math.floor((s.minute - sh.levelSinceMinute) / 1440);
+  const pct = sh.level === 3 && o.endMinute === null ? Math.min(100, (daysIn / lv.days) * 100) : Math.min(100, (daysIn / lv.days) * 100);
+  return (
+    <div className="shu-card" role="group" aria-label="Biệt giam SHU">
+      <div className="shu-head"><span className="shu-tag">SHU</span><b>{lv.title}</b><span className="small muted">Ngày {daysIn + 1}/{lv.days} ở cấp này</span></div>
+      <div className="shu-steps" aria-hidden>{SHU_LEVELS.map((l) => <i key={l.level} className={l.level < sh.level ? 'done' : l.level === sh.level ? 'cur' : ''}><span>{l.level}</span></i>)}</div>
+      <div className="ld-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Tiến độ cấp hiện tại"><i style={{ width: `${Math.max(4, pct)}%` }} /></div>
+      <ul className="shu-priv small">{lv.privileges.map((p) => <li key={p}>{p}</li>)}</ul>
+      <p className="small muted">{o.endMinute !== null ? `Dự kiến chuyển về khu thường: ${fmtDayClock(o.endMinute)}` : `Chung thân — xét lại định kỳ: ${o.reviewAtMinute ? fmtDayClock(o.reviewAtMinute) : '—'}`}{sh.setbacks ? ` · Đã bị hạ cấp ${sh.setbacks} lần` : ''}</p>
     </div>
   );
 }

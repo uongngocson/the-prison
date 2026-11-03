@@ -263,6 +263,8 @@ export class GameSession {
         open = m >= a && m < b;
         if (!open) reason = `Mở cửa ${fmtClock(a)}–${fmtClock(b)}`;
       }
+      // SHU: cửa an ninh luôn khóa — chỉ vào/ra bằng áp giải theo lệnh
+      if (z.id === 'L28') { open = false; reason = 'Khu an ninh tối đa — chỉ ra vào khi có lệnh và áp giải'; }
       if (z.id === 'L04' && s.world.weather === 'rain' && open) { open = false; reason = 'Trời mưa — sân tạm đóng, dùng Phòng tập'; }
       const ev = s.world.activeEvent;
       if (ev && ev.id.startsWith('closure') && ev.zone === z.id && ev.state === 'running') { open = false; reason = 'Tạm đóng để bảo trì (hư cấu)'; }
@@ -275,7 +277,7 @@ export class GameSession {
       if (!initial) {
         this.emit({ type: 'doorChanged', doorId: id, state: next, reason });
         // Chỉ báo cho người đang ở trong khu (trước đây NPC đứng ở cửa cũng làm phát thông báo).
-        if (next === 'closing' && s.player.zone === z.id) notify(this.ctx, `${z.name} sắp đóng (${reason}). Bạn có thể ra bất cứ lúc nào.`, 'info', 'system');
+        if (next === 'closing' && s.player.zone === z.id && z.id !== 'L28') notify(this.ctx, `${z.name} sắp đóng (${reason}). Bạn có thể ra bất cứ lúc nào.`, 'info', 'system');
       }
     }
   }
@@ -372,7 +374,7 @@ export class GameSession {
       np = { x: c.x, y: np.y, z: c.z };
     }
     const moved = Math.hypot(np.x - p.pos.x, np.z - p.pos.z);
-    if (!Number.isFinite(np.x) || np.x < -107 || np.x > 115 || np.z < -40 || np.z > 40) {
+    if (!Number.isFinite(np.x) || np.x < -128 || np.x > 115 || np.z < -40 || np.z > 40) {
       p.pos = { ...p.lastSafe };
       p.mode = 'recovering';
       notify(this.ctx, 'Đã đưa bạn về vị trí an toàn gần nhất.', 'info', 'system');

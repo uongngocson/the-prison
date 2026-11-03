@@ -238,8 +238,11 @@ export class GameView {
     const pp = this.session.playerRenderPos(a);
     const pr = this.player.root;
     pr.position.set(pp.x, 0, pp.z);
-    const moving = Math.hypot(pp.x - this.lastPlayerPos.x, pp.z - this.lastPlayerPos.z) / Math.max(dt, 1e-3);
+    const jump = Math.hypot(pp.x - this.lastPlayerPos.x, pp.z - this.lastPlayerPos.z);
+    const moving = jump > 3 ? 0 : jump / Math.max(dt, 1e-3);
     this.lastPlayerPos.set(pp.x, 0, pp.z);
+    // bị áp giải/chuyển chỗ (dịch chuyển xa trong 1 khung hình): camera quay theo hướng nhân vật, không giữ góc cũ hướng vào tường
+    if (jump > 3) { this.yaw = s.player.yaw; this.pitch = 0.32; pr.rotation.y = s.player.yaw; }
     let targetYaw = s.player.yaw;
     let dyaw = targetYaw - pr.rotation.y;
     while (dyaw > Math.PI) dyaw -= Math.PI * 2;

@@ -188,8 +188,8 @@ export function MapPanel() {
   const open = (id: ZoneId) => vnAllowed ? vnAllowed.has(id) || id === s.player.zone : controller.session!.zoneIsOpen(id);
   const door = s.world.doors[`door_${sel}`];
   const route = sel === s.player.zone ? 'Bạn đang ở đây.' : vnAllowed && !open(sel) ? `Chưa được tới: ${reasonText(positionAllowed(s, (z.x0 + z.x1) / 2, (z.z0 + z.z1) / 2).reasonCode ?? 'AUTHORIZATION_REQUIRED')}` : !open(sel) ? `Đang đóng: ${door?.reason || 'ngoài giờ mở cửa'}` : `Lối đi: ${ZONE_BY_ID[s.player.zone].name} → Hành lang chính → ${z.name}`;
-  const K = 0.72;
-  const sx = (x: number) => (x + 104) * K;
+  const K = 0.66;
+  const sx = (x: number) => (x + 127) * K;
   const KZ = 1.0; // z −36…32 (gồm khu lao động) vừa khung 72
   const sz = (zz: number) => (34 - zz) * KZ;
   return (
@@ -206,7 +206,7 @@ export function MapPanel() {
           <svg viewBox="0 0 160 72" aria-label="Sơ đồ các khu" role="img">
             {ZONES.map((x) => (
               <g key={x.id} className={`z ${x.id === s.player.zone ? 'cur' : ''} ${!open(x.id) ? 'closed' : ''}`} onClick={() => setSel(x.id)}>
-                <rect x={sx(x.x0)} y={sz(x.z1)} width={(x.x1 - x.x0) * K} height={(x.z1 - x.z0) * KZ} fill={x.id === sel ? '#4b6468' : x.outdoor ? '#3e5a3e' : '#2b3b3e'} />
+                <rect x={sx(x.x0)} y={sz(x.z1)} width={(x.x1 - x.x0) * K} height={(x.z1 - x.z0) * KZ} fill={x.id === sel ? '#44576c' : x.outdoor ? '#3e5a3e' : x.id === 'L28' ? '#4a2a2a' : '#222d3a'} />
                 <text x={sx((x.x0 + x.x1) / 2)} y={sz((x.z0 + x.z1) / 2) + 1} fontSize="2.6" textAnchor="middle" fill="#f2f0e8">{known(x.id) ? x.id : '?'}</text>
               </g>
             ))}

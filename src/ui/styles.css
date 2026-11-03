@@ -1139,3 +1139,18 @@ h3 { font-family: var(--sign); letter-spacing: .04em; text-transform: uppercase;
 /* HUD */
 .toast { border-radius: 6px; background: rgba(20,27,36,.96); }
 .dialogue .speaker { font-family: var(--sign); letter-spacing: .06em; text-transform: uppercase; }
+
+/* SHU — biệt giam kiểu Mỹ */
+.chip-shu { border-color: #8a3a32 !important; }
+.chip-shu.on { background: linear-gradient(180deg, #b8231c, #8e1a14) !important; color: #fff !important; border-color: #ff6a5c !important; }
+.shu-warn { margin: 4px 0 0; padding: 10px 12px; border-radius: 6px; background: rgba(184,35,28,.12); border: 1px solid rgba(255,106,92,.35); border-left: 4px solid #d6392f; font-size: 14px; color: #f3d6d2; }
+.shu-card { margin-bottom: 12px; padding: 12px 14px; border-radius: 8px; background: linear-gradient(180deg, #1d2129, #15181e); border: 1px solid #3a2b2b; border-left: 4px solid #d6392f; display: flex; flex-direction: column; gap: 8px; }
+.shu-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shu-head b { font-family: var(--sign); letter-spacing: .06em; text-transform: uppercase; }
+.shu-tag { padding: 1px 8px; border-radius: 3px; background: #d6392f; color: #fff; font: 800 12px var(--sign); letter-spacing: .14em; }
+.shu-steps { display: flex; gap: 6px; }
+.shu-steps i { flex: 1; height: 26px; border-radius: 4px; background: #2a2f37; display: grid; place-items: center; font: 700 13px var(--sign); font-style: normal; color: #8b96a0; }
+.shu-steps i.done { background: #2f5a43; color: #c9f0d8; }
+.shu-steps i.cur { background: #d6392f; color: #fff; box-shadow: 0 0 0 2px rgba(255,106,92,.35); }
+.shu-priv { margin: 0; padding-left: 18px; color: var(--text-2); }
+.custody-line .ph.conf { background: #8e1a14; }

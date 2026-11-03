@@ -24,7 +24,8 @@ export type PropKind =
   | 'garden_bed' | 'garden_tap' | 'flower_patch' | 'nursery_bench' | 'waste_bin' | 'pond' | 'pond_dock' | 'feed_station' | 'tool_counter' | 'scale_station' | 'sort_table' | 'stock_shelf' | 'tool_rack' | 'wood_bench' | 'wood_rack' | 'clean_spot' | 'crate'
   | 'shelf' | 'board' | 'bar' | 'mat' | 'workbench' | 'laundry' | 'barber' | 'phone' | 'visit_table'
   | 'medbed' | 'plant' | 'tree' | 'bench' | 'track' | 'stove' | 'prep' | 'boxes' | 'whiteboard'
-  | 'tray_return' | 'cabinet' | 'hoop' | 'staff_post' | 'mail_desk' | 'quiet_mat' | 'muster' | 'window';
+  | 'tray_return' | 'cabinet' | 'hoop' | 'staff_post' | 'mail_desk' | 'quiet_mat' | 'muster' | 'window'
+  | 'cage_module' | 'rec_cage' | 'shower_cage' | 'control_desk';
 
 export interface PropDef {
   id: string;
@@ -42,9 +43,9 @@ export interface SlotDef { id: string; zone: ZoneId; kind: SlotKind; pos: Vec3; 
 
 export interface WallSeg { x0: number; z0: number; x1: number; z1: number; h: number; zone: ZoneId; color: string; doorId?: string; style?: 'bars' }
 /** Cửa trượt song sắt của phòng giam (trang trí, mặc định mở). */
-export interface CellDoorDef { roomId: string; number: string; x: number; z: number; alongX: boolean; width: number; slideDir: 1 | -1; inward: 1 | -1; dynamic?: boolean }
+export interface CellDoorDef { roomId: string; number: string; x: number; z: number; alongX: boolean; width: number; slideDir: 1 | -1; inward: 1 | -1; dynamic?: boolean; style?: 'bars' | 'solid' }
 /** L19–L22 (CR-VN-01): buồng có ranh giới riêng cho mode vn_custody. Bố cục hư cấu, không sao chép cơ sở thật. */
-export type CustodyCohort = 'A' | 'B' | 'separate' | 'discipline';
+export type CustodyCohort = 'A' | 'B' | 'separate' | 'discipline' | 'shu' | 'shu_rec' | 'shu_module' | 'shu_shower';
 export interface CustodyRoomDef {
   id: string; label: string; zone: ZoneId; cohort: CustodyCohort; capacity: number; beds: string[]; locker: string | null;
   rect: { x0: number; x1: number; z0: number; z1: number }; door: { x: number; z: number }; inward: 1 | -1; anchor: { x: number; z: number };
@@ -139,7 +140,10 @@ for (const [id, name, x0, x1, z0, z1, dx, dir, outdoor, color, purpose] of ANNEX
   ZONES.push({ id, name, side: 'annex', via: 'L04', doorIn: { x: 0, z: dir }, x0, x1, z0, z1, height: outdoor ? 3 : 3.4, floor: color, wall: outdoor ? '#a19b8f' : '#8a8578', accent: '#91be9a', outdoor, door: { x: dx, z: dir === 1 ? z0 : z1, axis: 'x', width: 1.8 }, tier: 'life', purpose, hours: HOURS[id] });
 }
 
-export const ZONE_BY_ID: Record<ZoneId, ZoneDef> = Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<ZoneId, ZoneDef>;
+// Khu biệt giam an ninh tối đa kiểu Mỹ (Security Housing Unit) — nối vào đầu tây hành lang. Bố cục hư cấu.
+ZONES.push({ id: 'L28', name: 'Khu biệt giam (SHU)', side: 'annex', via: 'L03', doorIn: { x: -1, z: 0 }, x0: -125, x1: -101, z0: -12, z1: 12, height: 3.6, floor: '#6a6c6a', wall: '#a9aca9', accent: '#e3b21f', door: { x: -101, z: 0, axis: 'z', width: 1.8 }, tier: 'life', purpose: 'Biệt giam an ninh tối đa: ở buồng 23 giờ, cũi thể dục, cũi trị liệu nhóm' });
+
+export const ZONE_BY_ID: Record<ZoneId, ZoneDef> =Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<ZoneId, ZoneDef>;
 
 export function zoneAt(x: number, z: number): ZoneId | null {
   for (const zd of ZONES) {
@@ -199,6 +203,7 @@ const DIMS: Record<PropKind, [number, number, number, boolean]> = {
   stove: [1.8, 0.8, 0.95, true], prep: [2.2, 1.0, 0.92, true], boxes: [1.2, 1.0, 1.2, true], whiteboard: [3, 0.08, 1.3, false],
   tray_return: [1.4, 0.6, 1.0, true], cabinet: [0.9, 0.5, 1.3, true], hoop: [0.3, 0.3, 3.2, true], staff_post: [0.6, 0.6, 0.01, false],
   mail_desk: [1.6, 0.7, 0.95, true], quiet_mat: [1.0, 1.8, 0.04, false], muster: [0.8, 0.8, 0.02, false], window: [1.8, 0.05, 1.0, false],
+  cage_module: [1.1, 1.1, 2.3, false], rec_cage: [4, 5, 3, false], shower_cage: [1.5, 1.5, 2.4, false], control_desk: [2.6, 0.8, 1.05, true],
 };
 
 const LABEL: Record<PropKind, string> = {
@@ -211,6 +216,7 @@ const LABEL: Record<PropKind, string> = {
   medbed: 'Giường nghỉ', plant: 'Cây cảnh', tree: 'Cây', bench: 'Ghế dài', track: 'Mốc đường đi bộ', stove: 'Bếp', prep: 'Bàn sơ chế',
   boxes: 'Thùng hàng', whiteboard: 'Bảng lớp', tray_return: 'Chỗ trả khay', cabinet: 'Tủ hồ sơ', hoop: 'Rổ bóng', staff_post: 'Vị trí nhân viên',
   mail_desk: 'Bàn thư từ', quiet_mat: 'Thảm yên tĩnh', muster: 'Điểm tập trung', window: 'Cửa sổ',
+  cage_module: 'Cũi trị liệu cá nhân', rec_cage: 'Cũi thể dục', shower_cage: 'Buồng tắm có song chắn', control_desk: 'Bàn trực an ninh',
 };
 
 let autoId = 0;
@@ -282,7 +288,9 @@ function lineToWorld(zone: ZoneDef, u0: number, v0: number, u1: number, v1: numb
 ZONES.filter((z) => z.side === 'north').forEach((z, i) => roomShell(z, i === 0));
 ZONES.filter((z) => z.side === 'south').forEach((z, i) => roomShell(z, i === 0));
 // Corridor west end, yard
-WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: -0.9, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: -101, z0: 0.9, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: -101, z0: -0.9, x1: -101, z1: 0.9, h: 3.6, zone: 'L28', color: '#a9aca9', doorId: 'door_L28' });
 WALLS.push({ x0: 69, z0: -CORR, x1: 69, z1: -0.9, h: 3.6, zone: 'L03', color: '#bdb8ab' });
 WALLS.push({ x0: 69, z0: 0.9, x1: 69, z1: CORR, h: 3.6, zone: 'L03', color: '#bdb8ab' });
 WALLS.push({ x0: 69, z0: -0.9, x1: 69, z1: 0.9, h: 3.6, zone: 'L04', color: '#a19b8f', doorId: 'door_L04' });
@@ -632,7 +640,56 @@ for (const [zoneId, cohort, prefix, label] of [['L21', 'separate', 'R', 'Buồng
   slot(zoneId, 'staff', 10.5, 1.6, 0, 'sit', undefined, `${zoneId}_staff_0`);
   prop(zoneId, 'board', 2, 0.1, 0, { id: `board_rules_${zoneId}`, label: zoneId === 'L22' ? 'Quyền và dịch vụ tại buồng kỷ luật' : 'Dịch vụ tại buồng riêng' });
 }
-export const CUSTODY_ROOM_BY_ID: Record<string, CustodyRoomDef> = Object.fromEntries(CUSTODY_ROOMS.map((r) => [r.id, r]));
+// ---------- L28 SHU: buồng biệt giam cửa thép đặc, cũi trị liệu nhóm, cũi thể dục, buồng tắm có song (bố cục hư cấu) ----------
+export const SHU_ZONE: ZoneId = 'L28';
+{
+  const Z = SHU_ZONE;
+  const wallC = ZONE_BY_ID[Z].wall;
+  const wA = (x0: number, z0: number, x1: number, z1: number, h = 3.6) => WALLS.push({ x0, z0, x1, z1, h, zone: Z, color: wallC });
+  const room = (def: Omit<CustodyRoomDef, 'zone'>) => CUSTODY_ROOMS.push({ ...def, zone: Z });
+  wA(-125, 12, -101, 12); wA(-125, -12, -101, -12); wA(-125, -12, -125, 12);
+  // 4 buồng biệt giam phía bắc (4 × 6 m): bệ nằm bê tông, bồn cầu inox, bàn thép gắn tường, cửa thép đặc
+  for (let i = 0; i < 4; i++) {
+    const x0 = -123 + i * 4, x1 = x0 + 4, cx = x0 + 2;
+    const id = `shu_${i + 1}`, num = `S-0${i + 1}`;
+    wA(x0, 6, x0, 12);
+    if (i === 3) wA(x1, 6, x1, 12);
+    wA(x0, 6, cx - 0.5, 6); wA(cx + 0.5, 6, x1, 6);
+    const bed = absProp(Z, 'bed', x0 + 0.6, 9.9, 0, { id: `${id}_bed_a`, label: `Bệ nằm ${num}`, w: 0.85 });
+    absSlot(Z, 'sleep', bed.x, bed.z, 0, 'lie', bed.id, bed.id);
+    absProp(Z, 'desk', x1 - 0.32, 9.2, -Math.PI / 2, { id: `${id}_desk`, label: 'Bàn thép gắn tường', w: 0.8, d: 0.42, collider: false });
+    cellToilet(Z, id, x0 + 0.62 + 125, 7.4 + 12, 18, `Bồn cầu inox ${num}`);
+    room({ id, label: `Buồng biệt giam ${num}`, cohort: 'shu', capacity: 1, beds: [bed.id], locker: null, rect: { x0, x1, z0: 6, z1: 12 }, door: { x: cx, z: 6 }, inward: 1, anchor: { x: cx + 0.3, z: 9.4 } });
+    CELL_DOORS.push({ roomId: id, number: num, x: cx, z: 6, alongX: true, width: 1.0, slideDir: 1, inward: 1, dynamic: true, style: 'solid' });
+  }
+  // bàn trực an ninh + bảng nội quy (góc đông bắc)
+  absProp(Z, 'control_desk', -104, 8.6, Math.PI, { id: 'shu_control', label: 'Bàn trực an ninh SHU' });
+  absSlot(Z, 'staff', -104, 9.7, Math.PI, 'stand', 'shu_control', 'L28_staff_0');
+  absProp(Z, 'board', -104, 11.9, Math.PI, { id: 'board_shu', label: 'Nội quy khu biệt giam (SHU)' });
+  // cũi trị liệu nhóm: mỗi người một cũi thép lưới, ngồi đối diện người điều phối
+  for (let i = 0; i < 4; i++) {
+    const cx = -122.4 + i * 1.6, cz = -9.6;
+    absProp(Z, 'cage_module', cx, cz, 0, { id: `shu_module_${i + 1}`, label: `Cũi trị liệu M-${i + 1}` });
+    room({ id: `shu_mod_${i + 1}`, label: `Cũi trị liệu M-${i + 1}`, cohort: 'shu_module', capacity: 1, beds: [], locker: null, rect: { x0: cx - 0.5, x1: cx + 0.5, z0: cz - 0.5, z1: cz + 0.5 }, door: { x: cx, z: cz + 0.55 }, inward: 1, anchor: { x: cx, z: cz - 0.05 } });
+  }
+  absProp(Z, 'chair', -120, -6.6, Math.PI, { id: 'shu_counselor_chair', label: 'Ghế người điều phối' });
+  absProp(Z, 'whiteboard', -120, -11.9, 0, { id: 'shu_program_board', label: 'Chương trình nhóm' });
+  // cũi thể dục (1 giờ/ngày, một mình): lưới mắt cáo, mái lưới, giếng trời
+  for (let i = 0; i < 2; i++) {
+    const cx = -111 + i * 4.6, cz = -9.4;
+    absProp(Z, 'rec_cage', cx, cz, 0, { id: `shu_rec_${i + 1}`, label: `Cũi thể dục R-${i + 1}` });
+    room({ id: `shu_yard_${i + 1}`, label: `Cũi thể dục R-${i + 1}`, cohort: 'shu_rec', capacity: 1, beds: [], locker: null, rect: { x0: cx - 1.9, x1: cx + 1.9, z0: cz - 2.4, z1: cz + 2.4 }, door: { x: cx, z: cz + 2.5 }, inward: 1, anchor: { x: cx, z: cz } });
+  }
+  // buồng tắm có song chắn (tắm cách ngày, có áp giải)
+  absProp(Z, 'shower_cage', -102.6, -10.9, 0, { id: 'shu_shower', label: 'Buồng tắm SHU' });
+  room({ id: 'shu_shower_1', label: 'Buồng tắm SHU', cohort: 'shu_shower', capacity: 1, beds: [], locker: null, rect: { x0: -103.3, x1: -101.9, z0: -11.6, z1: -10.2 }, door: { x: -102.6, z: -10.1 }, inward: 1, anchor: { x: -102.6, z: -10.9 } });
+  WALL_BANNERS.push({ id: 'banner_shu_s', zone: Z, x: -116.5, y: 3.0, z: -11.88, yaw: 0, w: 5, h: 0.6, text: 'Group Program · Remain Seated · Hands Visible', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_shu_w', zone: Z, x: -124.88, y: 3.0, z: 0, yaw: Math.PI / 2, w: 7, h: 0.7, text: 'Security Housing Unit — Authorized Staff Only', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_shu_n', zone: Z, x: -115, y: 3.0, z: 5.88, yaw: Math.PI, w: 2.6, h: 0.42, text: 'Cuff Port Must Remain Closed', size: 'long' });
+}
+export const SHU_CELLS = CUSTODY_ROOMS.filter((r) => r.cohort === 'shu');
+
+export const CUSTODY_ROOM_BY_ID: Record<string, CustodyRoomDef> =Object.fromEntries(CUSTODY_ROOMS.map((r) => [r.id, r]));
 export function custodyRoomAt(x: number, z: number): CustodyRoomDef | null {
   for (const r of CUSTODY_ROOMS) if (x >= r.rect.x0 - 0.05 && x <= r.rect.x1 + 0.05 && z >= r.rect.z0 - 0.05 && z <= r.rect.z1 + 0.05) return r;
   return null;

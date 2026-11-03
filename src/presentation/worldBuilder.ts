@@ -26,7 +26,7 @@ const BARS_V: Partial<Record<ZoneId, number>> = { L02: 8, L19: 8, L20: 8, L21: 4
 const WAINSCOT: Partial<Record<ZoneId, string>> = {
   L02: '#4f6f82', L19: '#4f6f82', L20: '#4f6f82', L21: '#6c6458', L22: '#7a4b45', L03: '#33506b', L01: '#4a5b6c',
   L05: '#7a5238', L06: '#5f7f80', L07: '#5d4c3a', L14: '#45627a', L17: '#5f7464', L11: '#4a5b6c', L16: '#4a5b6c',
-  L15: '#4a5b6c', L13: '#5f8a88', L08: '#5f8a88', L12: '#6b5843', L09: '#3c4c5c', L10: '#5a5e62', L18: '#4a5b6c', L27: '#5a5e62',
+  L15: '#4a5b6c', L13: '#5f8a88', L08: '#5f8a88', L12: '#6b5843', L09: '#3c4c5c', L10: '#5a5e62', L18: '#4a5b6c', L27: '#5a5e62', L28: '#4b5259',
 };
 /** Tên khu tiếng Anh trên biển chỉ dẫn (chỉ trình bày; tên trong UI giữ nguyên). */
 const SIGN_EN: Partial<Record<ZoneId, string>> = {
@@ -34,6 +34,7 @@ const SIGN_EN: Partial<Record<ZoneId, string>> = {
   L07: 'LIBRARY', L08: 'MEDICAL', L09: 'GYMNASIUM', L10: 'INDUSTRIES SHOP', L11: 'CASE MANAGEMENT', L12: 'VISITATION',
   L13: 'SHOWERS & LAUNDRY', L14: 'EDUCATION · GED', L15: 'COMMISSARY', L16: 'MAIL & PHONES', L17: 'CHAPEL · QUIET ROOM', L18: 'REENTRY CENTER',
   L19: 'CELL BLOCK A', L20: 'CELL BLOCK B', L21: 'ADMIN SEGREGATION', L22: 'RESTRICTED HOUSING', L23: 'GARDEN', L24: 'AQUACULTURE', L25: 'NURSERY', L27: 'WAREHOUSE',
+  L28: 'SECURITY HOUSING UNIT',
 };
 const SIGN_FONT = '"Bahnschrift", "Barlow Condensed", "Arial Narrow", "Noto Sans", "Segoe UI", sans-serif';
 
@@ -276,6 +277,27 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     merged.isPickable = false;
     return merged;
   };
+  /** Cửa thép đặc của buồng biệt giam SHU: ô kính hẹp dọc, khe đưa cơm/còng tay (cuff port), hộp khóa. */
+  const solidDoor = (name: string, len: number, h: number, alongX: boolean): Mesh => {
+    const parts: Piece[] = [];
+    const add = (bw: number, bh: number, bd: number, lx: number, y: number, color: string, lz = 0) => {
+      const m = boxPiece(alongX ? bw : bd, bh, alongX ? bd : bw, color4(color));
+      m.position.set(alongX ? lx : lz, y - h / 2, alongX ? lz : lx);
+      parts.push(m);
+    };
+    add(len, h, 0.06, 0, h / 2, '#7b858c');
+    add(len - 0.08, h - 0.08, 0.07, 0, h / 2, '#8a949b');
+    add(0.13, 0.62, 0.075, -len * 0.18, 1.62, '#1f2a33');
+    for (const sd of [-1, 1]) add(0.42, 0.13, 0.05, 0, 1.04, '#4a5258', sd * 0.055);
+    for (const sd of [-1, 1]) add(0.3, 0.025, 0.06, 0, 1.12, '#2b3136', sd * 0.06);
+    add(0.12, 0.26, 0.1, len / 2 - 0.12, 1.2, '#3f464c');
+    add(0.04, 0.05, 0.13, len / 2 - 0.12, 1.15, '#c9b25a');
+    add(len, 0.04, 0.08, 0, 0.03, '#4a5258');
+    const merged = mergePieces(scene, name, parts)[0];
+    merged.material = doorMat;
+    merged.isPickable = false;
+    return merged;
+  };
   for (const w of WALLS) {
     if (!w.doorId) continue;
     const len = Math.hypot(w.x1 - w.x0, w.z1 - w.z0);
@@ -298,7 +320,7 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
   // ---------- cell doors: barred sliding doors (slid open) + room number plate ----------
   const cellDoors: WorldHandles['cellDoors'] = new Map();
   for (const d of CELL_DOORS) {
-    const leaf = barDoor(`celldoor_${d.roomId}`, d.width, 2.4, d.alongX, true);
+    const leaf = d.style === 'solid' ? solidDoor(`celldoor_${d.roomId}`, d.width, 2.3, d.alongX) : barDoor(`celldoor_${d.roomId}`, d.width, 2.4, d.alongX, true);
     // slid open behind the adjacent bar wall, offset toward the cell interior
     leaf.position.set(d.x + d.slideDir * d.width * 0.95, 1.2, d.z + d.inward * 0.12);
     if (d.dynamic) cellDoors.set(d.roomId, { mesh: leaf, openPos: leaf.position.clone(), closedPos: new Vector3(d.x, 1.2, d.z + d.inward * 0.12), t: 0 });
@@ -465,6 +487,13 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const seed = hash32(p.id);
     switch (p.kind) {
       case 'bed': {
+        if (p.zone === 'L28') {
+          // SHU: bệ nằm bê tông đúc liền tường, đệm mỏng, chăn len xám
+          pbox(p, p.w, 0.45, p.d, 0, 0.225, 0, '#a19e96');
+          pbox(p, p.w - 0.08, 0.06, p.d - 0.1, 0, 0.48, 0, '#55705e');
+          pbox(p, p.w - 0.1, 0.04, p.d * 0.5, 0, 0.53, p.d * 0.2, '#6c6f72');
+          break;
+        }
         // giường thép hàn tường kiểu buồng giam Mỹ: khung thép sơn, đệm vinyl xanh, chăn len xám, ngăn chứa đồ dưới gầm
         const FR = '#6e7b84';
         pbox(p, p.w, 0.06, p.d, 0, 0.4, 0, FR);
@@ -486,7 +515,7 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
         pbox(p, 0.14, 0.06, 0.01, 0, p.h - 0.38, p.d / 2 + 0.012, '#e8e6de');
         break;
       }
-      case 'desk': pbox(p, p.w, 0.05, p.d, 0, 0.74, 0, '#8b6f52'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, 0.72, 0.05, a * (p.w / 2 - 0.05), 0.36, b * (p.d / 2 - 0.05), '#3a3a3a'); break;
+      case 'desk': if (p.zone === 'L28') { pbox(p, p.w, 0.04, p.d, 0, 0.76, 0, '#9aa2a8'); pbox(p, p.w, 0.3, 0.03, 0, 0.6, -p.d / 2, '#7f878d'); { const [x, z] = local(p, 0, 0.45); cyl(p.zone, 0.32, 0.05, x, 0.46, z, '#9aa2a8', 12); cyl(p.zone, 0.07, 0.44, x, 0.22, z, '#7f878d', 6); } break; } pbox(p, p.w, 0.05, p.d, 0, 0.74, 0, '#8b6f52'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, 0.72, 0.05, a * (p.w / 2 - 0.05), 0.36, b * (p.d / 2 - 0.05), '#3a3a3a'); break;
       case 'chair': pbox(p, 0.45, 0.05, 0.45, 0, 0.46, 0, '#566b75'); pbox(p, 0.45, 0.45, 0.05, 0, 0.7, -0.2, '#566b75'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.04, 0.45, 0.04, a * 0.19, 0.22, b * 0.19, '#2f2f2f'); break;
       case 'table': {
         const benchOff = p.d / 2 - 0.2;
@@ -638,6 +667,74 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
         break;
       }
       case 'staff_post': break;
+
+      // ---------- SHU (biệt giam kiểu Mỹ) ----------
+      case 'cage_module': {
+        // cũi trị liệu cá nhân: khung thép xám, tấm kín phía dưới, lưới mắt cáo giữa, song ô vuông phía trên, khe khay có khóa
+        const S = '#aab0b5', SD = '#7f878d', WIRE = '#8e969c';
+        const W = p.w, D = p.d, H = p.h;
+        for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, H, 0.05, a * (W / 2 - 0.025), H / 2, b * (D / 2 - 0.025), SD);
+        pbox(p, W, 0.05, D, 0, 0.025, 0, SD);
+        for (const [fx, fz, alongX] of [[0, D / 2, true], [0, -D / 2, true], [W / 2, 0, false], [-W / 2, 0, false]] as [number, number, boolean][]) {
+          const len = alongX ? W : D;
+          const seg = (sw: number, sh: number, y: number, off: number, c: string) => (alongX ? pbox(p, sw, sh, 0.015, fx + off, y, fz, c) : pbox(p, 0.015, sh, sw, fx, y, fz + off, c));
+          seg(len, 0.55, 0.32, 0, S);
+          for (let i = 0; i <= 14; i++) seg(0.006, 0.8, 1.0, -len / 2 + (i * len) / 14, WIRE);
+          for (let j = 0; j <= 11; j++) seg(len, 0.006, 0.62 + j * 0.07, 0, WIRE);
+          for (let i = 0; i <= 5; i++) seg(0.03, 0.88, 1.84, -len / 2 + (i * len) / 5, S);
+          for (let j = 0; j <= 4; j++) seg(len, 0.03, 1.42 + j * 0.22, 0, S);
+        }
+        for (let i = 0; i <= 5; i++) { pbox(p, 0.03, 0.03, D, -W / 2 + (i * W) / 5, H, 0, S); pbox(p, W, 0.03, 0.03, 0, H, -D / 2 + (i * D) / 5, S); }
+        pbox(p, 0.48, 0.05, 0.22, 0, 1.02, D / 2 + 0.1, S); pbox(p, 0.48, 0.17, 0.02, 0, 1.13, D / 2 + 0.012, SD); pbox(p, 0.06, 0.08, 0.035, 0.15, 1.08, D / 2 + 0.035, '#c9a646');
+        { const [x, z] = local(p, 0, -0.15); cyl(p.zone, 0.34, 0.05, x, 0.5, z, '#2e3237', 12); cyl(p.zone, 0.05, 0.48, x, 0.25, z, '#5d646a', 6); }
+        break;
+      }
+      case 'rec_cage': {
+        // cũi thể dục ("dog run"): cột thép, lưới mắt cáo bốn mặt + mái lưới, cửa có ổ khóa, nền bê tông, thanh xà
+        const POST = '#6d757c', WIRE = '#9aa2a8';
+        const W = p.w, D = p.d, H = p.h;
+        pbox(p, W, 0.04, D, 0, 0.02, 0, '#8d8b85');
+        for (const a of [-1, 0, 1]) for (const b of [-1, 1]) pbox(p, 0.07, H, 0.07, a * (W / 2), H / 2, b * (D / 2), POST);
+        for (const a of [-1, 1]) pbox(p, 0.07, H, 0.07, a * (W / 2), H / 2, 0, POST);
+        for (const [fx, fz, alongX] of [[0, D / 2, true], [0, -D / 2, true], [W / 2, 0, false], [-W / 2, 0, false]] as [number, number, boolean][]) {
+          const len = alongX ? W : D;
+          const n = Math.round(len / 0.16);
+          for (let i = 0; i <= n; i++) alongX ? pbox(p, 0.008, H, 0.01, fx - len / 2 + (i * len) / n, H / 2, fz, WIRE) : pbox(p, 0.01, H, 0.008, fx, H / 2, fz - len / 2 + (i * len) / n, WIRE);
+          for (let j = 0; j <= 14; j++) alongX ? pbox(p, len, 0.008, 0.01, fx, 0.1 + j * (H - 0.1) / 14, fz, WIRE) : pbox(p, 0.01, 0.008, len, fx, 0.1 + j * (H - 0.1) / 14, fz, WIRE);
+          alongX ? pbox(p, len, 0.05, 0.05, fx, H, fz, POST) : pbox(p, 0.05, 0.05, len, fx, H, fz, POST);
+        }
+        for (let i = 0; i <= Math.round(W / 0.3); i++) pbox(p, 0.01, 0.01, D, -W / 2 + i * 0.3, H, 0, WIRE);
+        for (let j = 0; j <= Math.round(D / 0.3); j++) pbox(p, W, 0.01, 0.01, 0, H, -D / 2 + j * 0.3, WIRE);
+        pbox(p, 0.06, 2.1, 0.06, -0.5, 1.05, D / 2 + 0.02, POST); pbox(p, 0.06, 2.1, 0.06, 0.5, 1.05, D / 2 + 0.02, POST); pbox(p, 1.0, 0.06, 0.06, 0, 2.1, D / 2 + 0.02, POST);
+        pbox(p, 0.08, 0.12, 0.06, 0.4, 1.1, D / 2 + 0.06, '#c9a646');
+        pbox(p, 0.05, 2.3, 0.05, -W / 2 + 0.35, 1.15, -D / 2 + 0.35, POST); pbox(p, 0.05, 2.3, 0.05, -W / 2 + 1.35, 1.15, -D / 2 + 0.35, POST);
+        { const bar = cylPiece(0.035, 1.0, 6, color4('#c3c9ce')); const [x, z] = local(p, -W / 2 + 0.85, -D / 2 + 0.35); bar.position.set(x, 2.25, z); bar.rotation.z = Math.PI / 2; bar.rotation.y = p.yaw; batch.add(p.zone, bar); }
+        // giếng trời phía trên cũi
+        { const [x, z] = local(p, 0, 0); const sky = boxPiece(W - 0.6, 0.04, D - 0.8, color4('#ffffff')); sky.position.set(x, ZONE_BY_ID[p.zone].height - 0.04, z); sky.rotation.y = p.yaw; emissive.push(sky); }
+        break;
+      }
+      case 'shower_cage': {
+        // buồng tắm SHU: ba mặt ốp gạch, mặt trước cửa song ô vuông có khe khay, vòi sen inox
+        const W = p.w, D = p.d, H = p.h;
+        pbox(p, W, 0.03, D, 0, 0.015, 0, '#b9c1c1');
+        pbox(p, W, H, 0.06, 0, H / 2, -D / 2, '#cdd3d2'); pbox(p, 0.06, H, D, -W / 2, H / 2, 0, '#cdd3d2'); pbox(p, 0.06, H, D, W / 2, H / 2, 0, '#cdd3d2');
+        for (let j = 1; j < 8; j++) pbox(p, W - 0.02, 0.008, 0.065, 0, j * 0.3, -D / 2 + 0.003, '#aeb6b6');
+        for (let i = 0; i <= 7; i++) pbox(p, 0.03, H, 0.03, -W / 2 + (i * W) / 7, H / 2, D / 2, STEEL_DARK);
+        for (let j = 0; j <= 6; j++) pbox(p, W, 0.03, 0.03, 0, 0.05 + (j * (H - 0.1)) / 6, D / 2, STEEL_DARK);
+        pbox(p, 0.4, 0.12, 0.05, 0, 1.05, D / 2 + 0.02, '#4a5258');
+        pbox(p, 0.04, 0.3, 0.04, 0, 1.95, -D / 2 + 0.1, '#c3c9cc'); pbox(p, 0.16, 0.04, 0.12, 0, 2.08, -D / 2 + 0.16, '#d0d5d8');
+        pbox(p, 0.18, 0.18, 0.01, 0, 0.02, 0, '#5d666b');
+        break;
+      }
+      case 'control_desk': {
+        // bàn trực an ninh: quầy thép, 3 màn hình camera, bảng điều khiển cửa
+        pbox(p, p.w, p.h - 0.05, p.d, 0, (p.h - 0.05) / 2, 0, '#4f585f');
+        pbox(p, p.w + 0.06, 0.05, p.d + 0.1, 0, p.h, 0, '#9aa2a8');
+        for (const ox of [-0.8, 0, 0.8]) { pbox(p, 0.6, 0.38, 0.05, ox, p.h + 0.3, -0.15, '#1a1f24'); pbox(p, 0.54, 0.32, 0.01, ox, p.h + 0.3, -0.12, '#4f86a8', 1.3); pbox(p, 0.06, 0.12, 0.06, ox, p.h + 0.08, -0.17, '#1a1f24'); }
+        pbox(p, 0.7, 0.04, 0.26, 0, p.h + 0.04, 0.16, '#2b3136');
+        for (let i = 0; i < 6; i++) pbox(p, 0.05, 0.02, 0.05, -0.25 + i * 0.1, p.h + 0.07, 0.16, i % 2 ? '#3fae5c' : '#d4473a');
+        break;
+      }
     }
     if (p.kind === 'sink' || p.kind === 'water') {
       const mk = MeshBuilder.CreateCylinder(`broken_${p.id}`, { diameter: 0.3, height: 0.3, tessellation: 3 }, scene);
@@ -674,6 +771,7 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const pl = MeshBuilder.CreatePlane(`signp_${z.id}`, { width: 2.6, height: 0.65 }, scene);
     pl.material = mat;
     if (z.side === 'yard') { pl.position.set(68.85, 3.0, 0); pl.rotation.y = Math.PI / 2; }
+    else if (z.id === 'L28') { pl.position.set(-100.87, 3.0, 0); pl.rotation.y = -Math.PI / 2; }
     else { const dir = z.side === 'north' ? -1 : 1; pl.position.set(z.door.x, 2.95, z.door.z + dir * 0.13); pl.rotation.y = z.side === 'north' ? 0 : Math.PI; }
     pl.isPickable = false;
     pl.freezeWorldMatrix();

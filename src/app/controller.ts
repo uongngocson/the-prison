@@ -1,5 +1,5 @@
 // Composition root: session + view + persistence + audio + UI projection. Không service locator toàn cục ngoài singleton này.
-import { homeRoom, isConfinedPhase, isVN, windowAt } from '../domain/custody';
+import { homeRoom, isConfinedPhase, isVN, shuOrder, shuWindowAt, windowAt } from '../domain/custody';
 import { online, useOnline } from '../online/client';
 import { gate, useGate } from '../online/queue';
 import { BotHost } from '../bots/host';
@@ -419,7 +419,7 @@ class Controller {
       clock: fmtClock(s.minute),
       dayLabel: fmtDayClock(s.minute),
       period: PERIOD_LABEL[periodOf(s.minute)],
-      activity: isVN(s) ? windowAt(s).label : row ? row.label : 'Tự do',
+      activity: isVN(s) ? (shuOrder(s) ? shuWindowAt(s.minute).label : windowAt(s).label) : row ? row.label : 'Tự do',
       zone: ZONE_BY_ID[s.player.zone].name,
       cell: sess.cellLabel(),
       weather: s.world.weather === 'rain' ? 'Mưa nhẹ' : s.world.weather === 'overcast' ? 'Âm u' : 'Trời quang',

@@ -72,6 +72,7 @@ export function stepIndex(a: LabourAssignment): number {
 export function eligibility(s: GameState, work: WorkDef, win: ShiftWindow, day: number): string | null {
   if (s.life.episode.state !== 'admitted') return 'Hoàn tất tiếp nhận trước khi nhận việc.';
   if (isVN(s)) {
+    if (activeOrder(s, 'restrictive_housing')) return 'Đang biệt giam SHU — không nhận ca lao động.';
     if (activeOrder(s, 'discipline_confinement')) return 'Đang chấp hành quyết định kỷ luật — ca được hoãn, không tính vắng.';
     if (activeOrder(s, 'separation')) return 'Đang bố trí riêng — chưa nhận ca ngoài buồng.';
   }
@@ -543,7 +544,7 @@ export function labourTick(ctx: Ctx) {
   for (const a of l.assignments) {
     if (!['assigned', 'active', 'completed'].includes(a.state)) continue;
     const work = workOf(a);
-    if (isVN(s) && (activeOrder(s, 'discipline_confinement') || activeOrder(s, 'separation'))) {
+    if (isVN(s) && (activeOrder(s, 'discipline_confinement') || activeOrder(s, 'separation') || activeOrder(s, 'restrictive_housing'))) {
       a.reason = 'Hoãn do quyết định giam giữ — không tính vắng'; returnTools(l, s, a, 'Tổ trưởng');
       if (a.kitIssued && a.tasks.some((t) => t.done)) settle(ctx, a, 'Bàn giao do hoãn ca'); else a.state = 'excused';
       receipt(l, s, 'handover', `Ca ${work.title} được hoãn/bàn giao: ${a.reason}.`, a.id); changed = true; continue;

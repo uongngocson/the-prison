@@ -57,6 +57,7 @@ const staff: [string, string, StaffRole, string, 'day' | 'late' | 'night', strin
   ['nam', 'Chú Năm', 'maintenance', 'L03', 'day', 'Thợ bảo trì', 'Sửa vòi nước, bóng đèn, cửa kẹt.'],
   ['linh', 'Cô Linh', 'facilitator', 'L17_staff_0', 'day', 'Điều phối sinh hoạt văn hóa', 'Tổ chức giờ yên tĩnh, nhóm trò chuyện, sinh hoạt văn hóa tự chọn.'],
   ['hoa_s', 'Anh Hòa Bình', 'property_clerk', 'L18_staff_1', 'day', 'Phụ trách tài sản', 'Lưu giữ và hoàn trả tài sản ký gửi.'],
+  ['reyes', 'Sĩ quan Reyes', 'residential', 'L28_staff_0', 'day', 'Sĩ quan khu biệt giam (SHU)', 'Trực khu SHU: còng tay qua khe cửa trước mỗi lần áp giải, kiểm tra buồng mỗi 30 phút.'],
   ['khai', 'Anh Khải', 'production_lead', 'L27_staff_0', 'day', 'Tổ trưởng sản xuất & kho', 'Phân công tổ vườn, ao, cảnh quan; cấp phát dụng cụ và kiểm nhận lô.'],
 ];
 

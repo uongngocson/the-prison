@@ -3,14 +3,14 @@
 import type { ClassificationDecision, CustodyOrder, CustodyPhase, CustodyState, GameState, IncidentReview, Judgment, MovementGrant, PlacementGroup, StartSegment, ZoneId } from './types';
 import { type Ctx, changeNeed, notify } from './core';
 import { CUSTODY_ROOMS, CUSTODY_ROOM_BY_ID, ZONE_BY_ID, custodyRoomAt, custodyRoomOfBed, zoneAt, type CustodyRoomDef, type PropDef } from '../content/world';
-import { CUSTODY_SCHEDULE, PHASE_LABEL, PRESET_BY_ID, REASON_TEXT, VN_PROFILE, type CustodyWindow } from '../content/custody';
+import { CUSTODY_SCHEDULE, PHASE_LABEL, PRESET_BY_ID, REASON_TEXT, SHU_LEVELS, SHU_LIFE_REVIEW_DAYS, SHU_ROOM_COHORT, SHU_SCHEDULE, VN_PROFILE, shuTotalDays, type CustodyWindow, type ShuActivity, type ShuWindow } from '../content/custody';
 import { NPCS } from '../content/npcs';
 import { MEALS } from '../content/schedule';
 import { PROGRAM_BY_ID } from '../content/life';
 import { collectOrders, currentBed, custodyHooks, sessionNow, skipAdmission } from './life';
 import { dayOf, fmtClock, fmtDayClock, hm, minuteOfDay, MIN_PER_DAY, pushBounded } from './util';
 
-export const WING_ZONES: ZoneId[] = ['L19', 'L20', 'L21', 'L22'];
+export const WING_ZONES: ZoneId[] = ['L19', 'L20', 'L21', 'L22', 'L28'];
 export const isVN = (s: GameState) => s.experienceMode === 'vn_custody' && !!s.custody;
 
 // ======================= Calendar (date-only, không quy tháng = 30 ngày) =======================
@@ -164,11 +164,19 @@ export function activeOrder(s: GameState, kind: CustodyOrder['kind']): CustodyOr
 }
 /** Phòng hiện tại có hiệu lực: lệnh kỷ luật/bố trí riêng có roomId ưu tiên hơn buồng ở. */
 export function homeRoom(s: GameState): CustodyRoomDef | null {
+  const shu = shuOrder(s);
+  if (shu?.roomId) {
+    const act = shuActivityNow(s);
+    const ar = act ? shuActivityRoom(act) : null;
+    return ar ?? CUSTODY_ROOM_BY_ID[shu.roomId] ?? null;
+  }
   const d = activeOrder(s, 'discipline_confinement') ?? activeOrder(s, 'separation');
   if (d?.roomId) return CUSTODY_ROOM_BY_ID[d.roomId] ?? null;
   return housingRoom(s);
 }
 export function homeBed(s: GameState): string | null {
+  const shu = shuOrder(s);
+  if (shu?.roomId) return CUSTODY_ROOM_BY_ID[shu.roomId]?.beds[0] ?? null;
   const d = activeOrder(s, 'discipline_confinement') ?? activeOrder(s, 'separation');
   if (d?.roomId) return CUSTODY_ROOM_BY_ID[d.roomId]?.beds[0] ?? null;
   return currentBed(s);
@@ -203,7 +211,8 @@ export function escortToRoom(ctx: Ctx, room: CustodyRoomDef, reason: string) {
   s.player.pos = { x: room.anchor.x, y: 0, z: room.anchor.z };
   s.player.lastSafe = { ...s.player.pos };
   s.player.zone = room.zone;
-  s.player.yaw = room.inward === 1 ? 0 : Math.PI;
+  // buồng SHU nhỏ: quay mặt ra cửa thép để camera có khoảng lùi về phía tường sau; cũi/buồng tắm: quay ra ngoài như cũ
+  s.player.yaw = room.cohort === 'shu' ? (room.inward === 1 ? Math.PI : 0) : room.inward === 1 ? 0 : Math.PI;
   if (!s.discoveredZones.includes(room.zone)) s.discoveredZones.push(room.zone);
   for (const g of s.custody!.grants) if (g.state === 'active' && g.purpose === 'return') g.state = 'used';
   journal(ctx, 'escort', 'TRANSITION', `${reason} → ${room.label}`);
@@ -228,6 +237,7 @@ export function computePhase(s: GameState): CustodyPhase {
   const c = s.custody!;
   if (c.releaseState === 'released' || s.life.episode.state === 'released') return 'released';
   if (s.life.episode.state !== 'admitted') return 'intake';
+  if (shuOrder(s)) return 'restrictive_housing';
   if (activeOrder(s, 'discipline_confinement')) return 'disciplinary_confinement';
   if (activeOrder(s, 'separation')) return 'separate_housing';
   if (s.life.transitions.some((t) => t.kind === 'room_move' && ['staged', 'in_transit'].includes(t.state))) return 'transfer_pending';
@@ -241,7 +251,7 @@ export function computePhase(s: GameState): CustodyPhase {
   }
   return 'authorized_activity';
 }
-const CONFINED: CustodyPhase[] = ['in_cell', 'night_confinement', 'disciplinary_confinement', 'separate_housing', 'transfer_pending'];
+const CONFINED: CustodyPhase[] = ['in_cell', 'night_confinement', 'disciplinary_confinement', 'restrictive_housing', 'separate_housing', 'transfer_pending'];
 export const isConfinedPhase = (p: CustodyPhase) => CONFINED.includes(p);
 
 // ======================= Grants (DB49) =======================
@@ -297,6 +307,7 @@ export function allowedZones(s: GameState): Set<ZoneId> {
   const grants = activeGrants(s).filter((g) => g.purpose !== 'escort');
   if (phase === 'released') return new Set(['L18', 'L01', 'L03']);
   if (phase === 'intake') return new Set(['L01']);
+  if (phase === 'restrictive_housing') return out; // SHU: không tự đi lại, mọi dịch vụ tại buồng
   // đường đi theo phép: đích + khu trung gian (vd. sân L04 với khu lao động) + hành lang + khu ở
   const addGrantPath = () => { for (const g of grants) { out.add(g.destination); const via = ZONE_BY_ID[g.destination]?.via; if (via) out.add(via); } if (grants.length) { out.add('L03'); if (home) out.add(home.zone); } };
   if (phase === 'disciplinary_confinement' || phase === 'separate_housing') { addGrantPath(); return out; }
@@ -316,6 +327,7 @@ export function positionAllowed(s: GameState, x: number, z: number): Eval {
   const home = homeRoom(s);
   if (room) {
     if (home && room.id === home.id) return { ok: true, method: 'self' };
+    if (c.phase === 'restrictive_housing') return { ok: false, reasonCode: 'SHU_ACTIVE' };
     return { ok: false, reasonCode: room.cohort === 'A' || room.cohort === 'B' ? (home && room.zone === home.zone ? 'OTHER_ROOM' : 'DIFFERENT_COHORT') : 'AUTHORIZATION_REQUIRED' };
   }
   const zone = zoneAt(x, z);
@@ -327,6 +339,7 @@ export function positionAllowed(s: GameState, x: number, z: number): Eval {
   }
   if (c.phase === 'intake') return { ok: false, reasonCode: 'INTAKE_ONLY' };
   if (c.phase === 'disciplinary_confinement') return { ok: false, reasonCode: 'DISCIPLINE_ORDER_ACTIVE' };
+  if (c.phase === 'restrictive_housing') return { ok: false, reasonCode: 'SHU_ACTIVE' };
   if (c.phase === 'separate_housing') return { ok: false, reasonCode: 'SEPARATION_ACTIVE' };
   if (c.phase === 'transfer_pending') return { ok: false, reasonCode: 'TRANSITION_PENDING' };
   if (isConfinedPhase(c.phase)) return { ok: false, reasonCode: 'ROOM_CONFINEMENT' };
@@ -364,6 +377,12 @@ export function propAllowed(s: GameState, p: PropDef): Eval {
 export function evalService(s: GameState, kind: 'visit' | 'letter' | 'call' | 'care' | 'legal' | 'support' | 'help' | 'store'): Eval {
   if (!isVN(s)) return { ok: true };
   if (kind === 'visit' && activeOrder(s, 'family_visit_restriction')) return { ok: false, reasonCode: 'FAMILY_VISIT_RESTRICTED', method: 'not_available' };
+  if (shuOrder(s)) {
+    const lv = s.custody!.shu?.level ?? 1;
+    if (kind === 'call' && lv < 2) return { ok: false, reasonCode: 'SHU_LEVEL', method: 'not_available' };
+    if (kind === 'store' && lv < 3) return { ok: false, reasonCode: 'SHU_LEVEL', method: 'not_available' };
+    return { ok: true, method: 'at_room' };
+  }
   if (kind === 'letter' || kind === 'help' || kind === 'store') return { ok: true, method: 'at_room' };
   if (kind === 'care' || kind === 'legal' || kind === 'support') return { ok: true, method: 'authorized_movement' };
   return { ok: true, method: 'authorized_movement' };
@@ -381,7 +400,7 @@ export function issueOrder(ctx: Ctx, o: Omit<CustodyOrder, 'orderId' | 'state'>)
   }
   const order: CustodyOrder = { ...o, orderId: cid('od', s), state: 'active' };
   if (order.kind !== 'family_visit_restriction' && !order.roomId) {
-    const room = freeRoom(s, order.kind === 'discipline_confinement' ? 'discipline' : 'separate');
+    const room = freeRoom(s, order.kind === 'discipline_confinement' ? 'discipline' : order.kind === 'restrictive_housing' ? 'shu' : 'separate');
     if (!room) return null;
     order.roomId = room.id;
   }
@@ -393,7 +412,7 @@ export function issueOrder(ctx: Ctx, o: Omit<CustodyOrder, 'orderId' | 'state'>)
   return order;
 }
 export function orderKindLabel(k: CustodyOrder['kind']) {
-  return k === 'discipline_confinement' ? 'Quyết định buồng kỷ luật' : k === 'separation' ? 'Bố trí riêng' : 'Hạn chế gặp người thân';
+  return k === 'discipline_confinement' ? 'Quyết định buồng kỷ luật' : k === 'separation' ? 'Bố trí riêng' : k === 'restrictive_housing' ? 'Biệt giam SHU' : 'Hạn chế gặp người thân';
 }
 function completeOrder(ctx: Ctx, o: CustodyOrder, how: 'expired' | 'revoked') {
   const s = ctx.s;
@@ -405,7 +424,7 @@ function completeOrder(ctx: Ctx, o: CustodyOrder, how: 'expired' | 'revoked') {
     o.state = 'completed';
     if (back) {
       const inRoom = custodyRoomAt(s.player.pos.x, s.player.pos.z);
-      if (!inRoom || inRoom.id === o.roomId) escortToRoom(ctx, back, 'Trở về buồng ở');
+      if (!inRoom || inRoom.id === o.roomId || inRoom.cohort.startsWith('shu')) escortToRoom(ctx, back, o.kind === 'restrictive_housing' ? 'Hoàn thành step-down — chuyển từ SHU về khu thường' : 'Trở về buồng ở');
     }
   } else o.state = 'completed';
   notify(ctx, `${orderKindLabel(o.kind)} ${how === 'expired' ? 'đã hết hiệu lực' : 'đã được hủy'}.`, 'info', 'life');
@@ -419,6 +438,7 @@ export function revokeOrdersFor(ctx: Ctx, sourceDecisionId: string) {
 function onIncidentDecided(ctx: Ctx, inc: IncidentReview): boolean {
   const s = ctx.s;
   const c = s.custody!;
+  if (shuOrder(s) && c.shu) return shuSetback(ctx, inc);
   const recent = c.disciplineHistory.filter((h) => s.minute - h.minute < 30 * MIN_PER_DAY).length;
   const level: 'reprimand' | 'warning' | 'confinement' = recent === 0 ? 'reprimand' : recent === 1 ? 'warning' : 'confinement';
   c.disciplineHistory.push({ minute: s.minute, level, incidentId: inc.id });
@@ -433,6 +453,134 @@ function onIncidentDecided(ctx: Ctx, inc: IncidentReview): boolean {
   }
   inc.consequence = undefined;
   journal(ctx, 'discipline_decision', level.toUpperCase(), inc.decision, `disc:${inc.id}`);
+  return true;
+}
+
+// ======================= Biệt giam kiểu Mỹ — SHU (step-down 3 cấp) =======================
+export const shuOrder = (s: GameState): CustodyOrder | null => activeOrder(s, 'restrictive_housing');
+export function shuWindowAt(minute: number): ShuWindow {
+  const m = minuteOfDay(minute);
+  return SHU_SCHEDULE.find((w) => m >= w.from && m < w.to) ?? SHU_SCHEDULE[0];
+}
+/** Khung có áp dụng cho ngày/cấp này không (tắm ngày lẻ, nhóm ngày chẵn từ cấp 2). */
+export function shuWindowApplies(w: ShuWindow, level: number, day: number): boolean {
+  if (w.kind === 'cell' || w.kind === 'night') return true;
+  if (level < w.minLevel) return false;
+  if (w.days === 'odd' && day % 2 === 0) return false;
+  if (w.days === 'even' && day % 2 === 1) return false;
+  return true;
+}
+/** Hoạt động ngoài buồng đang diễn ra (người chơi được áp giải tới cũi/buồng tắm), hoặc null = ở buồng. */
+export function shuActivityNow(s: GameState): ShuActivity | null {
+  const sh = s.custody?.shu;
+  if (!sh || !shuOrder(s)) return null;
+  if (s.minute < sh.enteredMinute + 90) return null; // thủ tục tiếp nhận SHU: khám xét, cấp đồ, ở buồng
+  const w = shuWindowAt(s.minute);
+  if (w.kind === 'cell' || w.kind === 'night') return null;
+  return shuWindowApplies(w, sh.level, dayOf(s.minute)) ? w.kind : null;
+}
+export function shuActivityRoom(act: ShuActivity): CustodyRoomDef | null {
+  return CUSTODY_ROOMS.find((r) => r.cohort === SHU_ROOM_COHORT[act]) ?? null;
+}
+/** Mốc kế tiếp trong lịch SHU áp dụng cho người chơi. */
+export function shuNextWindow(s: GameState): { label: string; at: number } {
+  const sh = s.custody!.shu!;
+  const cur = shuWindowAt(s.minute);
+  const day0 = s.minute - minuteOfDay(s.minute);
+  for (let d = 0; d < 3; d++) {
+    for (const w of SHU_SCHEDULE) {
+      const at = day0 + d * MIN_PER_DAY + w.from;
+      if (at <= s.minute || (d === 0 && w === cur)) continue;
+      if (w.kind === 'cell' || w.kind === 'night' || !shuWindowApplies(w, sh.level, dayOf(at))) continue;
+      return { label: w.label, at };
+    }
+  }
+  return { label: 'Ở buồng', at: s.minute + 60 };
+}
+const SHU_ACT_TEXT: Record<ShuActivity, string> = {
+  rec: 'Giờ thể dục: 60 phút một mình trong cũi lưới. Hít thở, chạy tại chỗ, nhìn lên giếng trời.',
+  shower: 'Giờ tắm: 15 phút trong buồng tắm có song chắn, sĩ quan đứng ngoài cửa.',
+  group: 'Sinh hoạt nhóm: mỗi người ngồi trong một cũi trị liệu, người điều phối dẫn buổi trò chuyện về kiểm soát cảm xúc.',
+};
+function startShu(ctx: Ctx) {
+  const s = ctx.s;
+  const c = s.custody!;
+  const life = c.judgment.sentenceKind === 'life';
+  c.shu = { level: 1, levelSinceMinute: s.minute, enteredMinute: s.minute, setbacks: 0, done: [] };
+  const o = issueOrder(ctx, {
+    kind: 'restrictive_housing', reasonCode: life ? 'SHU_LIFE_HIGH_SECURITY' : 'SHU_SECURITY_REVIEW', issuerRole: 'classification_board', sourceDecisionId: 'scenario:shu',
+    startMinute: s.minute, reviewAtMinute: life ? s.minute + SHU_LIFE_REVIEW_DAYS * MIN_PER_DAY : null, endMinute: life ? null : s.minute + shuTotalDays() * MIN_PER_DAY,
+    roomId: null, returnHousingRef: null, supersedes: null,
+    note: life ? 'Chung thân — biệt giam an ninh tối đa, không có ngày ra SHU cố định; xét lại định kỳ (kịch bản hư cấu).' : 'Biệt giam an ninh tối đa theo chương trình step-down 3 cấp (kịch bản hư cấu).',
+  });
+  if (!o) return;
+  issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'SHU_NON_CONTACT', issuerRole: 'facility_head', sourceDecisionId: 'scenario:shu', startMinute: s.minute, reviewAtMinute: null, endMinute: null, roomId: null, returnHousingRef: null, supersedes: null, note: 'Trong SHU chỉ gặp người thân không tiếp xúc (qua kính) — tạm khóa thăm gặp trực tiếp.' });
+  notify(ctx, `Bạn bị đưa vào khu biệt giam SHU (${SHU_LEVELS[0].title}). Ở buồng 23 giờ/ngày; giữ kỷ luật để lên cấp.`, 'warning', 'life', true);
+}
+function endShu(ctx: Ctx, o: CustodyOrder, why: string) {
+  const c = ctx.s.custody!;
+  journal(ctx, 'shu_release', 'SHU_STEP_DOWN_COMPLETE', why, `shu_end:${o.orderId}`);
+  for (const x of c.orders) if (x.kind === 'family_visit_restriction' && x.sourceDecisionId === o.sourceDecisionId && x.state === 'active') completeOrder(ctx, x, 'expired');
+  completeOrder(ctx, o, 'expired');
+}
+function shuTick(ctx: Ctx) {
+  const s = ctx.s;
+  const c = s.custody!;
+  const o = shuOrder(s);
+  const sh = c.shu;
+  if (!o || !sh) return;
+  const day = dayOf(s.minute);
+  const m = minuteOfDay(s.minute);
+  // 1) step-down: đủ số ngày không vi phạm → lên cấp
+  const lv = SHU_LEVELS[sh.level - 1];
+  if (sh.level < 3 && s.minute - sh.levelSinceMinute >= lv.days * MIN_PER_DAY) {
+    sh.level = (sh.level + 1) as 1 | 2 | 3;
+    sh.levelSinceMinute = s.minute;
+    const nx = SHU_LEVELS[sh.level - 1];
+    journal(ctx, 'shu_level', `SHU_LEVEL_${sh.level}`, `Lên ${nx.title}.`, `shu_lv:${sh.level}:${s.minute}`);
+    notify(ctx, `Lên ${nx.title}: ${nx.privileges.join(', ')}.`, 'success', 'life', true);
+  }
+  // 2) chung thân: xét lại định kỳ — chỉ chuyển khu khi đã hoàn thành cấp 3
+  if (o.endMinute === null && o.reviewAtMinute !== null && s.minute >= o.reviewAtMinute) {
+    if (sh.level === 3 && s.minute - sh.levelSinceMinute >= SHU_LEVELS[2].days * MIN_PER_DAY) { endShu(ctx, o, 'Hội đồng xét lại: hoàn thành step-down, chuyển về khu thường (án chung thân vẫn tiếp tục).'); return; }
+    o.reviewAtMinute = s.minute + SHU_LIFE_REVIEW_DAYS * MIN_PER_DAY;
+    journal(ctx, 'shu_review', 'SHU_RETAIN', `Xét lại định kỳ: tiếp tục biệt giam (đang ở cấp ${sh.level}). Lần xét tiếp ${fmtDayClock(o.reviewAtMinute)}.`, `shu_rv:${s.minute}`);
+    notify(ctx, `Xét lại định kỳ: tiếp tục biệt giam. Lần xét tiếp ${fmtDayClock(o.reviewAtMinute)}.`, 'warning', 'life');
+  }
+  // 3) hoạt động ngoài buồng theo lịch (hiệu ứng một lần mỗi ngày)
+  const act = shuActivityNow(s);
+  if (act) {
+    const key = `${day}:${act}`;
+    if (!sh.done.includes(key)) {
+      sh.done.push(key);
+      if (sh.done.length > 30) sh.done.splice(0, sh.done.length - 30);
+      if (act === 'shower') changeNeed(ctx, 'hygiene', 60, 'Tắm theo lịch SHU');
+      if (act === 'rec') { changeNeed(ctx, 'mood', 8, 'Thể dục trong cũi'); changeNeed(ctx, 'energy', -6, 'Thể dục trong cũi'); }
+      if (act === 'group') changeNeed(ctx, 'mood', 12, 'Sinh hoạt nhóm trong cũi trị liệu');
+      notify(ctx, SHU_ACT_TEXT[act], 'info', 'life');
+    }
+  } else if (m % 60 === 30) {
+    // 4) cô lập: tâm trạng giảm dần khi ở buồng; vệ sinh giảm nhanh hơn khi không được tắm
+    changeNeed(ctx, 'mood', -2, 'Biệt giam: cô lập trong buồng');
+  }
+  // 5) kiểm đếm tại cửa buồng
+  if (m === hm(6, 15) || m === hm(21)) notify(ctx, 'Kiểm đếm: đứng dậy ở cửa buồng để sĩ quan nhìn qua ô kính hẹp.', 'info', 'life');
+}
+/** Vi phạm trong SHU: về cấp 1, thời hạn SHU tính lại từ đầu (án có thời hạn). */
+function shuSetback(ctx: Ctx, inc: IncidentReview): boolean {
+  const s = ctx.s;
+  const c = s.custody!;
+  const sh = c.shu!;
+  const o = shuOrder(s)!;
+  sh.level = 1;
+  sh.levelSinceMinute = s.minute;
+  sh.setbacks++;
+  if (o.endMinute !== null) o.endMinute = Math.max(o.endMinute, s.minute + shuTotalDays() * MIN_PER_DAY);
+  c.disciplineHistory.push({ minute: s.minute, level: 'confinement', incidentId: inc.id });
+  inc.decision = `Vi phạm trong SHU (hư cấu): về ${SHU_LEVELS[0].title}${o.endMinute !== null ? `, thời hạn biệt giam kéo dài đến ${fmtDayClock(o.endMinute)}` : ''}. Quyền tối thiểu giữ nguyên.`;
+  inc.consequence = undefined;
+  journal(ctx, 'shu_setback', 'SHU_SETBACK', inc.decision, `shu_sb:${inc.id}`);
+  notify(ctx, `Bạn bị đưa về ${SHU_LEVELS[0].title}.`, 'warning', 'life', true);
   return true;
 }
 
@@ -464,13 +612,19 @@ export function custodyTick(ctx: Ctx) {
   // 1) decision/order changes
   for (const o of [...c.orders]) {
     if (o.state !== 'active') continue;
-    if (o.endMinute !== null && s.minute >= o.endMinute) completeOrder(ctx, o, 'expired');
+    if (o.endMinute !== null && s.minute >= o.endMinute) {
+      if (o.kind === 'restrictive_housing') {
+        // chỉ ra SHU khi đã ở cấp 3; nếu chưa (do vi phạm), thời hạn đã được kéo dài trong shuSetback
+        endShu(ctx, o, 'Hoàn thành chương trình step-down — chuyển từ SHU về khu thường.');
+      } else completeOrder(ctx, o, 'expired');
+    }
     else if (o.kind === 'separation' && o.reviewAtMinute !== null && s.minute >= o.reviewAtMinute) {
       journal(ctx, 'order_review', 'REVIEW_COMPLETED', 'Xem xét bố trí riêng: không còn căn cứ tiếp tục (kịch bản).', `review:${o.orderId}`);
       completeOrder(ctx, o, 'expired');
     }
   }
   scenarioEvents(ctx);
+  shuTick(ctx);
   // release projection (không do XP/goal)
   const rd = releaseDay(c.judgment);
   if (c.releaseState === 'serving' && rd !== null && day >= rd && once(c, 'release_due')) {
@@ -486,11 +640,12 @@ export function custodyTick(ctx: Ctx) {
   if (!playerOk && s.life.episode.state === 'admitted' && (isConfinedPhase(nextPhase) || nextPhase === 'returning')) {
     const home = homeRoom(s);
     const ret = c.grants.find((g) => g.purpose === 'return' && g.state === 'active');
-    if (!ret && home && nextPhase !== 'disciplinary_confinement' && nextPhase !== 'separate_housing' && before !== 'intake') {
+    const shuEsc = nextPhase === 'restrictive_housing';
+    if (!ret && home && nextPhase !== 'disciplinary_confinement' && nextPhase !== 'separate_housing' && !shuEsc && before !== 'intake') {
       ensureGrant(ctx, 'return', home.zone, s.minute, s.minute + 45, `return:${day}:${m}`);
     } else if (home && (!ret || s.minute >= ret.validUntilMinute || s.player.mode === 'sleeping')) {
-      escortToRoom(ctx, home, 'Cán bộ hỗ trợ về buồng (không ghi nhận vi phạm)');
-      notify(ctx, 'Đã được đưa về buồng.', 'info', 'life');
+      escortToRoom(ctx, home, shuEsc ? 'Áp giải trong SHU (còng tay qua khe cửa)' : 'Cán bộ hỗ trợ về buồng (không ghi nhận vi phạm)');
+      notify(ctx, shuEsc ? `Còng tay qua khe cửa — sĩ quan áp giải bạn tới ${home.label}.` :'Đã được đưa về buồng.', 'info', 'life');
     }
   } else if (playerOk) {
     for (const g of c.grants) if (g.purpose === 'return' && g.state === 'active') {
@@ -501,13 +656,13 @@ export function custodyTick(ctx: Ctx) {
   }
   updatePhase(ctx);
   // 3) services at room: suất ăn đưa tới buồng khi đang bị giới hạn ra khỏi buồng
-  const confinedNoMeal = c.phase === 'disciplinary_confinement' || c.phase === 'separate_housing' || c.phase === 'transfer_pending';
+  const confinedNoMeal = c.phase === 'disciplinary_confinement' || c.phase === 'restrictive_housing' || c.phase === 'separate_housing' || c.phase === 'transfer_pending';
   for (const meal of MEALS) {
     const key = `${day}:${meal.id}`;
     if (confinedNoMeal && m === meal.from + 30 && !s.mealClaims[key]) {
       s.mealClaims[key] = true;
       changeNeed(ctx, 'hunger', 35, 'Suất ăn tại buồng');
-      notify(ctx, `${meal.label} được đưa tới buồng.`, 'info', 'life');
+      notify(ctx, c.phase === 'restrictive_housing' ? `${meal.label}: khay cơm được đẩy qua khe cửa.` : `${meal.label} được đưa tới buồng.`, 'info', 'life');
     }
   }
   // đơn hàng sẵn sàng được giao tới buồng lúc 12:00 (phương thức at_room) — không debit hai lần
@@ -566,6 +721,7 @@ export function initSegment(ctx: Ctx) {
     const o = issueOrder(ctx, { kind: 'discipline_confinement', reasonCode: 'SCENARIO_ILLUSTRATION', issuerRole: 'facility_head', sourceDecisionId: inc.id, startMinute: s.minute, reviewAtMinute: null, endMinute: s.minute + 2 * MIN_PER_DAY, roomId: null, returnHousingRef: null, supersedes: null, note: 'Kịch bản minh họa; bản án không thay đổi.' });
     if (o) issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'IN_DISCIPLINE_CELL', issuerRole: 'facility_head', sourceDecisionId: inc.id, startMinute: s.minute, reviewAtMinute: o.endMinute, endMinute: o.endMinute! + 2 * MIN_PER_DAY, roomId: null, returnHousingRef: null, supersedes: null, note: 'Hạn chế gặp người thân có thời hạn riêng (hư cấu).' });
   }
+  if (c.startSegment === 'shu') startShu(ctx);
   if (c.startSegment === 'separation_demo') {
     issueOrder(ctx, { kind: 'separation', reasonCode: 'SUPPORT_SEPARATION', issuerRole: 'facility_head', sourceDecisionId: 'scenario:separation', startMinute: s.minute, reviewAtMinute: s.minute + 3 * MIN_PER_DAY, endMinute: null, roomId: null, returnHousingRef: null, supersedes: null, note: 'Bố trí riêng để bảo đảm an toàn (thiết kế hư cấu, không phải kỷ luật).' });
   }
@@ -615,7 +771,7 @@ export function cellDoorClosed(s: GameState, roomId: string): boolean {
   if (!r) return false;
   const home = homeRoom(s);
   if (home?.id === roomId && activeGrants(s).some((g) => g.purpose !== 'return')) return false;
-  if (r.cohort === 'discipline' || r.cohort === 'separate') return true;
+  if (r.cohort === 'discipline' || r.cohort === 'separate' || r.cohort.startsWith('shu')) return true;
   const g = r.cohort === 'B' ? 'B' : 'A';
   const mm = minuteOfDay(s.minute);
   const w = CUSTODY_SCHEDULE[g].find((x) => mm >= x.from && mm < x.to);
