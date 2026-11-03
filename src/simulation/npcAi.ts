@@ -74,7 +74,7 @@ export class NpcAi {
       const cur = rt.goalSlot ? free.findIndex((x) => x.id === rt.goalSlot) : -1;
       return free[(cur + 1 + free.length) % free.length];
     }
-    return free[hash32(`${rt.id}:${b.from}:${dayOf(s.minute)}`) % free.length];
+    return free[hash32(`${rt.id}:${b.from}:${dayOf(s.minute) + (s.online?.dayShift ?? 0)}`) % free.length]; // CR-TIME-01: cùng ngày chung → cùng chỗ trên mọi máy
   }
 
   private release(s: GameState, rt: NpcRuntime) {

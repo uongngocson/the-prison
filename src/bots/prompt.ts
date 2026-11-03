@@ -3,11 +3,22 @@ import type { Persona } from './personas';
 
 export interface Turn { from: 'player' | 'bot'; text: string }
 
-export function buildSystemPrompt(p: Persona, playerName: string): string {
+/** Hoạt động theo lịch chung (CR-TIME-01) — danh sách cố định để server kiểm tra (không nhận chữ tùy ý từ client). */
+export const BOT_ACTIVITIES = ['giờ ngủ', 'vệ sinh buổi sáng', 'điểm danh sáng', 'bữa sáng', 'giờ lao động, học tập', 'bữa trưa', 'nghỉ trưa', 'giờ thư viện, lớp học', 'giờ ra sân', 'bữa tối', 'sinh hoạt buổi tối', 'điểm danh tối'] as const;
+export type BotActivity = typeof BOT_ACTIVITIES[number];
+export interface BotClock { time: string; activity: BotActivity }
+export function validBotClock(c: unknown): BotClock | null {
+  const o = c as Partial<BotClock> | null;
+  if (!o || typeof o.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(o.time)) return null;
+  return (BOT_ACTIVITIES as readonly string[]).includes(o.activity as string) ? { time: o.time, activity: o.activity as BotActivity } : null;
+}
+
+export function buildSystemPrompt(p: Persona, playerName: string, clock?: BotClock | null): string {
   return [
     `Bạn đang nhập vai ${p.name}, ${p.age} tuổi, quê ${p.hometown}, một bạn tù trong trò chơi mô phỏng "Một Ngày Mới" (trại giam hư cấu An Bình).`,
     `Tính cách: ${p.personality}. Cách nói: ${p.style}. Chuyện của bạn trong game: ${p.background}. Sở thích: ${p.interests.join(', ')}.`,
     `Bạn đang trò chuyện trong khung chat game với người chơi tên "${playerName}".`,
+    ...(clock ? [`Bây giờ là ${clock.time} trong trại, đang ${clock.activity}. Nói chuyện hợp với giờ này${clock.activity === 'giờ ngủ' ? ' (đang khuya: trả lời ngắn, nói nhỏ, hơi ngái ngủ, rủ nhau ngủ sớm)' : ''}.`] : []),
     'CÁCH TRẢ LỜI:',
     '- Tiếng Việt đời thường, giống người gõ chat: 1–2 câu ngắn (dưới 25 từ), không gạch đầu dòng, không markdown, không giải thích dài.',
     '- Tự nhiên, có cảm xúc, thỉnh thoảng hỏi lại; không lặp lại câu của người kia; không mở đầu bằng "Chào bạn" mỗi lần.',

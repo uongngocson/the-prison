@@ -38,6 +38,7 @@ Bộ hồ sơ này là đề xuất thiết kế có thể chuyển thành backl
 | [17 — Custody delivery & QA](17-custody-delivery-qa.md) | Change impact, T11-01–10, QA25–32, 24 scenarios, Gate VN | Producer, QA, reviewers |
 | [18 — Labour rehabilitation](18-labour-rehabilitation-spec.md) | Catalog W01–20, F73–84, nghiệp vụ/stock/tools/custody/save, backlog và QA | BA, gameplay, domain, QA |
 | [19 — Labour UI & art](19-labour-ui-art-direction.md) | U39–44, sáu mockup, L23–28, art/animation/LOD và UI states | UI/UX, art, level, QA |
+| [22 — Đồng bộ thời gian trực tuyến](22-shared-time-sync-spec.md) | CR-TIME-01: audit đồng hồ hiện tại, đồng hồ chung F85–92, nối save khi vào phòng, thời tiết/sự kiện/bạn tù theo lịch chung, DB59/API21, QA39–49, quyết định D1–D5 | Gameplay, online, QA |
 
 ## Executive Summary
 

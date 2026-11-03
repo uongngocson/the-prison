@@ -5,7 +5,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto('http://localhost:5173/');
+await page.goto('http://localhost:5173/'); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
 await page.waitForFunction(() => !!window.__mnm);
 await page.evaluate(async () => { await window.__mnm.startNew({ name: 'Bảng', appearance: { body: 'medium', skin: 1, hair: 2, hairColor: 2, outfit: 1 }, familyContext: 'family' }); });
 await page.waitForFunction(() => window.__mnm.view);

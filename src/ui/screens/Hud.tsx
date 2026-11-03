@@ -37,7 +37,7 @@ export function Hud() {
     <div className="hud" aria-hidden={hidden}>
       {!hidden && <div className="crosshair" />}
       <div className="hud-tl box">
-        <div className="clock">{hud.clock} <span className="small muted">{hud.period}</span></div>
+        <div className="clock">{hud.clock} <span className="small muted">{hud.period}</span>{hud.shared && <SharedBadge />}</div>
         <div className="small">{hud.dayLabel.split(' · ').slice(0, 2).join(' · ')}</div>
         {!minimal && <>
           <div className="small"><span className="muted">Hiện tại:</span> {hud.activity}</div>
@@ -77,12 +77,13 @@ export function Hud() {
         <div>{hud.saveStatus}{hud.saveStatus === 'Lưu thất bại' ? ' ⚠' : ''}</div>
         <div><Key action="schedule" /> Lịch · <Key action="map" /> Bản đồ · <Key action="inventory" /> Túi · <Key action="profile" /> Hồ sơ · <Key action="pause" /> Menu</div>
       </div>
+      {hud.sleepWake && !hidden && <SleepBanner wake={hud.sleepWake} />}
       {hud.action && !hidden && (
         <div className="action-bar box" role="status">
           <div className="small">{hud.action.label}...</div>
           <Bar value={hud.action.progress * 100} label="Tiến độ" />
-          {touch ? <div className="row" style={{ justifyContent: 'center', pointerEvents: 'auto' }}><button className="btn sm" onClick={() => controller.onKeyAction('skip')}>Tua nhanh</button><button className="btn sm" onClick={() => controller.onKeyAction('cancel')}>Hủy (không nhận kết quả)</button></div>
-            : <div className="small muted"><Key action="skip" /> Tua nhanh · <Key action="cancel" /> Hủy (không nhận kết quả)</div>}
+          {touch ? <div className="row" style={{ justifyContent: 'center', pointerEvents: 'auto' }}>{hud.action.canSkip && <button className="btn sm" onClick={() => controller.onKeyAction('skip')}>Tua nhanh</button>}<button className="btn sm" onClick={() => controller.onKeyAction('cancel')}>Hủy (không nhận kết quả)</button></div>
+            : <div className="small muted">{hud.action.canSkip ? <><Key action="skip" /> Tua nhanh · </> : 'Giờ chung trực tuyến, không tua · '}<Key action="cancel" /> Hủy (không nhận kết quả)</div>}
         </div>
       )}
       {!hud.action && focus && !hidden && !dialogue && (
@@ -167,5 +168,20 @@ export function Dialogue() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** CR-TIME-01: dấu “giờ chung” khi đang theo đồng hồ của phòng trực tuyến. */
+export function SharedBadge() {
+  return <span className="clock-shared" title="Giờ chung của phân khu trực tuyến — mọi người chơi cùng thấy. “Ngày” là số ngày của riêng bạn trong trại." aria-label="Giờ chung trực tuyến">⟳ Giờ chung</span>;
+}
+/** Đang ngủ khi trực tuyến (D4): đồng hồ không tua — hiện giờ thức và nút thức dậy. */
+export function SleepBanner({ wake }: { wake: string }) {
+  return (
+    <div className="sleep-banner box" role="status">
+      <div><b>Đang ngủ</b> · thức dậy lúc {wake} (giờ trại)</div>
+      <div className="small muted">Năng lượng hồi nhanh gấp đôi. Bạn có thể rời máy, quay lại sau.</div>
+      <button className="btn sm primary" onClick={() => { controller.session?.wakeUp(); controller.bump(); }}>Thức dậy</button>
+    </div>
   );
 }

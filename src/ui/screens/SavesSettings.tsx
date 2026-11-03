@@ -170,6 +170,7 @@ export function SettingsPanel() {
         {toggle('Nhu cầu nhẹ', st.access.lightNeeds, (v) => set((x) => { x.access.lightNeeds = v; }), 'Nhu cầu giảm chậm 50%, không ảnh hưởng thành tựu')}
         {toggle('Hoàn tất tự động hoạt động', st.access.autoComplete, (v) => set((x) => { x.access.autoComplete = v; }), 'Rút ngắn ăn, tắm, tập; không cần thao tác lặp')}
         <div className="row" style={{ justifyContent: 'space-between' }}>Độ dài một ngày game<span className="row">{([48, 72] as const).map((d) => <button key={d} className={`btn sm ${st.access.dayLength === d ? 'primary' : ''}`} aria-pressed={st.access.dayLength === d} onClick={() => set((x) => { x.access.dayLength = d; })}>{d} phút thực</button>)}</span></div>
+        <p className="small muted" style={{ marginTop: 2 }}>Áp dụng khi chơi ngoại tuyến. Phòng trực tuyến dùng giờ chung của phân khu.</p>
         <button className="btn sm" onClick={() => reset('access')}>Khôi phục mặc định nhóm này</button>
         <Status>Thay đổi được áp dụng ngay và lưu trên thiết bị này.</Status>
       </div>}

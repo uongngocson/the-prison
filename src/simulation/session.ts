@@ -10,7 +10,8 @@ import { NpcAi, decayMemories, witness } from './npcAi';
 import { CELL_ROOMS, PROPS, PROP_BY_ID, SLOTS, ZONES, ZONE_BY_ID, zoneAt, zoneCenter, type PropDef } from '../content/world';
 import { NPCS, NPC_BY_ID } from '../content/npcs';
 import { DAILY, ROLL_CALLS, npcBlockAt } from '../content/schedule';
-import { Rng, dayOf, dist2, fmtClock, hm, minuteOfDay } from '../domain/util';
+import { Rng, dayOf, dayOfWeek, dist2, fmtClock, hm, minuteOfDay, setWeekShift } from '../domain/util';
+import { calendarShift, CATCHUP_THRESHOLD_MIN, joinDelta, ONLINE_ACTION_REAL_SEC, roomChance, weatherAt } from '../online/sharedClock';
 import { cellOf } from './nav';
 import { ensureLabour, labourPanelVerbs, labourTick } from '../domain/labour';
 import { constrainMove, custodyTick, homeBed, homeRoom, isVN, positionAllowed, propAllowed, reasonText, resolveOnLoad } from '../domain/custody';
@@ -19,6 +20,15 @@ import { CUSTODY_ROOM_BY_ID, custodyRoomAt, custodyRoomOfBed } from '../content/
 export const TICK_HZ = 30;
 const DT = 1 / TICK_HZ;
 const ACTION_ACCEL = 14; // tua nhanh thời gian game khi đang thực hiện hành động (không bắt nhìn chờ)
+
+/** CR-TIME-01: nguồn giờ chung khi đang trực tuyến (controller cung cấp). */
+export interface SharedWorld {
+  room: string;
+  /** Phút chung tuyệt đối hiện tại (số thực). */
+  minute: () => number;
+  dayLengthMin: number;
+  clockVersion: number;
+}
 
 export interface InputState { moveX: number; moveZ: number; run: boolean; crouch: boolean; camYaw: number }
 export interface FocusTarget { kind: 'prop' | 'npc'; id: string; label: string; verbs: VerbOption[]; busy?: string }
@@ -48,11 +58,20 @@ export class GameSession {
   dirty = true; // autosave eligibility
   changeVersion = 0; // runtime revision; detects edits made while a save awaits IDB
   catchUpDebt = 0;
+  /** Đang trực tuyến: đồng hồ của save đi theo giờ chung (null = ngoại tuyến, giữ nguyên hành vi cũ). */
+  shared: SharedWorld | null = null;
+  /** Đang bù thời gian (vào phòng / quay lại tab): xử lý như nghỉ nhẹ — không tính vắng điểm danh (D2). */
+  private catchingUp = false;
+  /** Đang bù giờ chia nhiều khung (không chạy mô phỏng thường trong lúc này). */
+  private chunking = false;
+  /** Ngủ khi trực tuyến (D4): không tua, thức dậy đúng giờ hoặc khi người chơi bấm. */
+  private onlineSleep: { bedId: string; wakeAt: number; startMinute: number; actionId: string } | null = null;
 
   constructor(public s: GameState, public settings: SimSettings, options: { resume?: boolean } = {}) {
     this.phys = new AabbPhysics();
     this.ai = new NpcAi(this.phys);
     this.rng = new Rng(s.rngState);
+    setWeekShift(s.online?.weekShift ?? 0);
     this.ctx = { s, rng: this.rng, settings, emit: (e) => this.queue.push(e) };
     this.prevPlayer = { ...s.player.pos };
     // Restore: rebuild transient state before emitting (không phát reward lặp)
@@ -108,7 +127,7 @@ export class GameSession {
 
   // ======================= Frame update =======================
   update(realDt: number) {
-    if (this.paused) return;
+    if (this.paused || this.chunking) return;
     const clamped = Math.min(realDt, 0.25);
     this.accumulator += clamped;
     let steps = 0;
@@ -134,15 +153,27 @@ export class GameSession {
     this.changeVersion++;
     const s = this.s;
     s.tick++;
-    const rate = 1440 / (this.settings.dayLengthRealMin * 60);
-    // Đi vệ sinh tua chậm hơn (~5 giây thực) để thấy nhân vật ngồi trên bồn; vẫn bỏ qua được bằng phím tua.
-    const accel = s.player.action && !s.player.action.committed ? (s.player.action.verb === 'use_toilet' ? 2 : ACTION_ACCEL) : 1;
-    const dm = rate * DT * accel;
-    this.movePlayer(DT);
-    this.advanceMinutes(dm, false);
     const a = s.player.action;
-    if (a && !a.committed) {
-      a.elapsedMin += dm;
+    let dm: number;
+    let progress: number;
+    if (this.shared) {
+      // Trực tuyến: không tua đồng hồ; đi theo giờ chung (khoảng trống lớn do controller bù bằng catchUp).
+      dm = Math.max(0, Math.min(this.sharedLag(), 2));
+      // D3: hành động vẫn đủ hiệu quả nhưng kéo dài tối đa ~60 giây thực
+      const cap = ONLINE_ACTION_REAL_SEC * (1440 / (this.shared.dayLengthMin * 60));
+      progress = a && !a.committed ? dm * Math.max(1, a.durationMin / cap) : dm;
+    } else {
+      const rate = 1440 / (this.settings.dayLengthRealMin * 60);
+      // Đi vệ sinh tua chậm hơn (~5 giây thực) để thấy nhân vật ngồi trên bồn; vẫn bỏ qua được bằng phím tua.
+      const accel = a && !a.committed ? (a.verb === 'use_toilet' ? 2 : ACTION_ACCEL) : 1;
+      dm = rate * DT * accel;
+      progress = dm;
+    }
+    this.movePlayer(DT);
+    this.advanceMinutes(dm, this.onlineSleep !== null);
+    if (this.onlineSleep && s.minute >= this.onlineSleep.wakeAt) this.wakeUp();
+    if (a && !a.committed && s.player.action === a) {
+      a.elapsedMin += progress;
       if (a.elapsedMin >= a.durationMin) this.finishAction();
     }
     this.ai.update(this.ctx, DT);
@@ -163,8 +194,9 @@ export class GameSession {
     const s = this.s;
     const ctx = this.ctx;
     const m = minuteOfDay(absMin);
-    decayNeeds(ctx, 1, sleeping, hasNeed(s, 'rest') || careRestActive(s));
-    if (sleeping) changeNeed(ctx, 'energy', 8 / 60);
+    decayNeeds(ctx, 1, sleeping, this.catchingUp || hasNeed(s, 'rest') || careRestActive(s));
+    if (sleeping) changeNeed(ctx, 'energy', (8 / 60) * (this.onlineSleep ? 2 : 1)); // D4: ngủ trực tuyến hồi nhanh gấp đôi
+    else if (this.catchingUp) changeNeed(ctx, 'energy', 1 / 60); // D2: nghỉ nhẹ — bù một phần hao năng lượng
     if (m === 0) {
       s.stats.daysCompleted++;
       this.emit({ type: 'dayStarted', day: dayOf(absMin) });
@@ -184,12 +216,13 @@ export class GameSession {
       if (m === rc.end) {
         const vnHome = isVN(s) ? homeRoom(s) : null;
         const inL02 = isVN(s) ? !!vnHome && custodyRoomAt(s.player.pos.x, s.player.pos.z)?.id === vnHome.id : s.player.zone === 'L02' || !!s.flags[`muster:${rc.id}:${dayOf(absMin)}`];
-        rollCallResolve(ctx, rc.id, inL02 || (sleeping && s.player.zone === 'L02'), !!s.player.action || !!this.dialogue);
+        rollCallResolve(ctx, rc.id, inL02 || (sleeping && s.player.zone === 'L02') || this.catchingUp, !!s.player.action || !!this.dialogue);
       }
     }
     if (m % 5 === 0 || sleeping === false) this.refreshDoors(false);
     if (m % 30 === 0) this.refreshStaffDuty();
-    if (s.minute >= s.world.nextWeatherMinute) this.rollWeather();
+    if (this.shared) { if (m % 5 === 0) this.applySharedWeather(absMin); }
+    else if (s.minute >= s.world.nextWeatherMinute) this.rollWeather();
     if (m % 60 === 0) this.director();
     lifeTick(ctx);
     custodyTick(ctx);
@@ -276,7 +309,7 @@ export class GameSession {
     }
     if (s.world.activeEvent) return;
     const day = dayOf(s.minute);
-    const dow = (day - 1) % 7;
+    const dow = dayOfWeek(s.minute); // D5: gồm độ lệch thứ chung khi save từng vào phòng trực tuyến
     if ([1, 3, 5].includes(dow) && m === hm(19)) {
       s.world.activeEvent = { id: `reading_group_${day}`, state: 'running', startMinute: s.minute, endMinute: s.minute + 90, actors: ['mai', 'hoa'], zone: 'L07' };
       this.emit({ type: 'subtitle', speaker: 'Loa thông báo', text: 'Nhóm đọc sách bắt đầu tại Thư viện. Ai muốn tham gia cứ đến.', durationMs: 6000 });
@@ -288,8 +321,15 @@ export class GameSession {
       return;
     }
     const cd = s.world.eventCooldowns.closure ?? 0;
-    if (day >= 3 && s.minute >= cd && m >= hm(9) && m <= hm(15) && this.rng.next() < 0.12) {
-      const zone: ZoneId = this.rng.next() < 0.5 ? 'L09' : 'L07';
+    // Trực tuyến: đóng khu theo lịch chung của phòng (mọi máy giống nhau); ngoại tuyến giữ rng của save.
+    const sh = this.shared;
+    const sharedDay = day - 1 + (s.online?.dayShift ?? 0);
+    const closeNow = sh
+      ? sharedDay % 2 === 0 && m >= hm(9) && m <= hm(15) && (s.world.eventCooldowns.closureDay ?? -1) !== sharedDay && roomChance(sh.room, `closure:${sharedDay}:${Math.floor(m / 60)}`) < 0.12
+      : day >= 3 && s.minute >= cd && m >= hm(9) && m <= hm(15) && this.rng.next() < 0.12;
+    if (closeNow) {
+      const zone: ZoneId = (sh ? roomChance(sh.room, `closure-zone:${sharedDay}`) : this.rng.next()) < 0.5 ? 'L09' : 'L07';
+      if (sh) s.world.eventCooldowns.closureDay = sharedDay;
       s.world.activeEvent = { id: `closure_${zone}_${day}`, state: 'running', startMinute: s.minute, endMinute: s.minute + 90, actors: ['nam'], zone };
       s.world.eventCooldowns.closure = s.minute + 2 * 1440;
       notify(this.ctx, `${ZONE_BY_ID[zone].name} tạm đóng 90 phút để bảo trì. Lựa chọn thay thế: ${zone === 'L09' ? 'Sân sinh hoạt' : 'Phòng yên tĩnh'}.`, 'info', 'system');
@@ -544,7 +584,7 @@ export class GameSession {
   /** Skip presentation: fast-forward domain to action end (cùng boundary reducers). */
   skipAction() {
     const a = this.s.player.action;
-    if (!a || a.committed) return;
+    if (!a || a.committed || this.shared) return; // trực tuyến: không tua đồng hồ chung
     const remain = a.durationMin - a.elapsedMin;
     this.fastForward(remain, false);
     a.elapsedMin = a.durationMin;
@@ -601,6 +641,15 @@ export class GameSession {
     if (!prop || ownBed !== bedId || !this.inRange(prop)) return { ok: false, message: 'Chỉ ngủ được trên giường của bạn.' };
     if (wakeAbs <= s.minute + 30 || wakeAbs > s.minute + 14 * 60) return { ok: false, message: 'Giờ thức không hợp lệ.' };
     const actionId = `sleep_${s.tick}`;
+    if (this.shared) {
+      // D4: trực tuyến — ngủ theo giờ chung, không tua; thức dậy đúng giờ hoặc khi người chơi bấm
+      s.player.action = null;
+      s.player.mode = 'sleeping';
+      s.player.pos = { x: prop.x, y: 0, z: prop.z };
+      this.onlineSleep = { bedId, wakeAt: wakeAbs, startMinute: s.minute, actionId };
+      this.exec((ctx) => notify(ctx, `Bạn đi ngủ. Thức dậy lúc ${fmtClock(wakeAbs)} (giờ trại); năng lượng hồi nhanh gấp đôi. Có thể thức dậy bất cứ lúc nào.`, 'info', 'system'));
+      return { ok: true };
+    }
     const hours = (wakeAbs - s.minute) / 60;
     s.player.mode = 'sleeping';
     s.player.pos = { x: prop.x, y: 0, z: prop.z };
@@ -615,6 +664,101 @@ export class GameSession {
     this.dirty = true;
     this.exec((ctx) => notify(ctx, `Bạn đã ngủ ${hours.toFixed(1)} giờ. Năng lượng ${Math.round(s.needs.energy)}.`, 'success', 'system'));
     return { ok: true };
+  }
+
+  get sleepingOnline() { return this.onlineSleep !== null; }
+  get onlineWakeAt() { return this.onlineSleep?.wakeAt ?? null; }
+  /** Thức dậy sau khi ngủ trực tuyến (đúng giờ hoặc người chơi bấm). */
+  wakeUp() {
+    const z = this.onlineSleep;
+    const s = this.s;
+    if (!z) return;
+    this.onlineSleep = null;
+    const prop = PROP_BY_ID[z.bedId];
+    const hours = Math.max(0, (s.minute - z.startMinute) / 60);
+    this.exec((ctx) => { if (!actionSeen(s, z.actionId)) commitAction(ctx, 'sleep', prop, z.actionId, { hours }); });
+    s.player.mode = 'grounded';
+    const cell = CELL_ROOMS.find((c) => c.beds.includes(z.bedId));
+    const vnRoom = custodyRoomOfBed(z.bedId);
+    if (vnRoom) { s.player.pos = { x: vnRoom.anchor.x, y: 0, z: vnRoom.anchor.z }; s.player.zone = vnRoom.zone; }
+    else if (cell) s.player.pos = this.phys.moveCharacter({ x: cell.door.x, y: 0, z: cell.door.z + cell.inward * 1.6 }, 0.001, 0, 0.3);
+    s.player.lastSafe = { ...s.player.pos };
+    this.prevPlayer = { ...s.player.pos };
+    this.dirty = true;
+    this.exec((ctx) => notify(ctx, `Bạn đã ngủ ${hours.toFixed(1)} giờ. Năng lượng ${Math.round(s.needs.energy)}.`, 'success', 'system'));
+  }
+
+  // ======================= CR-TIME-01: đồng hồ chung =======================
+  /** Phút chung tương ứng với một phút của save (khi đã khớp lịch). */
+  private sharedMinuteFor(localMinute: number) { return localMinute + (this.s.online?.dayShift ?? 0) * 1440; }
+  /** Save đang chậm hơn giờ chung bao nhiêu phút game (âm = đang nhanh hơn → chờ). */
+  sharedLag(): number {
+    if (!this.shared) return 0;
+    return this.shared.minute() - this.sharedMinuteFor(this.s.minute);
+  }
+  private applySharedWeather(absMin: number) {
+    const s = this.s;
+    if (!this.shared) return;
+    const w = weatherAt(this.shared.room, this.sharedMinuteFor(absMin));
+    if (w === s.world.weather) return;
+    s.world.weather = w;
+    this.emit({ type: 'weather', weather: w });
+    if (w === 'rain' && !this.catchingUp) notify(this.ctx, 'Trời mưa nhẹ. Hoạt động ngoài sân chuyển vào Phòng tập.', 'info', 'system');
+    this.refreshDoors(false);
+  }
+  /** Bù thời gian như nghỉ nhẹ (D2): đủ mốc lịch, không tính vắng điểm danh, không thưởng/phạt lặp. */
+  catchUp(minutes: number) {
+    if (!(minutes > 0)) return;
+    this.catchingUp = true;
+    try { this.fastForward(minutes, this.onlineSleep !== null); }
+    finally { this.catchingUp = false; }
+    if (this.onlineSleep && this.s.minute >= this.onlineSleep.wakeAt) this.wakeUp();
+  }
+  get busyCatchingUp() { return this.chunking; }
+  /** Bù giờ chia nhiều khung (~30 phút game mỗi khung) để không đứng hình trên máy yếu (QA48). */
+  async catchUpChunked(minutes: number, onProgress?: (done: number) => void, chunk = 30): Promise<void> {
+    if (!(minutes > 0) || this.chunking) return;
+    this.chunking = true;
+    try {
+      let left = minutes;
+      while (left > 0) {
+        const d = Math.min(chunk, left);
+        this.catchUp(d);
+        left -= d;
+        onProgress?.(1 - left / minutes);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    } finally { this.chunking = false; }
+  }
+  /** Khớp save với giờ chung khi vào phòng: chỉ tua TỚI (dưới 24 giờ game), rồi đi theo đồng hồ chung. */
+  attachShared(shared: SharedWorld): { delta: number; fromDay: number; toDay: number } {
+    const s = this.s;
+    const fromDay = dayOf(s.minute);
+    const delta = joinDelta(s.minute, shared.minute());
+    this.shared = null;
+    this.catchUp(delta);
+    const { dayShift, weekShift } = calendarShift(s.minute, shared.minute());
+    s.online = { dayShift, weekShift, clockVersion: shared.clockVersion, syncedMinute: s.minute };
+    setWeekShift(weekShift);
+    this.shared = shared;
+    this.applySharedWeather(s.minute);
+    this.refreshDoors(false);
+    this.dirty = true;
+    this.flush();
+    return { delta, fromDay, toDay: dayOf(s.minute) };
+  }
+  /** Rời phòng: trở lại đồng hồ riêng (giữ thứ chung để lịch tuần liền mạch). */
+  detachShared() {
+    if (!this.shared) return;
+    this.shared = null;
+    if (this.onlineSleep) this.wakeUp();
+    this.s.world.nextWeatherMinute = Math.max(this.s.world.nextWeatherMinute, this.s.minute + 240);
+  }
+  /** Bù khoảng trống lớn (tab ẩn, mạng chậm). Trả về số phút đã bù. */
+  syncSharedGap(): number {
+    const lag = this.sharedLag();
+    if (lag > CATCHUP_THRESHOLD_MIN) { this.catchUp(lag); return lag; }
+    return 0;
   }
 
   /** Domain fast-forward: scheduled boundaries processed once each; physics not stepped. */

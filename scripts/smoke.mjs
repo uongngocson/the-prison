@@ -9,7 +9,7 @@ page.on('console', async (m) => { if (m.type() === 'error' || m.type() === 'warn
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}\n${e.stack}`));
 const shot = async (n) => page.screenshot({ path: `${OUT}/${n}.png` });
 try {
-await page.goto(URL);
+await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 await shot('01_landing');
 await page.getByRole('button', { name: /Chơi ngay/ }).click();

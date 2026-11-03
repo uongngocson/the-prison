@@ -17,7 +17,7 @@ const shot = (n) => page.screenshot({ path: `${OUT}/n2n_${tag}_${n}.png` });
 const ev = (fn, arg) => page.evaluate(fn, arg);
 const report = [];
 try {
-  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1500);
   // loading timings
   await ev((mode) => {
     window.__stages = [];

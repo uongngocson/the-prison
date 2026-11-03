@@ -297,17 +297,23 @@ export class GameView {
     const crouch = s.player.crouch;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const right = { x: cy, z: -sy };
-    let shoulderOff = 0.42 * this.shoulder;
+    // Màn dọc hẹp (góc nhìn ngang chỉ ~30°): độ lệch vai cố định đẩy nhân vật ra mép → giảm theo tỉ lệ màn hình
+    // (≤0,6: nhân vật ở giữa; ≥1,3: nhìn qua vai đầy đủ như máy tính / điện thoại ngang), camera lùi xa hơn một chút.
+    const eng = this.scene.getEngine();
+    const aspect = eng.getRenderWidth() / Math.max(1, eng.getRenderHeight());
+    const wide = Math.max(0, Math.min(1, (aspect - 0.6) / 0.7));
+    const boom = this.boom * (1 + 0.2 * (1 - wide));
+    let shoulderOff = 0.42 * this.shoulder * wide;
     const ts = this.session.phys.raycast(pp.x, pp.z, pp.x + right.x * shoulderOff * 1.4, pp.z + right.z * shoulderOff * 1.4, ['wall', 'door']);
     shoulderOff *= Math.max(0, ts - 0.2);
     const pivot = new Vector3(pp.x + right.x * shoulderOff, crouch ? 1.15 : 1.55, pp.z + right.z * shoulderOff);
     if (s.player.mode === 'sleeping' || (s.player.mode === 'acting' && VERB_POSE[s.player.action?.verb ?? ''] === 'lie')) pivot.y = 1.0;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const dir = new Vector3(sy * cp, -sp, cy * cp);
-    const desired = pivot.subtract(dir.scale(this.boom));
+    const desired = pivot.subtract(dir.scale(boom));
     const t = this.session.phys.raycast(pivot.x, pivot.z, desired.x, desired.z, ['wall', 'door']);
     const dXZ = Math.hypot(desired.x - pivot.x, desired.z - pivot.z) || 1e-3;
-    let target = this.boom;
+    let target = boom;
     if (t < 1) target = Math.max(0.35, (t * dXZ - 0.25) / Math.max(cp, 0.2));
     // co nhanh, giãn mềm
     this.curBoom = target < this.curBoom ? target : this.curBoom + (target - this.curBoom) * Math.min(1, dt * 3);

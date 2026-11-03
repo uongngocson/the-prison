@@ -16,6 +16,8 @@ export interface HudSnapshot {
   action: { label: string; progress: number; canSkip: boolean } | null;
   mode: string; money: string; lifeBadges: number; tutorial: string | null; waypoint: { label: string; dist: number; dir: number } | null;
   saveStatus: string; paused: boolean; fps: number;
+  /** CR-TIME-01: đang theo giờ chung của phòng trực tuyến; giờ thức nếu đang ngủ trực tuyến. */
+  shared: boolean; sleepWake: string | null;
 }
 export interface Toast { id: string; text: string; severity: NotificationEntry['severity']; persistent?: boolean; at: number }
 

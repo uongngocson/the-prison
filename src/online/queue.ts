@@ -50,13 +50,19 @@ class Gate {
   private admits: number[] = [];
   private lastQueued = new Set<string>();
   cap = ONLINE_CAP;
+  private baseCap = ONLINE_CAP;
   constructor() {
     // kiểm thử: localStorage 'mnm.debugGate' = {"cap":1,"lobby":"mnm:lobby-e2e"} — chỉ được GIẢM giới hạn, không vượt ONLINE_CAP
     try {
       const d = JSON.parse(localStorage.getItem('mnm.debugGate') ?? 'null') as { cap?: number; lobby?: string } | null;
-      if (d?.cap && d.cap > 0) this.cap = Math.min(ONLINE_CAP, Math.floor(d.cap));
+      if (d?.cap && d.cap > 0) this.cap = this.baseCap = Math.min(ONLINE_CAP, Math.floor(d.cap));
       if (d?.lobby && /^mnm:lobby-[a-z0-9-]{1,40}$/.test(d.lobby)) this.lobby = d.lobby;
     } catch { /* ignore */ }
+  }
+  /** Giới hạn do admin đặt (app_config.online.cap) — chỉ được giảm, không vượt ONLINE_CAP. */
+  setRemoteCap(n: number) {
+    this.cap = Math.max(1, Math.min(this.baseCap, Math.floor(n) || this.baseCap));
+    useGate.getState().set({ cap: this.cap });
   }
   /** Tên kênh sảnh (script kiểm thử dùng kênh riêng để không ảnh hưởng người chơi thật). */
   lobby = 'mnm:lobby';

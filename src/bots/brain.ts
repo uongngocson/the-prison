@@ -1,6 +1,8 @@
 // Logic quyết định của bạn tù (thuần — không mạng, không 3D) để test được và tái dùng cho trang admin.
 import type { ChatScope } from '../online/protocol';
 import type { Persona } from './personas';
+import type { ZoneId } from '../domain/types';
+import type { BotActivity } from './prompt';
 
 export const BOT_RULES = {
   /** Khoảng cách bắt đầu để ý người chơi (m). */
@@ -65,4 +67,24 @@ export function shouldApproach(p: Persona, dist: number, botsOnPlayer: number, l
   if (botsOnPlayer >= BOT_RULES.maxBotsPerPlayer) return false;
   if (lastGreetAt !== undefined && now - lastGreetAt < BOT_RULES.regreetMs) return false;
   return rand < p.sociable * 0.35;
+}
+
+// ---------- CR-TIME-01: lịch sinh hoạt chung của bạn tù ----------
+export interface BotPlan { activity: BotActivity; zones: ZoneId[]; social: boolean; pose: 'idle' | 'sit' | 'eat' | 'exercise' | 'read' }
+const H = (h: number, m = 0) => h * 60 + m;
+/** Bạn tù ở đâu, làm gì theo giờ chung (giờ trong ngày 0…1439). Cùng giờ → mọi máy chủ trì cho cùng kết quả. */
+export function botPlan(p: Persona, mod: number, rain: boolean): BotPlan {
+  const h = p.haunts as ZoneId[];
+  if (mod >= H(22) || mod < H(6)) return { activity: 'giờ ngủ', zones: ['L02'], social: false, pose: 'sit' };
+  if (mod < H(6, 30)) return { activity: 'vệ sinh buổi sáng', zones: ['L13'], social: false, pose: 'idle' };
+  if (mod < H(7)) return { activity: 'điểm danh sáng', zones: ['L02'], social: false, pose: 'idle' };
+  if (mod < H(8, 30)) return { activity: 'bữa sáng', zones: ['L05'], social: true, pose: 'eat' };
+  if (mod < H(11, 30)) return { activity: 'giờ lao động, học tập', zones: [h[0] ?? 'L10'], social: true, pose: 'idle' };
+  if (mod < H(13)) return { activity: 'bữa trưa', zones: ['L05'], social: true, pose: 'eat' };
+  if (mod < H(14)) return { activity: 'nghỉ trưa', zones: ['L02'], social: false, pose: 'sit' };
+  if (mod < H(15, 30)) return { activity: 'giờ thư viện, lớp học', zones: [h[1] ?? 'L07'], social: true, pose: 'read' };
+  if (mod < H(17, 30)) return { activity: 'giờ ra sân', zones: [rain ? 'L09' : 'L04'], social: true, pose: p.sociable > 0.7 ? 'exercise' : 'idle' };
+  if (mod < H(19)) return { activity: 'bữa tối', zones: ['L05'], social: true, pose: 'eat' };
+  if (mod < H(21, 30)) return { activity: 'sinh hoạt buổi tối', zones: [h[2] ?? 'L02', 'L02'], social: true, pose: 'sit' };
+  return { activity: 'điểm danh tối', zones: ['L02'], social: false, pose: 'idle' };
 }

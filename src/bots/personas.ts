@@ -41,3 +41,27 @@ export const PERSONA_BY_ID: Record<string, Persona> = Object.fromEntries(PERSONA
 export const botPeerId = (p: Persona) => `p_${p.id}x7q`;
 export const personaOfPeer = (peerId: string) => PERSONAS.find((p) => botPeerId(p) === peerId) ?? null;
 export const personasInRoom = (room: string) => PERSONAS.filter((p) => p.enabled && p.room === room);
+
+// ---------- Ghi đè từ trang admin (bảng bot_overrides) ----------
+/** Các trường admin được sửa; null/undefined = giữ mặc định trong code. */
+export interface BotOverride { id: string; enabled?: boolean | null; name?: string | null; room?: string | null; sociable?: number | null; personality?: string | null; style?: string | null; background?: string | null }
+export const BOT_EDITABLE = ['enabled', 'name', 'room', 'sociable', 'personality', 'style', 'background'] as const;
+const DEFAULTS: Record<string, Persona> = Object.fromEntries(PERSONAS.map((p) => [p.id, { ...p, interests: [...p.interests] }]));
+export const defaultPersona = (id: string): Persona | undefined => DEFAULTS[id];
+/** Áp danh sách ghi đè lên PERSONAS (luôn tính lại từ mặc định, nên gọi nhiều lần vẫn đúng). */
+export function applyBotOverrides(rows: BotOverride[]) {
+  const by = new Map(rows.map((r) => [r.id, r]));
+  for (const p of PERSONAS) {
+    const d = DEFAULTS[p.id];
+    Object.assign(p, d, { interests: [...d.interests] });
+    const o = by.get(p.id);
+    if (!o) continue;
+    for (const k of BOT_EDITABLE) {
+      const v = o[k];
+      if (v === null || v === undefined) continue;
+      if (k === 'sociable') p.sociable = Math.max(0, Math.min(1, Number(v)));
+      else if (k === 'enabled') p.enabled = !!v;
+      else if (typeof v === 'string' && v.trim()) (p as unknown as Record<string, unknown>)[k] = v.trim();
+    }
+  }
+}

@@ -10,9 +10,10 @@ const report = []; const errors = [];
 const ok = (n, c, x = '') => report.push(`${c ? 'PASS' : 'FAIL'} ${n}${x ? ' — ' + x : ''}`);
 async function player(name, opts, tag) {
   const ctx = await browser.newContext(opts);
+  await ctx.addInitScript(() => new MutationObserver(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.textContent.includes('Vào giờ chung')); d?.querySelector('button.primary')?.click(); }).observe(document, { childList: true, subtree: true })); // CR-TIME-01: tự đồng ý chuyển tới giờ chung
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`[${tag}] ${e.message}`));
-  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1500);
   await page.evaluate((name) => window.__mnm.startNew({ name, appearance: { body: 'medium', skin: 2, hair: 1, hairColor: 0, outfit: 1 }, familyContext: 'family' }), name);
   await page.waitForSelector('text=Thủ tục tiếp nhận', { timeout: 120000 });
   await page.getByRole('button', { name: /Bỏ qua thủ tục/ }).click(); await page.waitForTimeout(600);

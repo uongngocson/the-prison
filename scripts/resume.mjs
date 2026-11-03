@@ -10,9 +10,9 @@ const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 const url = process.argv[2] ?? 'http://127.0.0.1:5174/';
 const ready = () => page.waitForFunction(() => !!window.__mnm?.s && !!window.__mnm?.view && !!document.querySelector('.hud'), null, { timeout: 60000 });
-const reload = async () => { await page.reload(); await ready(); };
+const reload = async () => { await page.reload(); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await ready(); };
 try {
-  await page.goto(url);
+  await page.goto(url); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await page.getByRole('button', { name: /Chơi ngay/ }).click();
   await page.getByRole('button', { name: /Hành trình mới/ }).click();
   await page.getByLabel(/Tên hiển thị/).fill('Khôi phục');
@@ -95,7 +95,7 @@ try {
 
   // Independent tabs do not auto-enter another tab's world.
   const other = await context.newPage();
-  await other.goto(url);
+  await other.goto(url); await other.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await other.getByRole('button', { name: /Chơi ngay/ }).waitFor();
   assert.equal(await other.evaluate(() => window.__mnm.s), null);
   await other.close();
@@ -128,7 +128,7 @@ try {
 
   // A deliberate quit must not auto-resume on the next reload. Durable saves remain.
   await page.evaluate(async () => { const c = window.__mnm; await c.save('slot1'); c.quitToMenu(); });
-  await page.reload();
+  await page.reload(); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await page.getByRole('button', { name: /Chơi ngay/ }).waitFor();
   assert.equal(await page.evaluate(() => window.__mnm.s), null);
   const slots = await page.evaluate(async () => (await import('/src/persistence/localStore.ts')).listSlots());
@@ -145,7 +145,7 @@ try {
     useUI.getState().set({ screen: 'ending', overlay: null });
     c.checkpoint();
   });
-  await page.reload();
+  await page.reload(); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await page.getByRole('button', { name: /Chơi tự do/ }).waitFor({ timeout: 60000 });
   assert.equal(await page.evaluate(() => window.__mnm.s.ended), true);
   const endMinute = await page.evaluate(() => window.__mnm.s.minute);
@@ -156,7 +156,7 @@ try {
 
   // Corrupt journal must provide recovery, not silently start over.
   await page.evaluate(() => { sessionStorage.setItem('mot-ngay-moi:resume:v1', 'corrupt'); sessionStorage.setItem('mot-ngay-moi:resume:v1:previous', 'also corrupt'); });
-  await page.reload();
+  await page.reload(); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await page.getByRole('button', { name: 'Thử lại', exact: true }).waitFor();
   assert.ok(await page.evaluate(() => sessionStorage.getItem('mot-ngay-moi:resume:v1')));
   await page.getByRole('button', { name: 'Về menu', exact: true }).click();

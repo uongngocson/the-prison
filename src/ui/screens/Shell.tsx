@@ -1,5 +1,6 @@
 // U01 Landing, U02 Auth, U04 Menu, U05 Loading, U24 Lobby (P2), U25 Fatal/Recovery, Credits, Ending.
 import { useEffect, useState } from 'react';
+import { SLOGAN } from '../../site/slogan';
 import { useUI } from '../store';
 import { Panel } from '../components';
 import { useDevice } from '../device';
@@ -44,7 +45,7 @@ export function Landing() {
         </nav>
       </header>
       <section className="home-hero">
-        <h1>Một ngày mới</h1>
+        <h1 className="home-slogan">{SLOGAN}</h1>
         <p className="home-lead">Kỷ luật · Học tập · Lao động · Trở về với gia đình</p>
         <div className="home-cta" id="cta">
           <button className="btn primary lg" disabled={!cap.ok} onClick={() => set({ screen: 'menu' })} data-autofocus>▶ Chơi ngay</button>

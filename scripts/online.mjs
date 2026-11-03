@@ -10,10 +10,11 @@ const report = [];
 const ok = (name, cond, extra = '') => { report.push(`${cond ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); };
 async function player(name, opts, tag) {
   const ctx = await browser.newContext(opts);
+  await ctx.addInitScript(() => new MutationObserver(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.textContent.includes('Vào giờ chung')); d?.querySelector('button.primary')?.click(); }).observe(document, { childList: true, subtree: true })); // CR-TIME-01: tự đồng ý chuyển tới giờ chung
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`[${tag}] ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`[${tag}] ${m.text().slice(0, 200)}`); });
-  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1500);
   await page.evaluate((name) => window.__mnm.startNew({ name, appearance: { body: 'medium', skin: name.length % 5, hair: 1, hairColor: 0, outfit: name.length % 3 }, familyContext: 'family' }), name);
   await page.waitForSelector('text=Thủ tục tiếp nhận', { timeout: 120000 });
   await page.getByRole('button', { name: /Bỏ qua thủ tục/ }).click(); await page.waitForTimeout(800);
@@ -27,8 +28,9 @@ try {
   const [ja, jb] = await Promise.all([join(A), join(B)]);
   ok('both players connected', ja && jb, `${ja}/${jb}`);
   // presence
-  await A.page.waitForFunction(() => window.__mnmOnline.peers.size >= 1, null, { timeout: 20000 }).catch(() => {});
-  await B.page.waitForFunction(() => window.__mnmOnline.peers.size >= 1, null, { timeout: 20000 }).catch(() => {});
+  // chờ NGƯỜI CHƠI THẬT (bạn tù có mặt ngay nên không dùng peers.size)
+  await A.page.waitForFunction(() => window.__mnmOnline.realPeers().length >= 1, null, { timeout: 20000 }).catch(() => {});
+  await B.page.waitForFunction(() => window.__mnmOnline.realPeers().length >= 1, null, { timeout: 20000 }).catch(() => {});
   const ids = await Promise.all([A.page.evaluate(() => window.__mnmOnline.id), B.page.evaluate(() => window.__mnmOnline.id)]);
   ok('presence: A sees B', await A.page.evaluate((id) => window.__mnmOnline.peers.has(id), ids[1]));
   ok('presence: B sees A', await B.page.evaluate((id) => window.__mnmOnline.peers.has(id), ids[0]));

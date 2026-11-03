@@ -8,7 +8,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto(URL);
+await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
 await page.waitForFunction(() => !!window.__mnm);
 await page.evaluate(async () => {
   const c = window.__mnm;

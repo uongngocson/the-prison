@@ -6,7 +6,7 @@ for (const [tag, vp] of [['p', { width: 390, height: 844 }], ['l', { width: 844,
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   const shot = (n) => p.screenshot({ path: `${OUT}/${tag}_${n}.png` });
-  await p.goto('http://localhost:5173/'); await p.waitForTimeout(1500);
+  await p.goto('http://localhost:5173/'); await p.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await p.waitForTimeout(1500);
   await shot('01_home');
   await p.getByRole('button', { name: /Chơi ngay/ }).first().click(); await p.waitForTimeout(800); await shot('02_menu');
   await p.getByRole('button', { name: /Hành trình mới/ }).click(); await p.waitForTimeout(2500); await shot('03_create');

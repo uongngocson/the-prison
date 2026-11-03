@@ -3,6 +3,11 @@ import { homeRoom, isConfinedPhase, isVN, windowAt } from '../domain/custody';
 import { online, useOnline } from '../online/client';
 import { gate, useGate } from '../online/queue';
 import { BotHost } from '../bots/host';
+import { config, refreshConfig } from '../config/client';
+import { checkBan, onBan, reportError, setPlayContext, startTelemetry } from '../telemetry/telemetry';
+import { sharedMinuteNow, syncServerTime } from '../online/timeSync';
+import { joinDelta, sharedMinuteOfDay } from '../online/sharedClock';
+import { askClockJump } from '../ui/clockPrompt';
 /** Trong bối cảnh VN, khu ở cũ (L02) được thay bằng khu của buồng đang ở. */
 const vnWhere = (s: GameState, z: ZoneId): ZoneId => (z === 'L02' && isVN(s) ? homeRoom(s)?.zone ?? z : z);
 import { GameSession } from '../simulation/session';
@@ -66,6 +71,19 @@ class Controller {
   async initialize() {
     if (this.initialized) return;
     this.initialized = true;
+    setPlayContext(() => ({ name: this.session?.s.character.name ?? '', mode: online.active ? 'online' : 'offline', peer: online.active ? online.id : '' }));
+    onBan((b) => { if (b.banned && online.active) { void online.disconnect().then(() => gate.release()); useUI.getState().toast({ id: 'online', text: `Bạn đã bị khóa chơi trực tuyến. Lý do: ${b.reason}`, severity: 'warning', persistent: true }); } });
+    startTelemetry();
+    void refreshConfig();
+    // Bảo trì: admin đóng trang khi người chơi đang ở trong game → lưu, rời phòng, tải lại (màn thông báo)
+    setInterval(() => void refreshConfig(50_000).then(async (c) => {
+      if (c.site.open || this.siteClosing || (window as unknown as { __mnmAdminPreview?: boolean }).__mnmAdminPreview) return;
+      this.siteClosing = true;
+      useUI.getState().toast({ id: 'site', text: 'Trò chơi sắp tạm đóng để bảo trì. Đang lưu tiến trình của bạn…', severity: 'warning', persistent: true });
+      try { if (this.session && !this.booting) await this.save('auto'); this.checkpoint(); } catch { /* vẫn chuyển trang */ }
+      try { if (online.active) { this.session?.detachShared(); await online.disconnect(); await gate.release(); } } catch { /* ignore */ }
+      setTimeout(() => location.reload(), 2500);
+    }), 60_000);
     const checkpoint = () => this.checkpoint();
     window.addEventListener('pagehide', checkpoint);
     window.addEventListener('beforeunload', checkpoint);
@@ -73,7 +91,7 @@ class Controller {
       if (document.visibilityState === 'hidden') {
         this.checkpoint();
         if (this.session && !this.booting) void this.save('auto');
-      }
+      } else if (this.session?.shared) void syncServerTime(true);
     });
     // Save selected panels immediately, without rewriting on every HUD update.
     useUI.subscribe((u, prev) => {
@@ -136,9 +154,39 @@ class Controller {
   /** Phòng trực tuyến sẽ vào sau khi tải xong hành trình (từ sảnh Trực tuyến). */
   pendingOnline: string | null = null;
   private botHost: BotHost | null = null;
+  /** Kiểm tra trước khi vào trực tuyến: admin đóng cửa / bị cấm. Trả về lý do (hoặc null nếu được vào). */
+  async onlineAllowed(): Promise<string | null> {
+    const cfg = await refreshConfig(15_000);
+    gate.setRemoteCap(cfg.online.cap);
+    if (!cfg.online.open) return 'Khu trực tuyến đang tạm đóng để bảo trì. Bạn vẫn có thể chơi ngoại tuyến.';
+    // CR-TIME-01: phải đo được giờ máy chủ để mọi người cùng một đồng hồ trại
+    if ((await syncServerTime()) === null) return 'Không đồng bộ được giờ với máy chủ. Kiểm tra kết nối mạng rồi thử lại.';
+    const ban = await checkBan();
+    if (ban.banned) return `Tài khoản của bạn đang bị khóa chơi trực tuyến${ban.until ? ` đến ${new Date(ban.until).toLocaleString('vi-VN')}` : ''}. Lý do: ${ban.reason}`;
+    return null;
+  }
   async joinOnline(room: string, quiet = false) {
     const s = this.session?.s;
     if (!s) return false;
+    const why = await this.onlineAllowed();
+    if (why) { useUI.getState().toast({ id: 'online', text: why, severity: 'warning' }); return false; }
+    if (this.session?.s !== s) return false;
+    // F87: chuyển tới giờ chung — hỏi trước nếu phải bỏ qua hơn 30 phút game (F5 vào lại thì tự động)
+    if (!quiet) {
+      const delta = joinDelta(s.minute, sharedMinuteNow());
+      if (delta > 30) {
+        const target = s.minute + delta;
+        const ok = await askClockJump({ clock: fmtClock(sharedMinuteOfDay(sharedMinuteNow())), fromDay: dayOf(s.minute), toDay: dayOf(target), hours: delta / 60, skipped: this.session!.previewSleep(target) });
+        if (!ok || this.session?.s !== s) return false;
+      }
+    }
+    // bù giờ TRƯỚC khi kết nối, chia nhiều khung (không đứng hình, không làm chậm tín hiệu có mặt)
+    const pre = joinDelta(s.minute, sharedMinuteNow());
+    if (pre > 30 && this.session) {
+      useUI.getState().toast({ id: 'clock', text: 'Đang chuyển tới giờ chung của trại…', severity: 'info' });
+      await this.session.catchUpChunked(pre);
+      if (this.session?.s !== s) return false;
+    }
     // giới hạn 50 người toàn hệ thống: xin chỗ (F5 khi đang chơi = giữ chỗ); nếu đầy thì chờ trong nền, vẫn chơi ngoại tuyến
     const priority = online.savedRoom() === room;
     const waiting = useGate.getState().status !== 'admitted' && !priority;
@@ -148,11 +196,25 @@ class Controller {
     useGate.getState().set({ background: false });
     const ok = await online.connect(room, s.character.name, s.character.appearance, s.character.appearance.outfit);
     if (!ok) void gate.release();
+    if (ok && this.session?.s === s) this.attachClock(room);
     if (ok && waiting && useGate.getState().joinedQueueAt) { audio.cue('chime'); useUI.getState().toast({ id: 'online', text: 'Đến lượt bạn! Đã vào phòng trực tuyến.', severity: 'success' }); return true; }
     if (!(quiet && ok)) useUI.getState().toast({ id: 'online', text: ok ? 'Đã vào phòng trực tuyến. Nhấn T (hoặc nút trò chuyện) để nói chuyện.' : useOnline.getState().error ?? 'Không vào được phòng.', severity: ok ? 'success' : 'warning' });
     return ok;
   }
-  async leaveOnline() { await online.disconnect(); await gate.release(); useUI.getState().toast({ id: 'online', text: 'Đã rời phòng trực tuyến. Bạn vẫn tiếp tục chơi ngoại tuyến.', severity: 'info' }); }
+  /** Gắn đồng hồ chung của phòng vào phiên chơi (F85/F87). */
+  private attachClock(room: string) {
+    const sess = this.session;
+    if (!sess) return;
+    const c = config().clock;
+    this.clockVersion = c.version;
+    const r = sess.attachShared({ room, minute: sharedMinuteNow, dayLengthMin: c.dayLengthMin, clockVersion: c.version });
+    if (r.delta > 2) useUI.getState().toast({ id: 'clock', text: `Đã khớp giờ trại: ${fmtClock(sess.s.minute)}${r.toDay !== r.fromDay ? ` · Ngày ${r.toDay}` : ''}.`, severity: 'info' });
+    this.bump();
+  }
+  private clockVersion = 0;
+  private siteClosing = false;
+  private clockCheckAt = 0;
+  async leaveOnline() { this.session?.detachShared(); await online.disconnect(); await gate.release(); useUI.getState().toast({ id: 'online', text: 'Đã rời phòng trực tuyến. Bạn vẫn tiếp tục chơi ngoại tuyến.', severity: 'info' }); }
   /** Mở ô trò chuyện: nhả chuột/khóa điều khiển trước để không bật Tạm dừng. */
   openChat() {
     if (!online.active) return;
@@ -259,6 +321,27 @@ class Controller {
     this.session = null;
   }
 
+  /** Giữ save khớp giờ chung: bù khoảng trống (tab ẩn), theo cấu hình đồng hồ mới của admin. */
+  private maintainClock(now: number) {
+    const sess = this.session!;
+    if (sess.busyCatchingUp) return;
+    const lag = sess.sharedLag();
+    if (lag > 120) { // tab ẩn lâu: bù chia khung
+      void sess.catchUpChunked(lag).then(() => useUI.getState().toast({ id: 'clock', text: `Đã đồng bộ giờ trại (+${Math.round(lag / 6) / 10} giờ): ${fmtClock(sess.s.minute)}.`, severity: 'info' }));
+      return;
+    }
+    const gap = sess.syncSharedGap();
+    if (gap > 30) useUI.getState().toast({ id: 'clock', text: `Đã đồng bộ giờ trại (+${Math.round(gap / 60 * 10) / 10} giờ): ${fmtClock(sess.s.minute)}.`, severity: 'info' });
+    if (now - this.clockCheckAt < 30_000) return;
+    this.clockCheckAt = now;
+    void refreshConfig(60_000).then((c) => {
+      if (!sess.shared || c.clock.version === this.clockVersion) return;
+      const room = sess.shared.room;
+      this.attachClock(room); // admin đổi tốc độ / đẩy giờ: khớp lại (chỉ tiến)
+    });
+    void syncServerTime();
+  }
+
   private lastLoopErr = 0;
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
@@ -270,15 +353,19 @@ class Controller {
     if (!sess || !view || view.contextLost) return;
     const ui = useUI.getState();
     const modal = ui.overlay !== null || ui.dialogue !== null || ui.fatal !== null;
-    sess.paused = modal || ui.screen !== 'game'; // Ending/loading must not advance the world either.
+    // Trực tuyến: mở panel/hội thoại KHÔNG dừng đồng hồ chung (F88); ngoại tuyến giữ nguyên
+    if (sess.shared && !online.active) sess.detachShared(); // mất kết nối/bị đưa ra → về đồng hồ riêng
+    else if (!sess.shared && online.active && ui.screen === 'game' && !this.booting && useOnline.getState().room) this.attachClock(useOnline.getState().room!); // nạp save khác khi vẫn ở trong phòng
+    sess.paused = (modal && !sess.shared) || ui.screen !== 'game'; // Ending/loading must not advance the world either.
+    if (sess.shared && ui.screen === 'game') this.maintainClock(now);
     const typing = useOnline.getState().typing;
     view.setGameplayInput(!modal && !typing && ui.screen === 'game');
     // Trực tuyến: gửi vị trí (kể cả khi panel đang mở) — NPC/thế giới vẫn giả lập cục bộ
     if (online.active && ui.screen === 'game') { const p = sess.s.player; online.tick(now, { x: p.pos.x, z: p.pos.z, yaw: p.yaw, zone: p.zone, pose: view.lastPose }); }
     // bạn tù: chỉ máy chủ trì của phòng mô phỏng (bầu tự động; người khác chỉ hiển thị)
     const room = useOnline.getState().room;
-    if (room && online.isBotHost()) {
-      this.botHost ??= new BotHost({ phys: sess.phys, me: () => ({ id: online.id, name: sess.s.character.name, x: sess.s.player.pos.x, z: sess.s.player.pos.z, zone: sess.s.player.zone }) });
+    if (room && online.isBotHost() && config().bots.enabled) {
+      this.botHost ??= new BotHost({ phys: sess.phys, me: () => ({ id: online.id, name: sess.s.character.name, x: sess.s.player.pos.x, z: sess.s.player.pos.z, zone: sess.s.player.zone }), clock: () => (this.session?.shared ? { mod: sharedMinuteOfDay(sharedMinuteNow()), rain: this.session.s.world.weather === 'rain' } : null) });
       if (this.botHost.currentRoom !== room) { this.botHost.stop(); this.botHost.start(room); }
       this.botHost.tick();
     } else if (this.botHost?.running) this.botHost.stop();
@@ -292,7 +379,7 @@ class Controller {
       this.hudTimer += dt;
       if (this.hudTimer > 0.25) { this.hudTimer = 0; this.projectHud(); }
     } catch (e) {
-      if (now - this.lastLoopErr > 5000) { this.lastLoopErr = now; console.error('[loop]', e); }
+      if (now - this.lastLoopErr > 5000) { this.lastLoopErr = now; console.error('[loop]', e); reportError('loop', e); }
     }
     // focus prompt updates (10 Hz in sim) — copy reference cheaply
     if (ui.focus !== sess.focus) ui.set({ focus: sess.focus });
@@ -338,7 +425,8 @@ class Controller {
       weather: s.world.weather === 'rain' ? 'Mưa nhẹ' : s.world.weather === 'overcast' ? 'Âm u' : 'Trời quang',
       needs: (['energy', 'hunger', 'hygiene', 'mood'] as const).map((key) => ({ key, label: NEED_LABEL[key], value: Math.round(s.needs[key]), cause: s.needCauses[key] })),
       quest: q && qp ? { id: q.id, title: q.title, objectives: q.objectives.slice(qp.stage, qp.stage + 2).map((o) => ({ text: o.text + (('count' in o.match && o.match.count) ? ` (${qp.counts[o.id] ?? 0}/${o.match.count})` : ''), done: false })), where: q.objectives[qp.stage]?.where ? ZONE_BY_ID[vnWhere(s, q.objectives[qp.stage].where!)].name : undefined } : null,
-      action: a && !a.committed ? { label: verbLabel(a.verb, a.targetId), progress: Math.min(1, a.elapsedMin / a.durationMin), canSkip: true } : null,
+      action: a && !a.committed ? { label: verbLabel(a.verb, a.targetId), progress: Math.min(1, a.elapsedMin / a.durationMin), canSkip: !sess.shared } : null,
+      shared: !!sess.shared, sleepWake: sess.onlineWakeAt !== null ? fmtClock(sess.onlineWakeAt) : null,
       mode: s.player.mode,
       money: fmtMoney(available(s)),
       lifeBadges: counts.unreadLetters + counts.answeredCases + counts.readyOrders + counts.transitions + (counts.incidents ? 1 : 0),

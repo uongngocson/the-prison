@@ -15,7 +15,7 @@ const shot = (n) => page.screenshot({ path: `${OUT}/lab_${tag}_${n}.png` });
 const ev = (fn, arg) => page.evaluate(fn, arg);
 const click = (loc) => (mobile ? loc.tap() : loc.click());
 try {
-  await page.goto(URL); await page.waitForTimeout(1200);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1200);
   await ev(() => window.__mnm.startNew({ name: 'Minh An', appearance: { body: 'medium', skin: 1, hair: 0, hairColor: 0, outfit: 0 }, familyContext: 'family' }));
   await page.waitForSelector('text=Thủ tục tiếp nhận', { timeout: 60000 });
   await click(page.getByRole('button', { name: /Bỏ qua thủ tục/ })); await page.waitForTimeout(1200);

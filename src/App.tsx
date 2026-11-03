@@ -13,7 +13,7 @@ import { TouchControls, RotateHint, useGamepadUI } from './ui/screens/TouchContr
 import { QuickMenu } from './ui/screens/MobileHud';
 import { Setup, CustodyPanel, InCellPanel } from './ui/screens/Custody';
 import { WorkPanel } from './ui/screens/Work';
-import { OnlineLobby, ChatDock, QueueScreen } from './ui/screens/Online';
+import { OnlineLobby, ChatDock, QueueScreen, ClockPrompt } from './ui/screens/Online';
 import { startDeviceWatch } from './ui/device';
 import { audio } from './audio/audio';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -91,6 +91,7 @@ export default function App() {
       {inGame && overlay === 'notifications' && <ErrorBoundary name="notifications"><NotificationsPanel /></ErrorBoundary>}
       {overlay === 'saves' && <ErrorBoundary name="saves"><SavesPanel /></ErrorBoundary>}
       {overlay === 'settings' && <ErrorBoundary name="settings"><SettingsPanel /></ErrorBoundary>}
+      <ErrorBoundary name="clockPrompt" silent><ClockPrompt /></ErrorBoundary>
       {fatal && <Fatal />}
     </>
   );

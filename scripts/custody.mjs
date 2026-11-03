@@ -9,7 +9,7 @@ page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(`[error] ${m.text()}`); });
 const shot = (n) => page.screenshot({ path: `${OUT}/${n}.png` });
 try {
-  await page.goto(URL); await page.waitForTimeout(800);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(800);
   await page.getByRole('button', { name: /Chơi ngay/ }).click(); await page.waitForTimeout(400);
   await page.getByRole('button', { name: /Hành trình mới/ }).click(); await page.waitForTimeout(1500);
   await page.getByLabel(/Tên nhân vật/).fill('Minh An');
@@ -18,7 +18,7 @@ try {
   await page.getByRole('radio', { name: /Thụ án/ }).click();
   await page.getByRole('radio', { name: /^20 năm$/ }).click(); await shot('c02_setup_sentence');
   // reload keeps draft
-  await page.reload(); await page.waitForTimeout(1200);
+  await page.reload(); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1200);
   const kept = await page.evaluate(() => sessionStorage.getItem('mnm.setupDraft'));
   console.log('draft after reload:', kept ? JSON.parse(kept).presetId : null);
   await page.getByRole('button', { name: /Chơi ngay/ }).click().catch(() => {});

@@ -11,7 +11,7 @@ for(const d of [{id:'phone-390',width:390,height:844,touch:true},{id:'phone-land
  const r={id:'TEXT-200',device:d.id,method:'UI controls on settings screen; no gameplay/world fixture',status:'running'};results.push(r);
  const measure=()=>p.evaluate(()=>Object.fromEntries(['.panel-head h2','.panel .tab','.panel-body','.panel .btn'].map(sel=>{const e=document.querySelector(sel);return[sel,e?{text:e.textContent.trim().slice(0,80),fontSize:parseFloat(getComputedStyle(e).fontSize)}:null];})));
  try{
-  await p.goto('http://127.0.0.1:5186',{timeout:120000});await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});
+  await p.goto('http://127.0.0.1:5186',{timeout:120000}); await p.waitForFunction(() => window.__mnm, null, { timeout: 60000 });await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});
   await p.evaluate(async()=>{const {useUI}=await import('/src/ui/store.ts');useUI.getState().set({screen:'menu',overlay:'settings',settingsTab:'access'});});
   const input=p.getByLabel('Cỡ chữ giao diện (số)',{exact:true});await input.waitFor();r.before=await measure();
   await p.screenshot({path:path.join(out,d.id+'-100.png'),timeout:30000});await input.fill('2');await p.waitForTimeout(200);r.after=await measure();

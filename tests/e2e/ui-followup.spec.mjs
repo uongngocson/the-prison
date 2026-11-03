@@ -14,7 +14,7 @@ for(const d of [{id:'phone-390',width:390,height:844,touch:true},{id:'desktop-14
  const save=()=>fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({baseline:'5491081',results},null,2));
  async function test(id,fn){const r={device:d.id,id,status:'running',startedAt:new Date().toISOString()};results.push(r);try{await fn(r);r.status='passed';}catch(e){r.status='failed';r.error=e.message;}r.url=p.url();r.body=await p.locator('body').innerText().catch(()=>null);r.errors=[...errors];r.screenshot=`${d.id}-${id}.png`;await p.screenshot({path:path.join(out,r.screenshot),timeout:30000}).catch(e=>r.evidenceError=e.message);r.finishedAt=new Date().toISOString();save();console.log(d.id+' '+id+' '+r.status);}
  try{
- await p.goto('http://127.0.0.1:5186',{timeout:120000});await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});await p.evaluate(async()=>{window.__auditUI=(await import('/src/ui/store.ts')).useUI;});
+ await p.goto('http://127.0.0.1:5186',{timeout:120000}); await p.waitForFunction(() => window.__mnm, null, { timeout: 60000 });await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});await p.evaluate(async()=>{window.__auditUI=(await import('/src/ui/store.ts')).useUI;});
  await test('F01-valid-import-ready',async r=>{
   await p.evaluate(async()=>{const {useUI}=await import('/src/ui/store.ts');useUI.getState().set({screen:'menu',overlay:'saves'});});
   await p.locator('input[type=file]').setInputFiles(path.resolve('docs/blueprint/evidence/ui-existing-2026-11-02/restart-a/phone-390/save-export.json'));

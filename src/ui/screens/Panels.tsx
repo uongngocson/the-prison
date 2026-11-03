@@ -236,7 +236,7 @@ export function SchedulePanel() {
   const todaysPrograms = s.life.programs.filter((e) => ['enrolled', 'in_progress'].includes(e.state)).map((e) => PROGRAMS.find((p) => p.id === e.programId)!).filter((p) => p.days.includes(dayOfWeek(s.minute)));
   const bookings = s.life.bookings.filter((b) => ['booked', 'waiting'].includes(b.state)).sort((a, b) => a.start - b.start);
   return (
-    <Panel title={`Lịch sinh hoạt — ${WEEKDAY_LABEL[dayOfWeek(s.minute)]}, Ngày ${day}`} onClose={close} footer="Giờ trong game. Một ngày game ≈ 48 phút thực (đổi trong Cài đặt). Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.">
+    <Panel title={`Lịch sinh hoạt — ${WEEKDAY_LABEL[dayOfWeek(s.minute)]}, Ngày ${day}`} onClose={close} footer={controller.session?.shared ? 'Giờ chung của phân khu trực tuyến: mọi người chơi cùng một lịch. Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.' : 'Giờ trong game. Một ngày game ≈ 48 phút thực (đổi trong Cài đặt). Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.'}>
       <table className="tbl sched">
         <thead><tr><th>Giờ</th><th>Hoạt động</th><th>Nơi</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
         <tbody>
@@ -318,10 +318,12 @@ export function SleepPanel() {
   const bed = params.bed ?? currentBed(s) ?? '';
   return (
     <Panel title="Ngủ" onClose={close} width="narrow">
-      <p>Chọn giờ thức dậy. Thời gian sẽ trôi nhanh; năng lượng hồi khoảng 8/giờ.</p>
+      {controller.session?.shared
+        ? <p>Đang chơi trực tuyến: giờ trại <b>không tua</b>. Nhân vật ngủ theo giờ chung, năng lượng hồi nhanh gấp đôi (khoảng 16/giờ); thức dậy bất cứ lúc nào.</p>
+        : <p>Chọn giờ thức dậy. Thời gian sẽ trôi nhanh; năng lượng hồi khoảng 8/giờ.</p>}
       <div className="row">{options.map((t) => <button key={t} className={`btn sm ${wake === t ? 'primary' : ''}`} aria-pressed={wake === t} onClick={() => setWake(t)}>{fmtDayClock(t)}</button>)}</div>
       <p className="small muted">Ngủ {((wake - s.minute) / 60).toFixed(1)} giờ.</p>
-      {preview.length > 0 && <div className="notice small"><b>Sẽ bỏ qua:</b><ul>{preview.map((p, i) => <li key={i}>{p}</li>)}</ul>Điểm danh khi đang ngủ trên giường tại khu phòng ở được tính là có mặt.</div>}
+      {preview.length > 0 && !controller.session?.shared && <div className="notice small"><b>Sẽ bỏ qua:</b><ul>{preview.map((p, i) => <li key={i}>{p}</li>)}</ul>Điểm danh khi đang ngủ trên giường tại khu phòng ở được tính là có mặt.</div>}
       <div className="row" style={{ marginTop: 8 }}>
         <button className="btn primary" onClick={() => { const r = controller.session!.sleep(bed, wake); if (!r.ok) useUI.getState().toast({ id: 'sl', text: r.message!, severity: 'warning' }); controller.bump(); close(); }}>Ngủ</button>
         <button className="btn" onClick={close}>Hủy</button>

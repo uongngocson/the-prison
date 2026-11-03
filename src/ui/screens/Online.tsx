@@ -10,7 +10,9 @@ import { hasAnySave, slotOfLatest } from '../../persistence/localStore';
 import type { SaveEnvelope } from '../../persistence/saveCodec';
 import { GateScene } from './GateScene';
 import { gate, useGate } from '../../online/queue';
-import { BOT_COUNT } from '../../bots/personas';
+import { activeBotCount, refreshConfig } from '../../config/client';
+import { useClockPrompt } from '../clockPrompt';
+import { Panel } from '../components';
 
 // ======================= Sảnh trực tuyến =======================
 /** Hành động sau khi được vào (tiếp tục save / tạo nhân vật) — dùng chung cho sảnh và màn hàng đợi. */
@@ -18,8 +20,8 @@ let afterAdmit: (() => Promise<void>) | null = null;
 
 function CapacityMeter() {
   // hiển thị gồm cả bạn tù luôn trực tuyến; giới hạn 50 vẫn chỉ áp cho người chơi thật
-  const playing = useGate((s) => s.playing) + BOT_COUNT;
-  const cap = useGate((s) => s.cap) + BOT_COUNT;
+  const playing = useGate((s) => s.playing) + activeBotCount();
+  const cap = useGate((s) => s.cap) + activeBotCount();
   const waiting = useGate((s) => s.waiting);
   const full = playing >= cap;
   const pct = Math.min(100, Math.round((playing / cap) * 100));
@@ -43,11 +45,14 @@ export function OnlineLobby() {
   const error = useOnline((s) => s.error);
   const gateErr = useGate((s) => s.error);
   const full = useGate((s) => s.playing >= s.cap);
-  useEffect(() => { hasAnySave().then(setLatest).catch(() => setLatest(null)); void gate.watch(); }, []);
+  const [, setCfgTick] = useState(0);
+  useEffect(() => { hasAnySave().then(setLatest).catch(() => setLatest(null)); void gate.watch(); void refreshConfig().then((c) => { gate.setRemoteCap(c.online.cap); setCfgTick((n) => n + 1); }); }, []);
   const configured = online.configured();
   const go = async () => {
     if (busy) return;
     setBusy(true);
+    const why = await controller.onlineAllowed();
+    if (why) { useUI.getState().toast({ id: 'online', text: why, severity: 'warning' }); setBusy(false); return; }
     const name = latest && useSave ? latest.meta.name : 'Người chơi';
     afterAdmit = async () => {
       controller.pendingOnline = room;
@@ -85,8 +90,7 @@ export function OnlineLobby() {
           {(status === 'error' || status === 'full') && error && <p className="gm-note err" role="alert">{error}</p>}
           {gateErr && <p className="gm-note err" role="alert">{gateErr}</p>}
           <button className="gm-btn primary" disabled={busy || latest === undefined} onClick={go} data-autofocus>{busy ? 'Đang vào…' : full ? 'Vào hàng đợi' : 'Vào phòng'}</button>
-          <p className="ol-rules">Lịch sự · Không chia sẻ số điện thoại, địa chỉ, liên kết · Có thể chặn và báo cáo người chơi.</p>
-          <p className="ol-rules">Phòng có thể có nhân vật do AI điều khiển cùng trò chuyện.</p>
+          <blockquote className="ol-slogan">“Tự do không mất đi trong một ngày — nó mất đi chỉ trong một phút bồng bột.”</blockquote>
         </>}
       </section>
     </main>
@@ -127,10 +131,10 @@ export function QueueScreen() {
           <div className="q-num"><span>Vị trí</span><b>{admitted ? '✓' : g.position || '—'}</b>{!admitted && <em>/ {total}</em>}</div>
         </div>
         <h2 id="q-title">{admitted ? 'Đang vào phòng…' : 'Máy chủ đang đủ người'}</h2>
-        <p className="gm-sub">{admitted ? 'Chuẩn bị nhân vật của bạn.' : `Tối đa ${g.cap + BOT_COUNT} người chơi trực tuyến cùng lúc để giữ trò chuyện mượt. Bạn sẽ tự động vào khi có chỗ trống.`}</p>
+        <p className="gm-sub">{admitted ? 'Chuẩn bị nhân vật của bạn.' : `Tối đa ${g.cap + activeBotCount()} người chơi trực tuyến cùng lúc để giữ trò chuyện mượt. Bạn sẽ tự động vào khi có chỗ trống.`}</p>
         <div className="q-stats">
           <div><span>Phía trước bạn</span><b>{g.ahead}</b></div>
-          <div><span>Đang chơi</span><b>{g.playing + BOT_COUNT}/{g.cap + BOT_COUNT}</b></div>
+          <div><span>Đang chơi</span><b>{g.playing + activeBotCount()}/{g.cap + activeBotCount()}</b></div>
           <div><span>Ước tính</span><b>{g.etaSec ? `~${fmtWait(g.etaSec)}` : 'Đang tính…'}</b></div>
         </div>
         <p className="q-waited">Đã chờ {fmtWait(waited)}</p>
@@ -148,7 +152,7 @@ export function QueueChip({ compact }: { compact?: boolean }) {
   if (g.status !== 'queued' && g.status !== 'checking') return null;
   if (!g.background) return null;
   return (
-    <button className={`ol-chip queue ${compact ? 'compact' : ''}`} onClick={() => useUI.getState().toast({ id: 'queue', text: `Hàng đợi trực tuyến: vị trí ${g.position || '—'}/${g.waiting} · ${g.playing + BOT_COUNT}/${g.cap + BOT_COUNT} đang chơi${g.etaSec ? ` · ~${fmtWait(g.etaSec)}` : ''}. Rời hàng đợi trong menu Tạm dừng.`, severity: 'info' })} aria-label={`Đang xếp hàng trực tuyến, vị trí ${g.position}`}>
+    <button className={`ol-chip queue ${compact ? 'compact' : ''}`} onClick={() => useUI.getState().toast({ id: 'queue', text: `Hàng đợi trực tuyến: vị trí ${g.position || '—'}/${g.waiting} · ${g.playing + activeBotCount()}/${g.cap + activeBotCount()} đang chơi${g.etaSec ? ` · ~${fmtWait(g.etaSec)}` : ''}. Rời hàng đợi trong menu Tạm dừng.`, severity: 'info' })} aria-label={`Đang xếp hàng trực tuyến, vị trí ${g.position}`}>
       <i aria-hidden />{compact ? `Hàng đợi #${g.position || '…'}` : `Hàng đợi trực tuyến · #${g.position || '…'} / ${g.waiting}`}
     </button>
   );
@@ -283,5 +287,23 @@ function People({ peers, onWhisper }: { peers: PeerView[]; onWhisper: (id: strin
       ))}
       {msg && <p className="ol-warn" role="status">{msg}</p>}
     </div>
+  );
+}
+
+// ======================= CR-TIME-01: xác nhận chuyển tới giờ chung =======================
+export function ClockPrompt() {
+  const jump = useClockPrompt((s) => s.jump);
+  const resolve = useClockPrompt((s) => s.resolve);
+  if (!jump || !resolve) return null;
+  return (
+    <Panel title="Vào giờ chung của phân khu" onClose={() => resolve(false)} width="narrow">
+      <p>Giờ trong trại hiện là <b>{jump.clock}</b>. Mọi người trong phòng trực tuyến dùng chung giờ này.</p>
+      <p>Thời gian của bạn sẽ chuyển tới <b>{jump.clock}</b> (khoảng {jump.hours.toFixed(1)} giờ){jump.toDay !== jump.fromDay ? <>, từ <b>Ngày {jump.fromDay}</b> sang <b>Ngày {jump.toDay}</b></> : null}. Khoảng thời gian này được tính là nghỉ ngơi nhẹ: không tính vắng điểm danh.</p>
+      {jump.skipped.length > 0 && <div className="notice small"><b>Các mốc sẽ diễn ra trong lúc chuyển:</b><ul>{jump.skipped.map((t, i) => <li key={i}>{t}</li>)}</ul></div>}
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn primary" data-autofocus onClick={() => resolve(true)}>Vào phòng</button>
+        <button className="btn" onClick={() => resolve(false)}>Ở lại ngoại tuyến</button>
+      </div>
+    </Panel>
   );
 }

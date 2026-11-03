@@ -8,7 +8,7 @@ function devApi(): Plugin {
     apply: 'serve',
     configureServer(server) {
       const env = loadEnv(server.config.mode, process.cwd(), '');
-      if (env.GROQ_API_KEY && !process.env.GROQ_API_KEY) process.env.GROQ_API_KEY = env.GROQ_API_KEY;
+      for (const k of ['GROQ_API_KEY', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']) if (env[k] && !process.env[k]) process.env[k] = env[k];
       server.middlewares.use(async (req, res, next) => {
         const m = req.url?.match(/^\/api\/([a-z0-9/_-]+?)(\?.*)?$/i);
         if (!m) return next();

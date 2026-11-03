@@ -7,8 +7,8 @@ import { zoneAt, zoneCenter } from '../content/world';
 import { online, type Peer } from '../online/client';
 import { RateLimiter, type ChatPacket, type ChatScope, type PeerMeta } from '../online/protocol';
 import { botPeerId, personasInRoom, type Persona } from './personas';
-import { openerLine, type Turn } from './prompt';
-import { BOT_RULES, pickResponder, shouldApproach, typingDelayMs, underReplyBudget, type BotView, type Engagement } from './brain';
+import { openerLine, type BotClock, type Turn } from './prompt';
+import { BOT_RULES, botPlan, pickResponder, shouldApproach, typingDelayMs, underReplyBudget, type BotPlan, type BotView, type Engagement } from './brain';
 
 const WALK = 1.35;
 type Mode = 'idle' | 'walk' | 'approach' | 'talk';
@@ -24,6 +24,8 @@ interface Bot {
   inflight: boolean;
   /** Tin mới nhất đang chờ trả lời (gom tin liên tiếp). */
   token: string;
+  /** Hoạt động theo lịch chung đang theo (đổi → đi tới khu mới). */
+  activity: string;
 }
 
 export interface BotHostDeps {
@@ -31,13 +33,15 @@ export interface BotHostDeps {
   /** Vị trí người chơi trên máy này (máy chủ trì cũng là người chơi thật). */
   me: () => { id: string; name: string; x: number; z: number; zone: ZoneId };
   /** Gọi LLM qua server (mặc định /api/ai/bot). */
-  reply?: (botId: string, player: string, message: string, history: Turn[]) => Promise<string>;
+  reply?: (botId: string, player: string, message: string, history: Turn[], clock?: BotClock | null) => Promise<string>;
+  /** CR-TIME-01: giờ chung của phòng (giờ trong ngày, mưa). Không có → đi dạo tự do như trước. */
+  clock?: () => { mod: number; rain: boolean } | null;
   now?: () => number;
   rand?: () => number;
 }
 
-async function defaultReply(botId: string, player: string, message: string, history: Turn[]): Promise<string> {
-  const res = await fetch('/api/ai/bot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId, player, message, history }) });
+async function defaultReply(botId: string, player: string, message: string, history: Turn[], clock?: BotClock | null): Promise<string> {
+  const res = await fetch('/api/ai/bot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId, player, message, history, clock: clock ?? undefined }) });
   const data = await res.json().catch(() => ({})) as { text?: string };
   return data.text ?? '';
 }
@@ -72,7 +76,7 @@ export class BotHost {
       const known = online.peers.get(botPeerId(p));
       const spawn = known?.target ?? this.randomSpot(p);
       const zone = (zoneAt(spawn.x, spawn.z) ?? (p.haunts[0] as ZoneId)) as ZoneId;
-      return { persona: p, peerId: botPeerId(p), x: spawn.x, z: spawn.z, yaw: 0, zone, pose: 'idle', mode: 'idle', path: [], idleUntil: this.now() + this.rand() * 8000, engaged: null, greeted: new Map(), history: new Map(), pending: null, inflight: false, token: '' };
+      return { persona: p, peerId: botPeerId(p), x: spawn.x, z: spawn.z, yaw: 0, zone, pose: 'idle', mode: 'idle', path: [], idleUntil: this.now() + this.rand() * 8000, engaged: null, greeted: new Map(), history: new Map(), pending: null, inflight: false, token: '', activity: '' };
     });
     online.chatTap = (p) => this.onChat(p);
     this.lastRoster = 0;
@@ -92,11 +96,31 @@ export class BotHost {
   }
 
   // ---------- quyết định ----------
+  /** Kế hoạch theo giờ chung của một bạn tù (null = không có đồng hồ chung → đi dạo tự do). */
+  private plan(b: Bot): BotPlan | null {
+    const c = this.deps.clock?.();
+    return c ? botPlan(b.persona, c.mod, c.rain) : null;
+  }
+  /** Giờ + hoạt động gửi kèm câu hỏi AI để câu trả lời hợp hoàn cảnh. */
+  private clockFor(b: Bot): BotClock | null {
+    const c = this.deps.clock?.();
+    if (!c) return null;
+    const m = Math.floor(c.mod);
+    return { time: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, activity: botPlan(b.persona, c.mod, c.rain).activity };
+  }
+
   private think(now: number) {
     const players = this.players();
     for (const b of this.bots) {
       // gửi câu đã “gõ” xong (trước mọi nhánh khác)
       if (b.pending && now >= b.pending.due) this.flush(b);
+      // CR-TIME-01: đổi hoạt động theo lịch chung → kết thúc bắt chuyện nếu giờ không cho phép, đi tới khu mới
+      const plan = this.plan(b);
+      if (plan && plan.activity !== b.activity) {
+        b.activity = plan.activity;
+        if (!plan.social && b.engaged) { b.engaged = null; b.mode = 'idle'; }
+        if (!b.engaged) { b.idleUntil = 0; if (b.mode === 'walk') b.mode = 'idle'; }
+      }
       // hết hội thoại
       if (b.engaged && now - b.engaged.lastAt > BOT_RULES.engageTimeoutMs) { b.engaged = null; b.mode = 'idle'; b.idleUntil = now + 3000; }
       if (b.engaged) {
@@ -108,8 +132,8 @@ export class BotHost {
         else if (d <= BOT_RULES.talkDistance + 0.6 && b.mode !== 'talk') { b.mode = 'talk'; b.path = []; }
         continue;
       }
-      // bắt chuyện
-      if (b.mode === 'idle' || b.mode === 'walk') {
+      // bắt chuyện (chỉ trong giờ tự do theo lịch)
+      if ((b.mode === 'idle' || b.mode === 'walk') && (!plan || plan.social)) {
         for (const pl of players) {
           const d = Math.hypot(pl.x - b.x, pl.z - b.z);
           const onPlayer = this.bots.filter((x) => x.engaged?.playerId === pl.id || (x.mode === 'approach' && x.engaged?.playerId === pl.id)).length;
@@ -122,7 +146,7 @@ export class BotHost {
         }
       }
       // đi dạo giữa các nơi quen
-      if (!b.engaged && b.mode === 'idle' && now > b.idleUntil) { const spot = this.randomSpot(b.persona); this.goTo(b, { x: spot.x, z: spot.z }, false); }
+      if (!b.engaged && b.mode === 'idle' && now > b.idleUntil) { const spot = this.randomSpot(b.persona, plan); this.goTo(b, { x: spot.x, z: spot.z }, false); }
     }
   }
 
@@ -151,7 +175,7 @@ export class BotHost {
     b.inflight = true;
     const started = this.now();
     let out = '';
-    try { out = (await this.reply(b.persona.id, playerName, text, (b.history.get(playerId) ?? []).slice(0, -1))).trim(); } catch { out = ''; }
+    try { out = (await this.reply(b.persona.id, playerName, text, (b.history.get(playerId) ?? []).slice(0, -1), this.clockFor(b))).trim(); } catch { out = ''; }
     b.inflight = false;
     if (!out || !this.room) return;
     const typed = typingDelayMs(out, this.rand());
@@ -182,7 +206,7 @@ export class BotHost {
     b.mode = approach ? 'approach' : 'walk';
   }
   private move(b: Bot, dt: number) {
-    if (b.mode === 'talk' || b.mode === 'idle' || !b.path.length) { b.pose = b.mode === 'talk' ? 'talk' : 'idle'; if (b.mode !== 'talk' && !b.path.length && b.mode !== 'idle') this.arrive(b); return; }
+    if (b.mode === 'talk' || b.mode === 'idle' || !b.path.length) { b.pose = b.mode === 'talk' ? 'talk' : this.plan(b)?.pose ?? 'idle'; if (b.mode !== 'talk' && !b.path.length && b.mode !== 'idle') this.arrive(b); return; }
     const t = b.path[0];
     const dx = t.x - b.x, dz = t.z - b.z, d = Math.hypot(dx, dz);
     const step = WALK * dt;
@@ -204,10 +228,14 @@ export class BotHost {
       }
       return;
     }
-    b.mode = 'idle'; b.idleUntil = this.now() + 6000 + this.rand() * 20_000;
+    b.mode = 'idle';
+    // theo lịch: ở lại khu của hoạt động lâu hơn (không đi lang thang giữa giờ ăn / điểm danh)
+    const plan = this.plan(b);
+    b.idleUntil = this.now() + (plan ? 20_000 + this.rand() * 40_000 : 6000 + this.rand() * 20_000);
   }
-  private randomSpot(p: Persona): { x: number; z: number } {
-    const z = p.haunts[Math.floor(this.rand() * p.haunts.length)] as ZoneId;
+  private randomSpot(p: Persona, plan: BotPlan | null = null): { x: number; z: number } {
+    const pool = plan ? plan.zones : p.haunts;
+    const z = pool[Math.floor(this.rand() * pool.length)] as ZoneId;
     const c = zoneCenter(z);
     return { x: c.x + (this.rand() - 0.5) * 4, z: c.z + (this.rand() - 0.5) * 3 };
   }
@@ -219,7 +247,7 @@ export class BotHost {
     for (const p of online.realPeers() as Peer[]) if (p.target) list.push({ id: p.meta.id, name: p.meta.name, x: p.target.x, z: p.target.z });
     return list;
   }
-  private views(): BotView[] { return this.bots.map((b) => ({ persona: b.persona, peerId: b.peerId, x: b.x, z: b.z, engagedWith: b.engaged?.playerId ?? null, busy: b.inflight || !!b.pending })); }
+  private views(): BotView[] { return this.bots.map((b) => ({ persona: b.persona, peerId: b.peerId, x: b.x, z: b.z, engagedWith: b.engaged?.playerId ?? null, busy: b.inflight || !!b.pending || this.plan(b)?.social === false })); }
   private publishRoster(now: number) {
     const bots: PeerMeta[] = this.bots.map((b) => ({ v: 1, id: b.peerId, name: b.persona.name, look: b.persona.look, outfit: b.persona.outfit, joinedAt: now - 3_600_000 }));
     online.broadcastBots('bots', { host: online.id, bots, t: now });

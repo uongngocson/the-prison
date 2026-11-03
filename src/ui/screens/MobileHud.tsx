@@ -1,6 +1,7 @@
 // Mobile/touch HUD: compact status (clock + need rings), quest chip, icon nav, single toast, tip pill,
 // and a grid quick-menu sheet. Desktop keeps the full text HUD.
 import { useEffect, useState } from 'react';
+import { SleepBanner } from './Hud';
 import { useUI } from '../store';
 import { useSettings } from '../settings';
 import { controller } from '../../app/controller';
@@ -39,10 +40,11 @@ export function MobileHud() {
   const obj = hud.quest?.objectives[0]?.text;
   return (
     <div className="mhud" aria-hidden={!!overlay}>
+      {hud.sleepWake && !hidden && <SleepBanner wake={hud.sleepWake} />}
       {!hidden && <>
         <button className="m-status" onClick={tap(() => controller.openScreen('schedule'))} aria-label={`${hud.clock}, ${hud.activity}. Mở lịch`}>
           <span className="m-clock">{hud.clock}</span>
-          <span className="m-period">{hud.period}</span>
+          <span className="m-period">{hud.shared ? '⟳ chung' : hud.period}</span>
         </button>
         <div className="m-needs" aria-label="Nhu cầu">
           {hud.needs.map((n) => <Ring key={n.key} value={n.value} icon={NEED_ICON[n.key]} label={n.label} size={34} />)}

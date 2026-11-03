@@ -19,10 +19,10 @@ class Cloud {
   }
   /** Client dùng chung (Realtime cho chế độ Trực tuyến). */
   sb(): Promise<SupabaseClient> { return this.c(); }
-  async signIn(email: string): Promise<{ ok: boolean; message: string }> {
+  async signIn(email: string, redirectPath = ''): Promise<{ ok: boolean; message: string }> {
     try {
       const c = await this.c();
-      const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin } });
+      const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + redirectPath } });
       // Không tiết lộ email có tồn tại hay không (chống account enumeration)
       if (error && error.status === 429) return { ok: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' };
       return { ok: true, message: '' };

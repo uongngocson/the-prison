@@ -15,7 +15,7 @@ for(const [id,width,height,touch] of devices){
  const ui=v=>p.evaluate(async v=>(await import('/src/ui/store.ts')).useUI.getState().set(v),v);
  async function capture(key,screens,setup){const r={device:id,key,screens,method:report.method,status:'running',startedAt:new Date().toISOString()};report.results.push(r);try{await setup();await p.waitForTimeout(200);r.body=await p.locator('body').innerText();r.state=await p.evaluate(async()=>{const u=(await import('/src/ui/store.ts')).useUI.getState();return{screen:u.screen,overlay:u.overlay,loading:u.loading?.stage};});r.screenshot=id+'-'+key+'.png';await p.screenshot({path:path.join(out,r.screenshot),timeout:45000});r.errors=[...errors];r.status='passed';}catch(e){r.status='failed';r.error=e.message;}r.finishedAt=new Date().toISOString();flush();console.log(id+' '+key+' '+r.status);}
  try{
-  await p.goto('http://127.0.0.1:5186',{timeout:120000});await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});
+  await p.goto('http://127.0.0.1:5186',{timeout:120000}); await p.waitForFunction(() => window.__mnm, null, { timeout: 60000 });await p.waitForFunction(()=>window.__mnm?.initialized,null,{timeout:90000});
   await capture('create-preview',['U03'],async()=>{await ui({screen:'create',overlay:null});await p.getByLabel(/Tên nhân vật/).fill('Kiểm Thử Preview');await p.locator('.preview3d canvas, canvas.preview3d').first().waitFor({timeout:90000});await p.waitForTimeout(500);});
   await capture('setup-custody',['U36'],async()=>{await p.getByLabel(/Tên nhân vật/).press('Enter');await p.getByRole('radio',{name:/Thụ án/}).click();await p.getByRole('radio',{name:'20 năm',exact:true}).click();});
   await capture('auth-unconfigured',['U02'],()=>ui({screen:'auth',overlay:null}));

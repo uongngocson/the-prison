@@ -107,7 +107,7 @@ export function TouchControls() {
             <div className="m-label"><b>{acting.label}</b><span>{Math.round(acting.progress * 100)}%</span></div>
             <div className="m-act-row">
               <button className="m-small" onClick={tap(() => controller.onKeyAction('cancel'))} aria-label="Hủy (không nhận kết quả)"><Icon name="close" /></button>
-              <button className="m-main" onClick={tap(() => controller.onKeyAction('skip'))} aria-label="Tua nhanh" style={{ ['--p' as string]: acting.progress } as React.CSSProperties}>
+              <button className="m-main" disabled={!acting.canSkip} onClick={tap(() => controller.onKeyAction('skip'))} aria-label={acting.canSkip ? 'Tua nhanh' : 'Đang thực hiện (giờ chung, không tua)'} style={{ ['--p' as string]: acting.progress } as React.CSSProperties}>
                 <Icon name="forward" size={30} />
               </button>
             </div>

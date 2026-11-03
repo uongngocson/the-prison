@@ -13,7 +13,7 @@ for (const d of DEVICES) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('http://localhost:5173/');
+  await page.goto('http://localhost:5173/'); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/m_${d.name}_landing.png` });
   const playEnabled = await page.getByRole('button', { name: /Chơi ngay/ }).isEnabled();

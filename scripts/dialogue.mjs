@@ -4,7 +4,7 @@ const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto('http://localhost:5173/');
+await page.goto('http://localhost:5173/'); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
 await page.waitForFunction(() => !!window.__mnm);
 await page.evaluate(async () => { await window.__mnm.startNew({ name: 'Thử', appearance: { body: 'broad', skin: 3, hair: 1, hairColor: 0, outfit: 0 }, familyContext: 'none' }); });
 await page.waitForFunction(() => window.__mnm.view);

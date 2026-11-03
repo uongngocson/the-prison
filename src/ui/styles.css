@@ -1066,3 +1066,23 @@ body.dev-touch .joy-knob.on { background: rgba(232,183,122,.75); border-color: #
   .ol-queue .q-num b { font-size: 32px; }
   .ol-queue .gm-sub, .ol-queue .ol-rules { display: none; }
 }
+
+/* CR-TIME-01: giờ chung trực tuyến */
+.clock-shared { margin-left: 8px; font-size: 11px; font-weight: 600; letter-spacing: .2px; vertical-align: middle; padding: 2px 7px; border-radius: 99px; background: rgba(96, 196, 150, .18); color: #8fe0b8; cursor: help; }
+.sleep-banner { position: absolute; left: 50%; top: calc(var(--safe) + 8px); transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; text-align: center; padding: 10px 16px; pointer-events: auto; z-index: 6; max-width: min(420px, calc(100vw - 32px)); }
+.mhud .sleep-banner { top: calc(var(--sat, 0px) + 64px); }
+
+/* Trang chủ: khẩu hiệu thay cho tên game ở giữa màn hình */
+.home-hero h1.home-slogan { font-size: clamp(26px, 4.2vw, 54px); line-height: 1.15; max-width: 18ch; margin-inline: auto; text-wrap: balance; letter-spacing: -.01em; }
+@media (max-width: 600px) { .home-hero h1.home-slogan { font-size: 28px; } }
+
+/* Sảnh trực tuyến: khẩu hiệu cảnh báo */
+.ol-slogan { margin: 2px 0 0; padding: 10px 14px; border-left: 3px solid #e8b77a; border-radius: 0 10px 10px 0; background: rgba(232, 183, 122, .1); color: #f2d3a6; font-style: italic; font-weight: 600; font-size: 14px; line-height: 1.45; text-wrap: balance; }
+.ol-rules.ai { font-size: 11px; opacity: .75; }
+.ol-queue .ol-slogan { display: none; }
+
+/* Game trên điện thoại: không bôi đen/sao chép chữ, không menu nhấn giữ, không chớp xanh khi chạm, không phóng to khi chạm đúp.
+   Ô nhập (tên, chat, email…) vẫn chọn/dán chữ bình thường. */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img, svg, canvas, a { -webkit-user-drag: none; }

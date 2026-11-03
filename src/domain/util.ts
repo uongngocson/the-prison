@@ -46,7 +46,10 @@ export const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > h
 export const MIN_PER_DAY = 1440;
 export const dayOf = (absMinute: number) => Math.floor(absMinute / MIN_PER_DAY) + 1;
 export const minuteOfDay = (absMinute: number) => ((absMinute % MIN_PER_DAY) + MIN_PER_DAY) % MIN_PER_DAY;
-export const dayOfWeek = (absMinute: number) => (dayOf(absMinute) - 1) % 7; // 0 = Thứ Hai hư cấu
+/** CR-TIME-01 (D5): độ lệch thứ của save đang chơi so với lịch chung trực tuyến (0 nếu chưa từng vào phòng). */
+let weekShift = 0;
+export function setWeekShift(n: number) { weekShift = ((Math.round(n) % 7) + 7) % 7; }
+export const dayOfWeek = (absMinute: number) => (dayOf(absMinute) - 1 + weekShift) % 7; // 0 = Thứ Hai hư cấu
 export const absMinuteAt = (day: number, hhmm: number) => (day - 1) * MIN_PER_DAY + Math.floor(hhmm / 100) * 60 + (hhmm % 100);
 export const hm = (h: number, m = 0) => h * 60 + m;
 

@@ -8,9 +8,10 @@ const report = []; const errors = [];
 const ok = (n, c, x = '') => report.push(`${c ? 'PASS' : 'FAIL'} ${n}${x ? ' — ' + x : ''}`);
 async function player(name, opts, tag) {
   const ctx = await browser.newContext(opts);
+  await ctx.addInitScript(() => new MutationObserver(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.textContent.includes('Vào giờ chung')); d?.querySelector('button.primary')?.click(); }).observe(document, { childList: true, subtree: true })); // CR-TIME-01: tự đồng ý chuyển tới giờ chung
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(`[${tag}] ${e.message}`));
-  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1500);
   await page.evaluate((name) => window.__mnm.startNew({ name, appearance: { body: 'medium', skin: 2, hair: 1, hairColor: 0, outfit: 1 }, familyContext: 'family' }), name);
   await page.waitForSelector('text=Thủ tục tiếp nhận', { timeout: 120000 });
   await page.getByRole('button', { name: /Bỏ qua thủ tục/ }).click(); await page.waitForTimeout(800);
@@ -29,7 +30,7 @@ try {
   const before = await B.evaluate(() => ({ minute: window.__mnm.s.minute, pos: window.__mnm.s.player.pos, lines: window.__mnmOnlineUI.getState().lines.filter((l) => !l.system).length }));
   // F5
   const t0 = Date.now();
-  await B.reload();
+  await B.reload(); await B.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await B.waitForFunction(() => window.__mnmOnlineUI?.getState().status === 'online', null, { timeout: 90000 });
   const rejoinMs = Date.now() - t0;
   const after = await B.evaluate(() => ({ id: window.__mnmOnline.id, room: window.__mnmOnlineUI.getState().room, minute: window.__mnm.s.minute, pos: window.__mnm.s.player.pos, lines: window.__mnmOnlineUI.getState().lines.filter((l) => !l.system).map((l) => l.text) }));
@@ -51,7 +52,7 @@ try {
   ok('no duplicate "joined" spam', (await A.evaluate(() => window.__mnmOnlineUI.getState().lines.filter((l) => l.system && l.text.includes('vừa vào')).length)) <= 2);
   // rời chủ động → F5 không tự vào lại
   await B.evaluate(() => window.__mnm.leaveOnline()); await B.waitForTimeout(500);
-  await B.reload(); await B.waitForTimeout(8000);
+  await B.reload(); await B.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await B.waitForTimeout(8000);
   ok('after leaving, F5 stays offline', await B.evaluate(() => window.__mnmOnlineUI.getState().status === 'off'));
 } catch (e) { report.push('FAIL exception ' + e.message.split('\n')[0]); }
 console.log(`ROOM ${ROOM}\n${report.join('\n')}\nERRORS:\n${errors.slice(0, 10).join('\n')}`);

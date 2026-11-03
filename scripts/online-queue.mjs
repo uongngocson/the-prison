@@ -12,9 +12,10 @@ const ok = (n, c, x = '') => report.push(`${c ? 'PASS' : 'FAIL'} ${n}${x ? ' —
 async function ctx(opts, tag, cap = 1) {
   const c = await browser.newContext(opts);
   await c.addInitScript(([lobby, cap]) => { try { localStorage.setItem('mnm.debugGate', JSON.stringify({ cap, lobby })); } catch { /* */ } }, [LOBBY, cap]);
+  await c.addInitScript(() => new MutationObserver(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.textContent.includes('Vào giờ chung')); d?.querySelector('button.primary')?.click(); }).observe(document, { childList: true, subtree: true })); // CR-TIME-01: tự đồng ý chuyển tới giờ chung
   const page = await c.newPage();
   page.on('pageerror', (e) => errors.push(`[${tag}] ${e.message}`));
-  await page.goto(URL); await page.waitForTimeout(1500);
+  await page.goto(URL); await page.waitForFunction(() => window.__mnm, null, { timeout: 60000 }); await page.waitForTimeout(1500);
   return page;
 }
 async function newChar(page, name) {
@@ -58,7 +59,7 @@ try {
   ok('offline play while waiting (game running, still queued)', await B.evaluate(() => !!window.__mnm.session && window.__mnmGateUI.getState().status === 'queued'));
   await B.screenshot({ path: `${OUT}/queue_ingame_chip.png` });
   // F5 khi đang chờ → giữ vị trí
-  await B.reload();
+  await B.reload(); await B.waitForFunction(() => window.__mnm, null, { timeout: 60000 });
   await B.waitForFunction(() => window.__mnmGateUI?.getState().status === 'queued', null, { timeout: 120000 }).catch(() => {});
   await B.waitForTimeout(1500);
   ok('F5 keeps queue position', (await B.evaluate(() => window.__mnmGateUI.getState().position)) === 1, `pos=${await B.evaluate(() => window.__mnmGateUI.getState().position)}`);

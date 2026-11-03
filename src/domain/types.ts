@@ -266,6 +266,8 @@ export interface GameState {
   custody: CustodyState | null;
   /** CR-LAB-01: module lao động (tùy chọn; save cũ thiếu → tạo khi tải, không gán ca). */
   labour?: LabourState;
+  /** CR-TIME-01: lịch của save đã khớp lịch chung trực tuyến (tùy chọn; save cũ không có = chưa từng vào phòng). */
+  online?: { dayShift: number; weekShift: number; clockVersion: number; syncedMinute: number };
   contentVersion: string;
   lineageId: string;
   generation: number;
