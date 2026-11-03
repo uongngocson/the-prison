@@ -8,6 +8,7 @@ import { useTouchUI } from './TouchControls';
 import { MobileHud } from './MobileHud';
 import { CustodyHudLine } from './Custody';
 import { WorkHudCard } from './Work';
+import { OnlineChip, QueueChip } from './Online';
 import { Icon } from '../icons';
 
 export function Hud() {
@@ -47,6 +48,8 @@ export function Hud() {
       {hud.tutorial && !hidden && <div className="tip box" role="note">💡 {hud.tutorial} <button className="btn sm ghost" style={{ pointerEvents: 'auto' }} onClick={() => controller.session?.skipTutorial()}>Bỏ qua hướng dẫn</button></div>}
       {hud.waypoint && !hidden && <div className="waypoint box">➜ {hud.waypoint.label} · {hud.waypoint.dist} m <span style={{ display: 'inline-block', transform: `rotate(${hud.waypoint.dir}rad)` }}>⬆</span></div>}
       <div className="hud-tr">
+        <OnlineChip />
+        <QueueChip />
         {!hidden && <WorkHudCard />}
         {hud.quest && (
           <div className="box">
@@ -118,6 +121,7 @@ export function useVerbHotkeys() {
     const kd = (e: KeyboardEvent) => {
       const ui = useUI.getState();
       if (ui.overlay || ui.dialogue || ui.screen !== 'game') return;
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select')) return;
       const n = Number(e.key);
       if (n >= 2 && n <= 4 && ui.focus) {
         const v = ui.focus.verbs[n - 1];

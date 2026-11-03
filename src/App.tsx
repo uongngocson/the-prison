@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useUI } from './ui/store';
 import { useSettings } from './ui/settings';
 import { controller } from './app/controller';
-import { Landing, Auth, Menu, Loading, Lobby, Credits, Fatal, Ending } from './ui/screens/Shell';
+import { Landing, Auth, Menu, Loading, Credits, Fatal, Ending } from './ui/screens/Shell';
 import { Create } from './ui/screens/Create';
 import { Hud, Dialogue, useVerbHotkeys } from './ui/screens/Hud';
 import { Pause, Inventory, Journal, MapPanel, SchedulePanel, Handbook, SleepPanel, ScenePanel, LibraryPanel, NewsPanel, MenuBoardPanel, NotificationsPanel } from './ui/screens/Panels';
@@ -13,6 +13,7 @@ import { TouchControls, RotateHint, useGamepadUI } from './ui/screens/TouchContr
 import { QuickMenu } from './ui/screens/MobileHud';
 import { Setup, CustodyPanel, InCellPanel } from './ui/screens/Custody';
 import { WorkPanel } from './ui/screens/Work';
+import { OnlineLobby, ChatDock, QueueScreen } from './ui/screens/Online';
 import { startDeviceWatch } from './ui/device';
 import { audio } from './audio/audio';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -61,11 +62,13 @@ export default function App() {
       {screen === 'create' && <Create />}
       {screen === 'setup' && <Setup />}
       {screen === 'loading' && <Loading />}
-      {screen === 'lobby' && <Lobby />}
+      {screen === 'lobby' && <OnlineLobby />}
+      {screen === 'queue' && <QueueScreen />}
       {screen === 'credits' && <Credits />}
       {screen === 'ending' && <Ending />}
       {inGame && <ErrorBoundary name="TouchControls" silent><TouchControls /></ErrorBoundary>}
       {inGame && <ErrorBoundary name="Hud" silent><Hud /></ErrorBoundary>}
+      {inGame && <ErrorBoundary name="chat" silent><ChatDock /></ErrorBoundary>}
       {inGame && <RotateHint />}
       {inGame && <ErrorBoundary name="Dialogue" silent><Dialogue /></ErrorBoundary>}
       {inGame && overlay === 'quickmenu' && <ErrorBoundary name="quickmenu"><QuickMenu /></ErrorBoundary>}

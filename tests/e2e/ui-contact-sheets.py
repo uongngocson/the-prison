@@ -1,12 +1,13 @@
 """Build annotated thumbnail sheets from actual UI evidence; originals stay intact."""
 import json
+import sys
 from pathlib import Path
 from PIL import Image, ImageOps, ImageDraw
 
 root=Path('docs/blueprint/evidence/ui-existing-2026-11-02')
 out=root/'contact-sheets'
 out.mkdir(exist_ok=True)
-for run in sorted(root.glob('restart-*')):
+for run in sorted(root.glob(sys.argv[1] if len(sys.argv)>1 else 'restart-*')):
     report=run/'results.json'
     if not report.exists():
         continue
@@ -31,4 +32,5 @@ for run in sorted(root.glob('restart-*')):
                 draw.text(((i%4)*300+5,y+182),r['id'],fill='black')
                 draw.text(((i%4)*300+5,y+196),r['status'],fill='green' if r['status']=='passed' else 'red')
             sheet.save(out/f'{run.name}-{device}-{start//20+1:02}.jpg',quality=87)
+(out/'README.md').write_text('# Contact sheets\n\nThumbnails are for layout review. Use the original PNG linked in the case register for detail.\n\n'+'\n'.join(f'- [{p.stem}]({p.name})' for p in sorted(out.glob('*.jpg')))+'\n',encoding='utf-8')
 print(str(out))

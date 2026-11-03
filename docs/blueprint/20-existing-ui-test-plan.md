@@ -48,7 +48,17 @@ node tests/e2e/ui-existing.spec.mjs --url http://127.0.0.1:5186 --devices deskto
 
 Không chạy trên dev server có `.env` production. Runner chặn request ngoài localhost. Không gửi email, đăng nhập tài khoản thật hoặc xóa save của người chơi. `--devices` là danh sách ID cách nhau dấu phẩy; mỗi invocation nên có output riêng. `--only` dành debug case với trạng thái chuẩn bị riêng, không phải chạy độc lập mọi case vì suite có dependency.
 
+Để dựng lại đúng baseline: dùng git archive của commit đã pin ra thư mục riêng; giữ nguyên source/lockfile, không chép `.env` hay browser profile. Bản chạy này dùng junction node_modules từ workspace, phiên bản thực và hash lockfile được ghi ở [environment.json](evidence/ui-existing-2026-11-02/environment.json). Khởi động Vite trong thư mục snapshot với `--host 127.0.0.1 --port 5186 --strictPort` rồi chạy spec từ workspace. Không chỉ đổi nhãn commit trong manifest trong khi trỏ vào server có source khác.
+
 Mỗi case có ID, browser/device, method, status, timestamps, actions, trạng thái trước/sau, lỗi/assertion, ảnh PNG, JSON chi tiết. Panel dài có thêm ảnh sau scroll tới cuối. Mỗi context có trace ZIP và log browser/console/network. `results.json` được checkpoint sau từng case; `manifest.json` pin spec hash và commit. Báo cáo tổng hợp không dùng pilot lỗi selector làm bằng chứng bug game.
+
+Bộ bổ sung:
+
+- [ui-followup.spec.mjs](../../tests/e2e/ui-followup.spec.mjs): kiểm độc lập import readiness, tab focus, quick-menu focus và input gamepad tổng hợp. `followup-stable/results.json` giữ cả kết quả pass và fail.
+- [ui-text-scale.spec.mjs](../../tests/e2e/ui-text-scale.spec.mjs): đo computed font ở100%/200%, không chỉ kiểm giá trị cài đặt. Chụp ảnh trước/sau trên phone dọc/ngang và desktop.
+- [ui-state-catalog.spec.mjs](../../tests/e2e/ui-state-catalog.spec.mjs): chụp bổ sung màn auth/lobby/handbook/map/sleep/scene/recovery/ending **trước khi đóng**. Đây là rendered-state fixture, không tính thành hành trình tương tác tự nhiên hoặc cộng vào tổng89 ca chức năng mỗi cấu hình.
+
+Lượt cuối dùng `restart-final`, chạy tuần tự để hạn chế tranh tài nguyên SwiftShader. Các bản spec trước được giữ tại evidence để đối chiếu hash. Fixture loading cuối gọi teardown giống boot thật; helper mở panel đợi boot hoàn tất, reload đợi readiness thay vì chỉ chờ đối tượng view được tạo. Không thay mã nguồn game để làm bài test pass.
 
 ## Quy tắc báo cáo
 

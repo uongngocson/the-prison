@@ -2,6 +2,8 @@
 import { Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight, ParticleSystem, Scene, ShadowGenerator, UniversalCamera, Vector3 } from '@babylonjs/core';
 import { buildWorld, type WorldHandles } from './worldBuilder';
 import { LabourView } from './labourView';
+import { RemotePlayers } from './remotePlayers';
+import { online } from '../online/client';
 import { COSMETIC_OUTFIT, Humanoid, STAFF_OUTFIT, type Held, type Pose } from './characters';
 import { stripe } from './palette';
 import type { GameSession } from '../simulation/session';
@@ -119,6 +121,7 @@ export class GameView {
   attachInput() {
     const kd = (e: KeyboardEvent) => {
       if (!this.gameplayInput) return;
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       const b = this.settings.controls.bindings;
       const code = e.code;
       const act = (Object.keys(b) as ActionName[]).find((k) => b[k] === code);
@@ -260,6 +263,7 @@ export class GameView {
     if (pose === 'lie') { const bed = s.player.action ? PROP_BY_ID[s.player.action.targetId] : null; if (bed) { pr.rotation.y = bed.yaw; pr.position.set(bed.x, 0, bed.z); } }
     this.player.setHeld(m === 'acting' && s.player.action ? LAB_POSE[s.player.action.verb]?.[1] ?? null : null);
     this.player.animate(dt, pose, moving, rm);
+    this.lastPose = moving > 0.2 ? (moving > 2.4 ? 'run' : 'walk') : pose;
     const outfit = s.equipped.outfit ? s.inventory.bag.find((x) => x?.uid === s.equipped.outfit)?.itemId : null;
     this.player.setOutfit(outfit ? COSMETIC_OUTFIT[outfit] ?? 'stripe' : 'stripe');
     // npcs
@@ -276,6 +280,12 @@ export class GameView {
       const np: Pose = rt.talkingWithPlayer ? 'talk' : ACT_POSE[rt.activity] ?? 'idle';
       h.animate(dt, np, rt.activity === 'walking' ? (NPC_BY_ID[id].role === 'staff' ? 1.45 : 1.3) : 0, rm);
     }
+    // Trực tuyến: người chơi khác (chỉ hiển thị khi đang kết nối)
+    if (online.active || online.peers.size) {
+      this.remote ??= new RemotePlayers(this.scene);
+      this.remote.update(dt, online.peers, { x: cam.x, z: cam.z }, this.cullDistance + 10, rm, (id) => online.isBlocked(id));
+      this.remote.updateSelf(online.active ? pp : null, online.myBubble);
+    } else if (this.remote) { this.remote.disposeAll(); this.remote = null; }
     this.updateCamera(dt, pp);
     this.updateEnvironment();
     this.updateDoors(dt);
@@ -417,5 +427,8 @@ export class GameView {
     else if (f > 56 && this.res < this.maxRes) { this.res = Math.min(this.maxRes, this.res + 0.125); this.engine.setHardwareScalingLevel(1 / this.res); this.lowFps = 0; }
     else this.lowFps = 0;
   }
-  dispose() { for (const d of this.disposers) d(); this.scene.dispose(); this.engine.dispose(); }
+  /** Tư thế gần nhất của người chơi (gửi cho người khác ở chế độ Trực tuyến). */
+  lastPose = 'idle';
+  private remote: RemotePlayers | null = null;
+  dispose() { this.remote?.disposeAll(); for (const d of this.disposers) d(); this.scene.dispose(); this.engine.dispose(); }
 }

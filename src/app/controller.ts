@@ -1,5 +1,8 @@
 // Composition root: session + view + persistence + audio + UI projection. Không service locator toàn cục ngoài singleton này.
 import { homeRoom, isConfinedPhase, isVN, windowAt } from '../domain/custody';
+import { online, useOnline } from '../online/client';
+import { gate, useGate } from '../online/queue';
+import { BotHost } from '../bots/host';
 /** Trong bối cảnh VN, khu ở cũ (L02) được thay bằng khu của buồng đang ở. */
 const vnWhere = (s: GameState, z: ZoneId): ZoneId => (z === 'L02' && isVN(s) ? homeRoom(s)?.zone ?? z : z);
 import { GameSession } from '../simulation/session';
@@ -130,6 +133,34 @@ class Controller {
   }
   private hasMobility() { return !!this.session?.s.life.support.some((p) => p.kind === 'functional' && p.state === 'active' && p.flags.includes('mobility')); }
 
+  /** Phòng trực tuyến sẽ vào sau khi tải xong hành trình (từ sảnh Trực tuyến). */
+  pendingOnline: string | null = null;
+  private botHost: BotHost | null = null;
+  async joinOnline(room: string, quiet = false) {
+    const s = this.session?.s;
+    if (!s) return false;
+    // giới hạn 50 người toàn hệ thống: xin chỗ (F5 khi đang chơi = giữ chỗ); nếu đầy thì chờ trong nền, vẫn chơi ngoại tuyến
+    const priority = online.savedRoom() === room;
+    const waiting = useGate.getState().status !== 'admitted' && !priority;
+    if (waiting) useGate.getState().set({ background: true });
+    const admitted = await gate.request(room, s.character.name, online.id, priority);
+    if (!admitted || this.session?.s !== s) return false;
+    useGate.getState().set({ background: false });
+    const ok = await online.connect(room, s.character.name, s.character.appearance, s.character.appearance.outfit);
+    if (!ok) void gate.release();
+    if (ok && waiting && useGate.getState().joinedQueueAt) { audio.cue('chime'); useUI.getState().toast({ id: 'online', text: 'Đến lượt bạn! Đã vào phòng trực tuyến.', severity: 'success' }); return true; }
+    if (!(quiet && ok)) useUI.getState().toast({ id: 'online', text: ok ? 'Đã vào phòng trực tuyến. Nhấn T (hoặc nút trò chuyện) để nói chuyện.' : useOnline.getState().error ?? 'Không vào được phòng.', severity: ok ? 'success' : 'warning' });
+    return ok;
+  }
+  async leaveOnline() { await online.disconnect(); await gate.release(); useUI.getState().toast({ id: 'online', text: 'Đã rời phòng trực tuyến. Bạn vẫn tiếp tục chơi ngoại tuyến.', severity: 'info' }); }
+  /** Mở ô trò chuyện: nhả chuột/khóa điều khiển trước để không bật Tạm dừng. */
+  openChat() {
+    if (!online.active) return;
+    this.view?.setGameplayInput(false);
+    useOnline.getState().set({ chatOpen: true, unread: 0, typing: true });
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+
   async startNew(draft: CharacterDraft) {
     const lineage = `lin_${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
     const state = createNewGame(draft, lineage);
@@ -186,6 +217,10 @@ class Controller {
       audio.setVolumes(st.audio);
       audio.resume();
       useUI.getState().set({ screen: 'game', overlay: isNew ? 'life' : null, lifeTab: 'journey' });
+      // vào phòng: từ sảnh Trực tuyến, hoặc tự vào lại sau F5 (cùng tab, cùng mã người chơi)
+      const room = this.pendingOnline ?? online.savedRoom() ?? gate.savedQueueRoom();
+      this.pendingOnline = null;
+      if (room && !online.active) void this.joinOnline(room, !!resume);
       if (isNew) view.setGameplayInput(false);
       if (resume) {
         useUI.getState().set(resume.ui);
@@ -214,6 +249,7 @@ class Controller {
   private onResize = () => this.view?.resize();
 
   teardown() {
+    this.botHost?.stop(); this.botHost = null;
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     this.unsubSettings?.();
@@ -235,7 +271,17 @@ class Controller {
     const ui = useUI.getState();
     const modal = ui.overlay !== null || ui.dialogue !== null || ui.fatal !== null;
     sess.paused = modal || ui.screen !== 'game'; // Ending/loading must not advance the world either.
-    view.setGameplayInput(!modal && ui.screen === 'game');
+    const typing = useOnline.getState().typing;
+    view.setGameplayInput(!modal && !typing && ui.screen === 'game');
+    // Trực tuyến: gửi vị trí (kể cả khi panel đang mở) — NPC/thế giới vẫn giả lập cục bộ
+    if (online.active && ui.screen === 'game') { const p = sess.s.player; online.tick(now, { x: p.pos.x, z: p.pos.z, yaw: p.yaw, zone: p.zone, pose: view.lastPose }); }
+    // bạn tù: chỉ máy chủ trì của phòng mô phỏng (bầu tự động; người khác chỉ hiển thị)
+    const room = useOnline.getState().room;
+    if (room && online.isBotHost()) {
+      this.botHost ??= new BotHost({ phys: sess.phys, me: () => ({ id: online.id, name: sess.s.character.name, x: sess.s.player.pos.x, z: sess.s.player.pos.z, zone: sess.s.player.zone }) });
+      if (this.botHost.currentRoom !== room) { this.botHost.stop(); this.botHost.start(room); }
+      this.botHost.tick();
+    } else if (this.botHost?.running) this.botHost.stop();
     // một lỗi khung hình không được làm đứng HUD/vòng lặp (ghi log có giới hạn)
     try {
       // Đang tải: không vẽ cảnh dựng dở mỗi khung (tốn GPU/CPU, làm chậm loading trên máy yếu)
@@ -359,6 +405,7 @@ class Controller {
       case 'life': ui.set({ overlay: 'life' }); break;
       case 'handbook': ui.open('handbook'); break;
       case 'work': ui.open('work', { view: 'hub' }); break;
+      case 'chat': this.openChat(); break;
       case 'custody': if (isVN(sess.s)) ui.open(isConfinedPhase(sess.s.custody!.phase) ? 'incell' : 'custody'); break;
       case 'cancel': if (sess.s.player.action) sess.cancelAction(); else if (sess.s.player.mode === 'seated') sess.standUp(); break;
       case 'skip': sess.skipAction(); this.bump(); break;
@@ -457,6 +504,8 @@ class Controller {
   }
 
   quitToMenu() {
+    void online.disconnect();
+    void gate.close();
     try { clearResume(window.sessionStorage); } catch { /* Storage may be denied. */ }
     this.teardown();
     useUI.getState().set({ screen: 'menu', overlay: null, dialogue: null, hud: null, focus: null });

@@ -67,7 +67,7 @@ Các liên kết source ở trên trỏ working tree để tiện sửa; căn c�
 | Khởi tạo desktop timeout ban đầu | Harness chờ 4,5 giây quá ngắn cho module/WebGL cold start. Đã tăng timeout setup và chạy retry; không dùng DEVICE-SETUP để kết luận UI hỏng. |
 | Xuất file timeout/unhandled download promise | Harness từng tạo promise download có timeout mặc định ngắn và chỉ await sau click. Đã đổi Promise.all với timeout30 giây, giữ run bị dừng riêng. |
 | S50b đọc state null/lúc loading | Oracle cũ chỉ chờ view được tạo, chưa chờ boot xong. Ca F01-valid-import-ready đã chờ screen=game, có session/view và booting=false; kiểm lại file hợp lệ có episode admitted và số dư được phục hồi. ${fLink('F01-valid-import-ready')} |
-| S54 panel sau reload | Oracle cũ chờ view xuất hiện rồi đợi cố định650ms; view có trước lúc hoàn tất warm stage/restore UI. Một ca fail không đủ khẳng định mất state. Cần kiểm lại khi bootstrap hoàn tất và so sánh state/UI/camera; tham khảo thêm regression resume đã có, không đánh dấu toàn bộ persistence pass từ ảnh. |
+| S54 panel sau reload | Oracle cũ chờ view xuất hiện rồi đợi cố định650ms; view có trước lúc hoàn tất warm stage/restore UI. Lượt cuối đã đợi booting=false rồi so overlay/lifeTab/mode. Không dùng fail ở lượt cũ để kết luận mất state; bài này chưa tự chứng minh đầy đủ camera/durability. |
 | Chuỗi S57→S60 ở lượt trước | Fixture loading cũ giữ renderer cũ chạy trong khi luồng boot thật gọi teardown trước. Đã sửa fixture teardown và chạy lại; không dùng lỗi dây chuyền trong fixture cũ làm lỗi sản phẩm. |
 | S66 gamepad | Main suite có kết quả dao động với giữ/phát nút giả lập. F04 kiểm lại giữ Start đã có lượt pass. Chưa chứng nhận tay cầm vật lý hoặc kết luận lỗi gamepad phổ quát. |
 | Timeout click/fill hoặc fail khác | Giữ lỗi nguyên văn ở results và ảnh; chỉ nâng thành lỗi ứng dụng khi tái hiện được độc lập với readiness/timing. Không tự đổi toàn bộ fail thành pass. |
@@ -78,14 +78,19 @@ Các liên kết source ở trên trỏ working tree để tiện sửa; căn c�
 
 Tám cấu hình là Chrome/Edge cài trên Windows, viewport/touch/DPR giả lập; WebGL2 chạy SwiftShader với profile thấp được chọn qua UI. **Chưa có bằng chứng trên điện thoại/tablet thật, Safari/iOS/WebKit, Firefox, bàn phím ảo/IME, safe-area phần cứng, gamepad thật, NVDA, fullscreen thiết bị thật hoặc hiệu năng GPU thực.** Không dùng lượt này làm benchmark FPS hay chứng nhận WCAG.
 
+Bản chạy là Vite dev server của snapshot, chưa xác minh bundle production hoặc deployment Vercel. Phần lớn nút được kích hoạt bằng Playwright locator.click trong context giả lập touch; ca di chuyển dùng CDP touch riêng. Điều này chưa chứng minh mọi nút/gesture hoạt động bằng ngón tay trên thiết bị thật.
+
 Cloud auth/magic link/Supabase save CAS chưa kiểm với dịch vụ thật vì snapshot không có cấu hình và mọi request ngoài localhost bị chặn. Multiplayer U24 chỉ kiểm trạng thái chưa mở, không phải chơi cùng user khác. Chưa thử tất cả ảnh hưởng của từng mức án/độ dài án qua nhiều ngày, tất cả dialogue branch, mọi nhiệm vụ, cắt điện/browser crash, xóa save thật, mọi phương án thăm gặp/chăm sóc/điều chuyển hoặc hoàn tất journey thật tới ending.
 
 ## Bộ bàn giao và chạy lại
 
 - [Spec chính](../../tests/e2e/ui-existing.spec.mjs), [spec follow-up](../../tests/e2e/ui-followup.spec.mjs).
+- [Spec đo cỡ chữ](../../tests/e2e/ui-text-scale.spec.mjs), [spec ảnh trạng thái trước khi đóng](../../tests/e2e/ui-state-catalog.spec.mjs). Ảnh bổ sung nằm tại [state-catalog](evidence/ui-existing-2026-11-02/state-catalog/results.json), được đánh dấu fixture và không cộng vào89 ca chức năng/cấu hình.
 - [Sổ ca và ảnh](evidence/ui-existing-2026-11-02/README.md), [kết quả tổng hợp](evidence/ui-existing-2026-11-02/coverage.json), [checksum file](evidence/ui-existing-2026-11-02/sha256.json).
+- [Phiên bản môi trường và hash lockfile](evidence/ui-existing-2026-11-02/environment.json), [ảnh tổng quan bố cục](evidence/ui-existing-2026-11-02/contact-sheets/README.md). Thư mục restart-final là đợt chính; pilot/restart-a/b/c chỉ phục vụ điều tra và bị thay thế.
 - Mỗi run/thiết bị có PNG, JSON từng ca, trace.zip và log browser/console/network; panel dài có ảnh cuối vùng cuộn. File export chỉ là dữ liệu nhân vật test tổng hợp.
 - Công cụ dựng sổ: [report-existing-ui.mjs](../../tests/e2e/report-existing-ui.mjs). Dựng ảnh tổng quan: [ui-contact-sheets.py](../../tests/e2e/ui-contact-sheets.py); PNG gốc là bằng chứng chi tiết, thumbnail chỉ để rà bố cục.
+- Kiểm toàn vẹn: [check-ui-evidence.mjs](../../tests/e2e/check-ui-evidence.mjs) xác minh712 ca/8 cấu hình, ảnh/JSON,80 ảnh trạng thái bổ sung,38 mã UI, đường dẫn và SHA256. Pass công cụ này chỉ nghĩa bộ bằng chứng đầy đủ/toàn vẹn, không nghĩa game đạt QA.
 
 Chỉ có thể chốt đạt sau khi sửa lỗi đã xác nhận, chạy lại các ca bị ảnh hưởng, xử lý fail chưa phân loại và bổ sung các môi trường còn thiếu nếu sản phẩm cam kết hỗ trợ. Đợt này không ghi nhận sản phẩm đạt “100% mọi UI trên mọi thiết bị”.
 `;

@@ -4,7 +4,7 @@ import type { NotificationEntry } from '../domain/types';
 import type { NodeView } from '../domain/dialogue';
 import type { FocusTarget } from '../simulation/session';
 
-export type Screen = 'landing' | 'auth' | 'menu' | 'create' | 'setup' | 'loading' | 'game' | 'ending' | 'lobby' | 'fatal' | 'credits';
+export type Screen = 'landing' | 'auth' | 'menu' | 'create' | 'setup' | 'loading' | 'game' | 'ending' | 'lobby' | 'queue' | 'fatal' | 'credits';
 export type Overlay =
   | null | 'pause' | 'inventory' | 'journal' | 'map' | 'schedule' | 'profile' | 'handbook' | 'saves' | 'settings' | 'life'
   | 'quickmenu' | 'custody' | 'incell' | 'work' | 'sleep' | 'scene' | 'library' | 'news' | 'menu_board' | 'notifications';

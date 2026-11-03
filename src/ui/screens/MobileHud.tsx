@@ -9,6 +9,7 @@ import { enterFullscreen, fullscreenSupported, useDevice } from '../device';
 import { audio } from '../../audio/audio';
 import { custodyHud } from './Custody';
 import { WorkHudCard } from './Work';
+import { OnlineChip, QueueChip } from './Online';
 
 const NEED_ICON: Record<string, string> = { energy: 'energy', hunger: 'hunger', hygiene: 'hygiene', mood: 'mood' };
 const tap = (fn: () => void) => () => { audio.resume(); fn(); };
@@ -58,6 +59,7 @@ export function MobileHud() {
             <Icon name="lock" size={14} /><span>{c.phase}</span>
           </button>) : null; })()}
         <WorkHudCard compact />
+        <div className="m-online"><OnlineChip compact /><QueueChip compact /></div>
         {hud.quest && (
           <button className="m-quest" onClick={tap(() => open('journal'))}>
             <b>{hud.quest.title}</b>

@@ -17,6 +17,8 @@ class Cloud {
     this.client ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(URL!, KEY!, { auth: { persistSession: true, autoRefreshToken: true } }));
     return this.client;
   }
+  /** Client dùng chung (Realtime cho chế độ Trực tuyến). */
+  sb(): Promise<SupabaseClient> { return this.c(); }
   async signIn(email: string): Promise<{ ok: boolean; message: string }> {
     try {
       const c = await this.c();
@@ -69,3 +71,5 @@ class Cloud {
 }
 
 export const cloud = new Cloud();
+
+if (typeof window !== 'undefined') (window as unknown as { __mnmCloud: Cloud }).__mnmCloud = cloud;

@@ -942,3 +942,127 @@ body.dev-touch .joy-knob.on { background: rgba(232,183,122,.75); border-color: #
 
 .gm-portrait .gm-bg { bottom: 34%; }
 .gm-portrait .gm-bg::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: linear-gradient(0deg, #0d1416, rgba(13,20,22,0)); }
+
+/* ---------- Chế độ Trực tuyến ---------- */
+.ol-lobby { gap: 10px; }
+.ol-label { align-self: stretch; text-align: left; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
+.ol-rooms { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ol-rooms.two { grid-template-columns: repeat(2, 1fr); }
+.ol-room { display: flex; flex-direction: column; gap: 2px; padding: 10px; min-height: 64px; border-radius: 12px; border: 1px solid #34474a; background: #17282d; color: var(--text); text-align: left; cursor: pointer; }
+.ol-room b { font-size: 15px; }
+.ol-room span { font-size: 12px; color: var(--text-2); }
+.ol-room.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: #1f2f31; }
+.ol-rules { margin: 0; font-size: 12px; color: var(--text-2); }
+.ol-chip { display: inline-flex; align-items: center; gap: 8px; align-self: flex-end; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(127,214,160,.4); background: rgba(16,28,32,.85); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; pointer-events: auto; }
+.ol-chip i { width: 8px; height: 8px; border-radius: 50%; background: #7fd6a0; box-shadow: 0 0 0 3px rgba(127,214,160,.2); }
+.ol-chip.connecting i, .ol-chip.reconnecting i { background: var(--warning); box-shadow: 0 0 0 3px rgba(243,199,108,.2); animation: olpulse 1s infinite alternate; }
+@keyframes olpulse { to { opacity: .35; } }
+.rm .ol-chip i { animation: none; }
+.m-online { position: absolute; top: calc(166px + var(--sat)); left: calc(12px + var(--sal)); pointer-events: auto; }
+.ol-chip.compact { padding: 4px 10px; font-size: 12px; min-height: 30px; }
+/* desktop: dòng xem nhanh + khung chat */
+.ol-peek { position: fixed; left: calc(24px + var(--sal)); bottom: calc(150px + var(--sab)); width: 380px; display: flex; flex-direction: column; gap: 3px; pointer-events: none; z-index: 5; }
+.ol-peek p { margin: 0; padding: 4px 10px; border-radius: 8px; background: rgba(13,20,22,.62); font-size: 14px; color: var(--text); text-shadow: 0 1px 2px rgba(0,0,0,.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-peek p.sys { color: var(--text-2); font-style: italic; }
+.ol-peek b { color: var(--accent); font-weight: 700; }
+.ol-hint { align-self: flex-start; pointer-events: auto; margin-top: 2px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(13,20,22,.7); color: var(--text-2); font-size: 13px; cursor: pointer; }
+.ol-panel { position: fixed; left: calc(24px + var(--sal)); bottom: calc(150px + var(--sab)); width: 400px; height: min(420px, 58vh); display: flex; flex-direction: column; border-radius: 16px; background: rgba(15,25,28,.94); border: 1px solid #2c4246; box-shadow: 0 18px 50px rgba(0,0,0,.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 30; overflow: hidden; }
+.ol-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 0 12px; }
+.ol-tabs { display: flex; gap: 4px; }
+.ol-tabs button { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-2); font-weight: 700; font-size: 14px; cursor: pointer; }
+.ol-tabs button.on { color: var(--text); border-color: var(--accent); }
+.ol-count { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; background: #22383c; font-size: 12px; }
+.ol-x { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 0; background: rgba(255,255,255,.05); color: var(--text); cursor: pointer; }
+.ol-scopes { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #22383c; }
+.ol-scopes button { padding: 5px 12px; min-height: 32px; border-radius: 999px; border: 1px solid #34474a; background: transparent; color: var(--text-2); font-size: 13px; cursor: pointer; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-scopes button.on { background: var(--accent); border-color: var(--accent); color: #1b1b1b; font-weight: 700; }
+.ol-scopes button:disabled { opacity: .4; cursor: not-allowed; }
+.ol-log { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ol-empty { margin: auto; text-align: center; color: var(--text-2); font-size: 14px; }
+.ol-sys { margin: 0; text-align: center; font-size: 12px; color: var(--text-2); }
+.ol-msg { display: flex; flex-direction: column; max-width: 85%; align-self: flex-start; }
+.ol-msg.mine { align-self: flex-end; align-items: flex-end; }
+.ol-meta { font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+.ol-msg.near .ol-meta { color: var(--positive); }
+.ol-msg.whisper .ol-meta { color: #c9a6ff; }
+.ol-text { padding: 8px 12px; border-radius: 14px; border-top-left-radius: 4px; background: #22383c; color: var(--text); font-size: 15px; line-height: 1.4; word-break: break-word; }
+.ol-msg.mine .ol-text { background: #3a4f3f; border-top-left-radius: 14px; border-top-right-radius: 4px; }
+.ol-msg.whisper .ol-text { background: #2f2a40; }
+.ol-quick { display: flex; gap: 6px; overflow-x: auto; padding: 6px 12px 0; scrollbar-width: none; }
+.ol-quick::-webkit-scrollbar { display: none; }
+.ol-quick button { flex: none; padding: 6px 12px; min-height: 34px; border-radius: 999px; border: 1px solid #34474a; background: #17282d; color: var(--text); font-size: 13px; cursor: pointer; }
+.ol-input { display: flex; gap: 8px; padding: 10px 12px; }
+.ol-input input { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #34474a; background: #0d1416; color: var(--text); font-size: 16px; outline: 0; }
+.ol-input input:focus { border-color: var(--accent); }
+.ol-input button { width: 46px; min-height: 44px; display: grid; place-items: center; border-radius: 12px; border: 0; background: var(--accent); color: #1b1b1b; cursor: pointer; }
+.ol-input button:disabled { opacity: .4; cursor: not-allowed; }
+.ol-warn { margin: 0 12px 8px; font-size: 13px; color: var(--warning); }
+.ol-people { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ol-person { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: #17282d; }
+.ol-person.me { background: transparent; }
+.ol-person.me em, .ol-pinfo em { font-style: normal; font-size: 12px; color: var(--text-2); }
+.ol-person.blocked { opacity: .6; }
+.ol-dot { width: 8px; height: 8px; border-radius: 50%; background: #7fd6a0; flex: none; }
+.ol-pinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ol-pinfo b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-pact { display: flex; gap: 6px; }
+.ol-pact button { min-width: 36px; min-height: 36px; padding: 0 10px; display: grid; place-items: center; border-radius: 10px; border: 1px solid #34474a; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; }
+.ol-report { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.ol-report button { padding: 6px 10px; border-radius: 999px; border: 1px solid #5a3a36; background: #2a1f1d; color: #f2c2bb; font-size: 12px; cursor: pointer; }
+/* mobile: nút nổi + bottom sheet */
+.ol-fab { position: fixed; left: calc(12px + var(--sal)); top: calc(204px + var(--sat)); width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--gb); background: var(--glass); color: var(--text); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 6; }
+.ol-fab .m-badge { position: absolute; top: -2px; right: -2px; }
+.ol-panel.sheet { left: 0; right: 0; bottom: 0; width: auto; height: min(68dvh, 520px); border-radius: 18px 18px 0 0; padding-bottom: var(--sab); }
+@media (max-height: 520px) and (orientation: landscape) {
+  .ol-panel.sheet { left: auto; right: calc(var(--sar)); top: 0; height: auto; width: min(420px, 52vw); border-radius: 18px 0 0 18px; }
+  .ol-fab { top: auto; bottom: calc(150px + var(--sab)); }
+  .m-online { top: calc(166px + var(--sat)); }
+}
+@media (max-width: 760px) { .ol-rooms { grid-template-columns: 1fr; } .ol-room { min-height: 52px; } }
+
+/* ---------- Giới hạn người chơi & hàng đợi ---------- */
+.ol-cap { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #17282d; border: 1px solid #2c4246; }
+.ol-cap-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-2); }
+.ol-cap-top span { display: inline-flex; align-items: center; gap: 8px; }
+.ol-cap-top i { width: 8px; height: 8px; border-radius: 50%; background: #7fd6a0; box-shadow: 0 0 0 3px rgba(127,214,160,.18); }
+.ol-cap-top b { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.ol-cap-bar { height: 6px; border-radius: 999px; background: #0d1416; overflow: hidden; }
+.ol-cap-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5fae7e, #7fd6a0); transition: width .4s ease; }
+.ol-cap.busy .ol-cap-bar i { background: linear-gradient(90deg, #c99a5e, var(--warning)); }
+.ol-cap.busy .ol-cap-top i { background: var(--warning); box-shadow: 0 0 0 3px rgba(243,199,108,.18); }
+.ol-cap.full { border-color: rgba(231,160,155,.45); }
+.ol-cap.full .ol-cap-bar i { background: linear-gradient(90deg, #c46a62, var(--error)); }
+.ol-cap.full .ol-cap-top i { background: var(--error); box-shadow: 0 0 0 3px rgba(231,160,155,.18); }
+.ol-cap-wait { font-size: 12px; color: var(--warning); text-align: left; }
+.ol-queue { gap: 10px; }
+.q-ring { position: relative; width: 168px; height: 168px; margin: 4px 0; }
+.q-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.q-track { fill: none; stroke: #22383c; stroke-width: 8; }
+.q-fill { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.q-ring::after { content: ''; position: absolute; inset: 14px; border-radius: 50%; border: 2px solid rgba(229,188,121,.25); animation: qpulse 2.4s ease-in-out infinite; }
+@keyframes qpulse { 0%, 100% { transform: scale(.94); opacity: .2; } 50% { transform: scale(1); opacity: .7; } }
+.rm .q-ring::after { animation: none; }
+.q-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.q-num span { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); }
+.q-num b { font-size: 54px; font-weight: 900; color: var(--text); margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.q-num em { font-style: normal; font-size: 14px; color: var(--text-2); }
+.q-stats { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.q-stats div { display: flex; flex-direction: column; gap: 2px; padding: 10px 6px; border-radius: 12px; background: #17282d; }
+.q-stats span { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
+.q-stats b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.q-waited { margin: 0; font-size: 13px; color: var(--text-2); }
+.ol-chip.queue { border-color: rgba(229,188,121,.5); }
+.ol-chip.queue i { background: var(--accent); box-shadow: 0 0 0 3px rgba(229,188,121,.2); animation: olpulse 1.2s infinite alternate; }
+.rm .ol-chip.queue i { animation: none; }
+.m-online { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+@media (max-width: 760px), (max-height: 520px) {
+  .q-ring { width: 128px; height: 128px; }
+  .q-num b { font-size: 40px; }
+  .q-stats b { font-size: 15px; }
+}
+@media (max-height: 520px) and (min-width: 600px) {
+  .ol-queue { width: min(460px, 56vw); }
+  .ol-queue .q-ring { width: 104px; height: 104px; }
+  .ol-queue .q-num b { font-size: 32px; }
+  .ol-queue .gm-sub, .ol-queue .ol-rules { display: none; }
+}

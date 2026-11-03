@@ -149,10 +149,11 @@ export function Menu() {
   const [latest, setLatest] = useState<SaveEnvelope | null | undefined>(undefined);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   useEffect(() => { hasAnySave().then(setLatest).catch(() => setLatest(null)); }, [overlay]);
-  useEffect(() => { cloud.user().then(setUser).catch(() => setUser(null)); }, []);
+  useEffect(() => { cloud.user().then(setUser).catch(() => setUser(null)); controller.pendingOnline = null; }, []);
   const cont = async () => { const slot = await slotOfLatest(); if (slot) await controller.continueFrom(slot); };
   const items: { icon: string; label: string; go: () => void; primary?: boolean }[] = [
     { icon: 'forward', label: 'Hành trình mới', go: () => set({ screen: 'create' }), primary: !latest },
+    { icon: 'globe', label: 'Chơi trực tuyến', go: () => set({ screen: 'lobby' }) },
     { icon: 'save', label: 'Quản lý save', go: () => open('saves') },
     { icon: 'settings', label: 'Cài đặt', go: () => open('settings') },
   ];

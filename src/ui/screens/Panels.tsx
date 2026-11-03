@@ -18,6 +18,8 @@ import { WEEKDAY_LABEL, absMinuteAt, dayOf, dayOfWeek, fmtClock, fmtDayClock, mi
 import type { ContainerId, ZoneId } from '../../domain/types';
 import { allowedZones, currentGroup, isVN, positionAllowed, reasonText } from '../../domain/custody';
 import { CUSTODY_SCHEDULE } from '../../content/custody';
+import { online } from '../../online/client';
+import { gate, useGate } from '../../online/queue';
 
 const close = () => useUI.getState().open(null);
 const useRev = () => useUI((s) => s.rev);
@@ -39,6 +41,8 @@ export function Pause() {
         <button className="btn" onClick={() => set({ overlay: 'profile', profileTab: 'profile' })}>Hồ sơ, quan hệ, kỹ năng, thành tựu</button>
         {controller.s?.custody && <button className="btn" onClick={() => set({ overlay: 'custody' })}>Chế độ thụ án</button>}
         <button className="btn" onClick={() => useUI.getState().open('work', { view: 'hub' })}>Công việc & phân công</button>
+        {online.active && <button className="btn" onClick={() => { void controller.leaveOnline(); set({ overlay: null }); }}>Rời phòng trực tuyến</button>}
+        {!online.active && ['queued', 'checking'].includes(useGate.getState().status) && <button className="btn" onClick={() => { void gate.close(); controller.pendingOnline = null; set({ overlay: null }); useUI.getState().toast({ id: 'queue', text: 'Đã rời hàng đợi trực tuyến.', severity: 'info' }); }}>Rời hàng đợi trực tuyến</button>}
         <button className="btn" onClick={() => open('notifications')}>Lịch sử thông báo</button>
         <button className="btn" onClick={() => open('handbook')}>Sổ tay & trợ giúp</button>
         <button className="btn" onClick={() => open('settings')}>Cài đặt</button>
