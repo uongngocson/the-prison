@@ -3,20 +3,28 @@
 import type { Appearance } from '../domain/types';
 
 export const PROTOCOL_VERSION = 1;
-export const MAX_PLAYERS_PER_ROOM = 30;
+/** Mỗi phân khu tối đa 100 người; 5 phân khu × 100 = 500 = trần trực tuyến (ONLINE_CAP_MAX). */
+export const MAX_PLAYERS_PER_ROOM = 100;
 export const POS_HZ = 8;
 /** Ngân sách lượt nhận vị trí mỗi giây cho một kênh khu vực. Đo thực tế: dự án chịu ~500–550 lượt nhận/giây (mỗi tin × số người nhận). */
 export const AREA_DELIVERY_BUDGET = 300;
 /** Ngân sách tin gửi mỗi giây cho cả phòng. */
 export const ROOM_SEND_BUDGET = 80;
-export const MIN_POS_HZ = 0.33;
+export const MIN_POS_HZ = 0.2;
+/** Ngân sách toàn dự án (mọi phân khu cộng lại) — mức đo tải ổn định ~500 lượt nhận/giây. Mỗi phòng được phần theo tỉ lệ số người. */
+export const GLOBAL_DELIVERY_BUDGET = 500;
+export const GLOBAL_SEND_BUDGET = 250;
 /** Tần số gửi vị trí cho cả phòng, từ số người ở từng khu vực (biết qua Presence):
  *  Σ nₐ·hz·(nₐ−1) ≤ ngân sách lượt nhận, Σ nₐ·hz ≤ ngân sách gửi, trong khoảng 0,33–8 Hz. */
-export function posHzFor(areaCounts: number[]): number {
+export function posHzFor(areaCounts: number[], globalPlaying = 0): number {
   const pairs = areaCounts.reduce((a, n) => a + n * Math.max(0, n - 1), 0);
   const total = areaCounts.reduce((a, n) => a + n, 0);
   if (pairs === 0) return POS_HZ;
-  return Math.max(MIN_POS_HZ, Math.min(POS_HZ, AREA_DELIVERY_BUDGET / pairs, ROOM_SEND_BUDGET / Math.max(1, total)));
+  // đông người toàn hệ thống: phòng này chỉ dùng phần ngân sách tương ứng tỉ lệ người của nó
+  const share = globalPlaying > total ? total / globalPlaying : 1;
+  const delivery = Math.min(AREA_DELIVERY_BUDGET, GLOBAL_DELIVERY_BUDGET * share);
+  const send = Math.min(ROOM_SEND_BUDGET, GLOBAL_SEND_BUDGET * share);
+  return Math.max(MIN_POS_HZ, Math.min(POS_HZ, delivery / pairs, send / Math.max(1, total)));
 }
 /** Một khu duy nhất có n người (tiện cho test). */
 export const posHz = (players: number) => posHzFor([players]);
@@ -37,6 +45,8 @@ export const ROOMS: RoomDef[] = [
   { id: 'an-binh-1', name: 'Phân khu 1', desc: 'Phòng chung — đông người chơi' },
   { id: 'an-binh-2', name: 'Phân khu 2', desc: 'Phòng chung' },
   { id: 'an-binh-3', name: 'Phân khu 3', desc: 'Phòng yên tĩnh' },
+  { id: 'an-binh-4', name: 'Phân khu 4', desc: 'Phòng chung' },
+  { id: 'an-binh-5', name: 'Phân khu 5', desc: 'Phòng chung' },
 ];
 
 export type ChatScope = 'room' | 'near' | 'whisper';

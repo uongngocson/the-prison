@@ -6,7 +6,7 @@ import type { LiveState } from '../live';
 import { act, notify, Badge, ErrorBox, Loading, PageHead, Toggle, useLoad } from '../ui';
 import type { OpenUser } from '../AdminApp';
 import { ROOMS } from '../../online/protocol';
-import { ONLINE_CAP } from '../../online/queue';
+import { ONLINE_CAP, ONLINE_CAP_DEFAULT } from '../../online/queue';
 import { ClockCard } from '../ClockCard';
 
 export function OnlinePage({ live, showUser }: { live: LiveState; showUser: (u: OpenUser) => void }) {
@@ -23,9 +23,9 @@ export function OnlinePage({ live, showUser }: { live: LiveState; showUser: (u: 
     } catch (e) { notify((e as Error).message, 'bad'); }
   };
   const cfg = useLoad(() => api.configRows(), []);
-  const online = (cfg.data?.find((r) => r.key === 'online')?.value ?? { open: true, cap: ONLINE_CAP }) as { open: boolean; cap: number };
+  const online = (cfg.data?.find((r) => r.key === 'online')?.value ?? { open: true, cap: ONLINE_CAP_DEFAULT }) as { open: boolean; cap: number };
   const [cap, setCap] = useState<number | null>(null);
-  const capValue = cap ?? online.cap ?? ONLINE_CAP;
+  const capValue = cap ?? online.cap ?? ONLINE_CAP_DEFAULT;
   const save = (v: { open: boolean; cap: number }) => void act(() => api.saveConfig('online', v), 'Đã lưu cấu hình trực tuyến').then((ok) => { if (ok) { setCap(null); cfg.reload(); } });
   return (
     <>
@@ -33,7 +33,7 @@ export function OnlinePage({ live, showUser }: { live: LiveState; showUser: (u: 
         <Badge tone={live.connected ? 'ok' : 'warn'}>{live.connected ? 'Đang kết nối' : 'Đang kết nối lại…'}</Badge>
       </PageHead>
       <div className="ad-stats">
-        <Stat label="Người chơi thật" value={`${playing.length}/${online.cap ?? ONLINE_CAP}`} hint="Giới hạn chỉ áp cho người chơi thật" />
+        <Stat label="Người chơi thật" value={`${playing.length}/${online.cap ?? ONLINE_CAP_DEFAULT}`} hint="Giới hạn chỉ áp cho người chơi thật" />
         <Stat label="Đang xếp hàng" value={queued.length} tone={queued.length ? 'warn' : undefined} />
         <Stat label="Bạn tù AI hoạt động" value={bots.length} hint="Chạy trên máy của một người chơi trong phòng" />
         <Stat label="Hiển thị cho người chơi" value={playing.length + bots.length} hint="Người thật + bạn tù" />
@@ -44,8 +44,9 @@ export function OnlinePage({ live, showUser }: { live: LiveState; showUser: (u: 
         {cfg.loading && !cfg.data ? <Loading rows={2} /> : (
           <div className="ad-form-row">
             <label className="ad-inline"><Toggle label="Mở phòng trực tuyến" checked={online.open !== false} onChange={(v) => save({ ...online, open: v })} /><span><b>{online.open !== false ? 'Đang mở' : 'Đang đóng'}</b><small>Khi đóng, người chơi chỉ chơi được ngoại tuyến.</small></span></label>
-            <label className="ad-inline"><span><b>Giới hạn người chơi</b><small>1–{ONLINE_CAP} (đã kiểm thử tải tối đa {ONLINE_CAP})</small></span>
+            <label className="ad-inline"><span><b>Giới hạn người chơi</b><small>1–{ONLINE_CAP} người · mức đã đo tải ổn định: {ONLINE_CAP_DEFAULT}. Trên mức này nên tăng dần và theo dõi trang Lỗi.</small></span>
               <input type="number" min={1} max={ONLINE_CAP} value={capValue} onChange={(e) => setCap(Math.max(1, Math.min(ONLINE_CAP, Number(e.target.value) || 1)))} className="ad-num" />
+              {[50, 100, 200, 500].map((n) => <button key={n} type="button" className={`ad-btn ${capValue === n ? 'primary' : ''}`} onClick={() => setCap(n)}>{n}</button>)}
               <button className="ad-btn primary" disabled={cap === null || cap === online.cap} onClick={() => save({ ...online, cap: capValue })}>Lưu</button>
             </label>
           </div>

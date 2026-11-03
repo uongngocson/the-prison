@@ -3,6 +3,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { cloud } from '../persistence/cloud';
+import { useGate } from './queue';
 import type { Appearance } from '../domain/types';
 import {
   areaOf, BUBBLE_MS, MAX_PLAYERS_PER_ROOM, PEER_TIMEOUT_MS, posHzFor, PROTOCOL_VERSION, RateLimiter, ROOMS, sanitize, sanitizeName, sessionPeerId, shouldReceive,
@@ -210,7 +211,7 @@ class OnlineClient {
     const counts: number[] = new Array(5).fill(0);
     counts[this.area] = 1;
     for (const p of this.peers.values()) if (p.meta.area !== undefined && p.meta.area >= 0 && p.meta.area < 5) counts[p.meta.area]++;
-    if (now - this.lastSent >= 1000 / posHzFor(counts)) {
+    if (now - this.lastSent >= 1000 / posHzFor(counts, useGate.getState().playing)) {
       const pkt: PosPacket = { id: this.id, x: Math.round(me.x * 100) / 100, z: Math.round(me.z * 100) / 100, yaw: Math.round(me.yaw * 100) / 100, zone: me.zone, pose: me.pose, t: Date.now() };
       const sig = `${pkt.x}|${pkt.z}|${pkt.yaw}|${pkt.pose}`;
       if (sig !== this.lastSig || now - this.lastSent > 3000) {

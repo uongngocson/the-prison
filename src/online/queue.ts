@@ -5,8 +5,10 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { cloud } from '../persistence/cloud';
 
-/** Số người chơi trực tuyến đồng thời tối đa (đo tải: dự án Supabase hiện tại ổn định tới ~50). */
-export const ONLINE_CAP = 50;
+/** Trần cứng số người chơi trực tuyến đồng thời — admin chọn trong khoảng 1…ONLINE_CAP (app_config.online.cap). */
+export const ONLINE_CAP = 500;
+/** Giới hạn dùng khi chưa đọc được cấu hình admin (mức đã đo tải ổn định). */
+export const ONLINE_CAP_DEFAULT = 50;
 
 export interface GateMeta { id: string; state: 'playing' | 'queued'; since: number; room: string; name: string }
 export interface QueueView { playing: number; waiting: number; position: number; ahead: number; admit: boolean }
@@ -34,7 +36,7 @@ interface GateUI {
   set: (p: Partial<GateUI>) => void;
 }
 export const useGate = create<GateUI>((set) => ({
-  status: 'idle', room: null, playing: 0, waiting: 0, position: 0, ahead: 0, cap: ONLINE_CAP, etaSec: null, joinedQueueAt: null, background: false, error: null,
+  status: 'idle', room: null, playing: 0, waiting: 0, position: 0, ahead: 0, cap: ONLINE_CAP_DEFAULT, etaSec: null, joinedQueueAt: null, background: false, error: null,
   set: (p) => set(p),
 }));
 
@@ -49,7 +51,7 @@ class Gate {
   /** Thời điểm những người phía trước được vào (để ước tính thời gian chờ). */
   private admits: number[] = [];
   private lastQueued = new Set<string>();
-  cap = ONLINE_CAP;
+  cap = ONLINE_CAP_DEFAULT;
   private baseCap = ONLINE_CAP;
   constructor() {
     // kiểm thử: localStorage 'mnm.debugGate' = {"cap":1,"lobby":"mnm:lobby-e2e"} — chỉ được GIẢM giới hạn, không vượt ONLINE_CAP
@@ -59,9 +61,9 @@ class Gate {
       if (d?.lobby && /^mnm:lobby-[a-z0-9-]{1,40}$/.test(d.lobby)) this.lobby = d.lobby;
     } catch { /* ignore */ }
   }
-  /** Giới hạn do admin đặt (app_config.online.cap) — chỉ được giảm, không vượt ONLINE_CAP. */
+  /** Giới hạn do admin đặt (app_config.online.cap), kẹp trong 1…ONLINE_CAP (hoặc trần kiểm thử nhỏ hơn). */
   setRemoteCap(n: number) {
-    this.cap = Math.max(1, Math.min(this.baseCap, Math.floor(n) || this.baseCap));
+    this.cap = Math.max(1, Math.min(this.baseCap, Math.floor(n) || ONLINE_CAP_DEFAULT));
     useGate.getState().set({ cap: this.cap });
   }
   /** Tên kênh sảnh (script kiểm thử dùng kênh riêng để không ảnh hưởng người chơi thật). */

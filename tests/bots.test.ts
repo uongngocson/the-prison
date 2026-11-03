@@ -11,7 +11,9 @@ describe('personas', () => {
   it('10 fixed identities spread over the 3 rooms, unique ids & names, look like player ids', () => {
     expect(PERSONAS).toHaveLength(BOT_COUNT);
     expect(new Set(PERSONAS.map((p) => p.name)).size).toBe(BOT_COUNT);
-    for (const r of ROOMS) expect(personasInRoom(r.id).length).toBeGreaterThanOrEqual(3);
+    // bạn tù ở 3 phân khu đầu; phân khu 4–5 chỉ mở thêm chỗ khi đông người thật (không có bạn tù)
+    for (const r of ROOMS.slice(0, 3)) expect(personasInRoom(r.id).length).toBeGreaterThanOrEqual(3);
+    for (const r of ROOMS.slice(3)) expect(personasInRoom(r.id)).toHaveLength(0);
     for (const p of PERSONAS) { expect(botPeerId(p)).toMatch(/^p_[a-z0-9]+$/); expect(personaOfPeer(botPeerId(p))).toBe(p); expect(p.name).not.toMatch(/bot|ai/i); }
   });
 });

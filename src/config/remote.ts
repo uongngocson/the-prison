@@ -23,7 +23,7 @@ export function parseConfig(rows: { key: string; value: unknown }[], overrides: 
   const cap = Number(o.cap);
   return {
     bots: { enabled: b.enabled !== false, llm: b.llm !== false },
-    online: { open: o.open !== false, cap: Number.isFinite(cap) && cap >= 1 ? Math.floor(cap) : DEFAULT_CONFIG.online.cap },
+    online: { open: o.open !== false, cap: Number.isFinite(cap) && cap >= 1 ? Math.min(500, Math.floor(cap)) : DEFAULT_CONFIG.online.cap },
     site: parseSite(rows.find((r) => r.key === 'site')?.value),
     clock: rows.some((r) => r.key === 'clock') ? validClock(get('clock') as Partial<ClockConfig>) : DEFAULT_CLOCK,
     overrides: Array.isArray(overrides) ? overrides.filter((r) => r && /^b\d{2}$/.test(r.id)) : [],

@@ -1,6 +1,6 @@
 // Chế độ Trực tuyến — giao thức: lọc nội dung, giới hạn tốc độ, lọc người nhận, kiểm tra gói mạng.
 import { describe, expect, it } from 'vitest';
-import { areaOf, posHz, posHzFor, AREA_DELIVERY_BUDGET, MSG_MAX, NEAR_RADIUS, RateLimiter, sanitize, sanitizeName, shouldReceive, validChat, validPos, type ChatPacket } from '../src/online/protocol';
+import { areaOf, posHz, posHzFor, AREA_DELIVERY_BUDGET, GLOBAL_DELIVERY_BUDGET, GLOBAL_SEND_BUDGET, MAX_PLAYERS_PER_ROOM, MIN_POS_HZ, ROOMS, MSG_MAX, NEAR_RADIUS, RateLimiter, sanitize, sanitizeName, shouldReceive, validChat, validPos, type ChatPacket } from '../src/online/protocol';
 
 const pkt = (p: Partial<ChatPacket>): ChatPacket => ({ id: 'a', mid: 'm1', from: 'a', name: 'An', text: 'Xin chào', scope: 'room', x: 0, z: 0, t: 0, ...p });
 
@@ -60,11 +60,23 @@ describe('packet validation', () => {
 
 describe('bandwidth budget (đo thực tế ~500 lượt nhận/giây)', () => {
   it('position rate keeps per-area deliveries under budget', () => {
-    for (const n of [2, 5, 10, 20, 30]) { const hz = posHz(n); expect(hz).toBeLessThanOrEqual(8); expect(hz).toBeGreaterThanOrEqual(0.33); if (hz > 0.33) expect(n * hz * (n - 1)).toBeLessThanOrEqual(AREA_DELIVERY_BUDGET + 1e-6); }
+    for (const n of [2, 5, 10, 20, 30]) { const hz = posHz(n); expect(hz).toBeLessThanOrEqual(8); expect(hz).toBeGreaterThanOrEqual(MIN_POS_HZ); if (hz > MIN_POS_HZ) expect(n * hz * (n - 1)).toBeLessThanOrEqual(AREA_DELIVERY_BUDGET + 1e-6); }
     const spread = [6, 6, 6, 6, 6]; const hz = posHzFor(spread);
     expect(spread.reduce((a, n) => a + n * hz * (n - 1), 0)).toBeLessThanOrEqual(AREA_DELIVERY_BUDGET + 1e-6);
     expect(30 * hz).toBeLessThanOrEqual(80 + 1e-6);
     expect(posHz(1)).toBe(8);
+  });
+  it('500 người / 5 phân khu: mỗi phòng chỉ dùng phần ngân sách theo tỉ lệ người, tổng gần mức đo tải', () => {
+    expect(ROOMS.length * MAX_PLAYERS_PER_ROOM).toBe(500);
+    const spread = [8, 8, 8, 8, 8]; // 40 người một phòng × 5 phòng = 200 người
+    const hz = posHzFor(spread, 200);
+    const roomDeliveries = spread.reduce((a, n) => a + n * hz * (n - 1), 0);
+    expect(hz).toBeGreaterThan(MIN_POS_HZ);
+    expect(roomDeliveries * 5).toBeLessThanOrEqual(GLOBAL_DELIVERY_BUDGET + 1e-6);
+    expect(40 * hz * 5).toBeLessThanOrEqual(GLOBAL_SEND_BUDGET + 1e-6);
+    expect(hz).toBeLessThan(posHzFor(spread)); // đông toàn hệ thống → gửi thưa hơn
+    expect(posHzFor([20, 20, 20, 20, 20], 500)).toBe(MIN_POS_HZ); // 500 người: chạm sàn tần số (vượt mức đo tải)
+    expect(posHzFor([3, 0, 0, 0, 0], 3)).toBe(posHzFor([3, 0, 0, 0, 0])); // ít người: không đổi
   });
   it('areas split the map with hysteresis at boundaries', () => {
     expect(areaOf(-100)).toBe(0); expect(areaOf(118)).toBe(4);
@@ -74,11 +86,12 @@ describe('bandwidth budget (đo thực tế ~500 lượt nhận/giây)', () => {
   });
 });
 
-import { computeQueue, ONLINE_CAP, type GateMeta } from '../src/online/queue';
-describe('global cap & queue (50 người)', () => {
+import { computeQueue, ONLINE_CAP, ONLINE_CAP_DEFAULT, type GateMeta } from '../src/online/queue';
+describe('global cap & queue (trần 500, mặc định 50)', () => {
   const m = (id: string, state: GateMeta['state'], since: number): GateMeta => ({ id, state, since, room: 'r', name: id });
-  it('cap is 50 and free slots admit in arrival order', () => {
-    expect(ONLINE_CAP).toBe(50);
+  it('trần 500, mặc định 50; free slots admit in arrival order', () => {
+    expect(ONLINE_CAP).toBe(500);
+    expect(ONLINE_CAP_DEFAULT).toBe(50);
     const all = [...Array.from({ length: 49 }, (_, i) => m(`p${i}`, 'playing', i)), m('q1', 'queued', 100), m('q2', 'queued', 200)];
     expect(computeQueue(all, 'q1', 50)).toMatchObject({ playing: 49, waiting: 2, position: 1, ahead: 0, admit: true });
     expect(computeQueue(all, 'q2', 50)).toMatchObject({ position: 2, ahead: 1, admit: false });
@@ -86,6 +99,16 @@ describe('global cap & queue (50 người)', () => {
   it('full server keeps everyone waiting; F5 duplicate counts once', () => {
     const all = [...Array.from({ length: 50 }, (_, i) => m(`p${i}`, 'playing', i)), m('q1', 'queued', 100), m('p0', 'queued', 300)];
     expect(computeQueue(all, 'q1', 50)).toMatchObject({ playing: 50, waiting: 1, admit: false });
+  });
+  it('cap 500: người thứ 500 vào được, người thứ 501 phải chờ', () => {
+    const all = [...Array.from({ length: 499 }, (_, i) => m(`p${i}`, 'playing', i)), m('q1', 'queued', 1000), m('q2', 'queued', 2000)];
+    expect(computeQueue(all, 'q1', ONLINE_CAP).admit).toBe(true);
+    expect(computeQueue(all, 'q2', ONLINE_CAP).admit).toBe(false);
+  });
+  it('cap 500: người thứ 500 vào được, người thứ 501 phải chờ', () => {
+    const all = [...Array.from({ length: 499 }, (_, i) => m(`p${i}`, 'playing', i)), m('q1', 'queued', 1000), m('q2', 'queued', 2000)];
+    expect(computeQueue(all, 'q1', ONLINE_CAP).admit).toBe(true);
+    expect(computeQueue(all, 'q2', ONLINE_CAP).admit).toBe(false);
   });
   it('ties broken deterministically by id', () => {
     const all = [m('b', 'queued', 5), m('a', 'queued', 5)];
