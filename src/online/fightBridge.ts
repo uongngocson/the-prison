@@ -8,7 +8,6 @@ import type { GameView } from '../presentation/gameView';
 import { online } from './client';
 import type { SceneActor } from './protocol';
 import { NPC_BY_ID } from '../content/npcs';
-import { ZONE_BY_ID } from '../content/world';
 import { conflictOutbox, conflictRemote, type OnlineOpponent } from '../domain/conflict';
 import { changeNeed, notify } from '../domain/core';
 import type { Pose } from '../presentation/characters';
@@ -113,7 +112,6 @@ export function fightFrame(sess: GameSession, view: GameView, now: number) {
       break;
     }
   }
-  if (alarm && !sp.alarm) sess.exec((ctx) => notify(ctx, `BÁO ĐỘNG · ${ZONE_BY_ID[alarm!.zone as keyof typeof ZONE_BY_ID]?.name ?? ''} · GET DOWN!`, 'error', 'life'));
   if (!alarm && sp.alarm) { sp.set({ alarm: null, prone: false }); warned = null; }
   else if (alarm && (sp.alarm?.from !== alarm.from)) sp.set({ alarm, prone: false });
   const prone = !!alarm && useSpectator.getState().prone;

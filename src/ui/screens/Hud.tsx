@@ -31,6 +31,7 @@ export function Hud() {
     return () => clearInterval(t);
   }, []);
   if (!hud) return null;
+  if (controller.s?.conflict) return null; // HUD xung đột thay thế toàn bộ HUD thường
   if (touch) return <MobileHud />;
   const hidden = !!overlay || !!controller.s?.conflict; // xung đột: chỉ hiển thị khung xung đột
   return (

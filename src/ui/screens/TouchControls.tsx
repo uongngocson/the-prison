@@ -89,7 +89,7 @@ export function TouchControls() {
   const size = useSettings((s) => s.s.controls.joystickSize);
   const left = useSettings((s) => s.s.controls.leftHanded);
   const [crouch, setCrouch] = useState(false);
-  if (!touch || !hud || overlay || dialogue) return null;
+  if (!touch || !hud || overlay || dialogue || controller.s?.conflict) return null;
   const verbs = focus?.verbs ?? [];
   const first = verbs.find((v) => v.enabled);
   const blocked = !first && verbs[0];

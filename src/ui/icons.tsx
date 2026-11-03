@@ -42,6 +42,15 @@ const P: Record<string, ReactNode> = {
   mood: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14.5a4.5 4.5 0 007 0M9 9.5h.01M15 9.5h.01" /></>,
   arrow: <path d="M12 3l7 16-7-4-7 4z" />,
   chevron: <path d="M9 6l6 6-6 6" />,
+  // ---------- xung đột ----------
+  fist: <><path d="M6 9h11a2 2 0 012 2v3a6 6 0 01-6 6h-2a5 5 0 01-5-5z" /><path d="M9.5 9v4M13 9v4M16.5 9v3.5" /><path d="M6 13.5h3.5" /></>,
+  shield: <path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z" />,
+  shove: <><path d="M3 12h10M9 8l4 4-4 4" /><path d="M16 5v14M20 7v10" /></>,
+  exit: <><path d="M14 4h5v16h-5" /><path d="M10 8l-4 4 4 4M6 12h10" /></>,
+  siren: <><path d="M7 18v-6a5 5 0 0110 0v6" /><path d="M5 21h14v-3H5zM12 2v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4" /></>,
+  peace: <><circle cx="12" cy="12" r="9" /><path d="M12 3v18M12 12l-6.4 6.4M12 12l6.4 6.4" /></>,
+  down: <><circle cx="17" cy="7" r="2" /><path d="M3 17h13l4-4M8 17l3-4" /><path d="M3 21h18" /></>,
+  cuffs: <><circle cx="7" cy="15" r="4" /><circle cx="17" cy="15" r="4" /><path d="M10 12l4 0M7 11V8a2 2 0 014 0M13 8a2 2 0 014 0v3" /></>,
 };
 
 export function Icon({ name, size = 22, className, label }: { name: keyof typeof P | string; size?: number; className?: string; label?: string }) {
