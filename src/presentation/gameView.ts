@@ -265,6 +265,7 @@ export class GameView {
     else if (s.player.crouch) pose = 'crouch';
     const cf = s.conflict;
     if (cf) pose = cf.phase === 'tension' ? (moving > 0.2 ? pose : 'talk') : cf.phase === 'brawl' ? (cf.escaped ? 'idle' : 'fight') : cf.phase === 'restrain' ? (cf.complied ? 'prone_cuffed' : 'fight') : 'cuffed';
+    if (!cf && this.forcePose) pose = this.forcePose;
     if (pose === 'lie') { const bed = s.player.action ? PROP_BY_ID[s.player.action.targetId] : null; if (bed) { pr.rotation.y = bed.yaw; pr.position.set(bed.x, 0, bed.z); } }
     this.player.setHeld(m === 'acting' && s.player.action ? LAB_POSE[s.player.action.verb]?.[1] ?? null : null);
     this.player.animate(dt, pose, moving, rm);
@@ -291,7 +292,7 @@ export class GameView {
     // Trực tuyến: người chơi khác (chỉ hiển thị khi đang kết nối)
     if (online.active || online.peers.size) {
       this.remote ??= new RemotePlayers(this.scene);
-      this.remote.update(dt, online.peers, { x: cam.x, z: cam.z }, this.cullDistance + 10, rm, (id) => online.isBlocked(id));
+      this.remote.update(dt, online.peers, { x: cam.x, z: cam.z }, this.cullDistance + 10, rm, (id) => online.isBlocked(id), online.liveScenes(), this.localOverrides());
       this.remote.updateSelf(online.active ? pp : null, online.myBubble);
     } else if (this.remote) { this.remote.disposeAll(); this.remote = null; }
     this.updateCamera(dt, pp);
@@ -394,6 +395,7 @@ export class GameView {
     if (!f) { ring.setEnabled(false); return; }
     let x = 0, z = 0;
     if (f.kind === 'prop') { const p = PROP_BY_ID[f.id]; x = p.x; z = p.z; }
+    else if (f.kind === 'peer') { const p = online.peers.get(f.id)?.pos; if (!p) { ring.setEnabled(false); return; } x = p.x; z = p.z; }
     else { const n = this.session.s.npcs[f.id]; x = n.pos.x; z = n.pos.z; }
     ring.setEnabled(true);
     ring.position.set(x, 0.03, z);
@@ -443,6 +445,18 @@ export class GameView {
   }
   /** Tư thế gần nhất của người chơi (gửi cho người khác ở chế độ Trực tuyến). */
   lastPose = 'idle';
+  /** Tư thế ép từ bên ngoài (vd. nằm sấp khi báo động của người chơi khác). */
+  forcePose: Pose | null = null;
+  /** Bạn tù AI trực tuyến đang ẩu đả với mình: dựng cục bộ (vị trí sát mình, tư thế theo pha) thay cho dữ liệu máy chủ trì. */
+  private localOverrides(): Map<string, { pose: Pose; x: number; z: number; yaw: number }> {
+    const m = new Map<string, { pose: Pose; x: number; z: number; yaw: number }>();
+    const c = this.session.s.conflict;
+    if (!c || c.opp !== 'bot' || !c.peer || !c.oppPos) return m;
+    const pp = this.session.s.player.pos;
+    const yaw = Math.atan2(pp.x - c.oppPos.x, pp.z - c.oppPos.z);
+    m.set(c.peer.id, { pose: c.phase === 'tension' ? 'talk' : c.phase === 'brawl' ? 'fight' : c.phase === 'restrain' ? 'prone_cuffed' : 'cuffed', x: c.oppPos.x, z: c.oppPos.z, yaw });
+    return m;
+  }
   private remote: RemotePlayers | null = null;
   dispose() { this.remote?.disposeAll(); for (const d of this.disposers) d(); this.scene.dispose(); this.engine.dispose(); }
 }

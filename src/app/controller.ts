@@ -1,4 +1,5 @@
 // Composition root: session + view + persistence + audio + UI projection. Không service locator toàn cục ngoài singleton này.
+import { fightFrame, installFightBridge } from '../online/fightBridge';
 import { homeRoom, isConfinedPhase, isVN, shuOrder, shuWindowAt, windowAt } from '../domain/custody';
 import { online, useOnline } from '../online/client';
 import { gate, useGate } from '../online/queue';
@@ -254,6 +255,7 @@ class Controller {
       await step(0);
       const session = new GameSession(state, this.simSettings(st), { resume: !!resume });
       this.session = session;
+      installFightBridge(session);
       if (resume?.dialogue) session.dialogue = resume.dialogue;
       await step(1);
       if (!this.canvas) throw new Error('Không tìm thấy canvas.');
@@ -362,6 +364,7 @@ class Controller {
     view.setGameplayInput(!modal && !typing && ui.screen === 'game');
     // Trực tuyến: gửi vị trí (kể cả khi panel đang mở) — NPC/thế giới vẫn giả lập cục bộ
     if (online.active && ui.screen === 'game') { const p = sess.s.player; online.tick(now, { x: p.pos.x, z: p.pos.z, yaw: p.yaw, zone: p.zone, pose: view.lastPose }); }
+    if (ui.screen === 'game') { try { fightFrame(sess, view, now); } catch (e) { if (now - this.lastLoopErr > 5000) { this.lastLoopErr = now; reportError('online', e); } } }
     // bạn tù: chỉ máy chủ trì của phòng mô phỏng (bầu tự động; người khác chỉ hiển thị)
     const room = useOnline.getState().room;
     if (room && online.isBotHost() && config().bots.enabled) {
@@ -509,6 +512,7 @@ class Controller {
 
   doVerb(targetId: string, verb: string) {
     const sess = this.session!;
+    if (verb === 'whisper') { useOnline.getState().set({ whisperTo: targetId, scope: 'whisper', chatOpen: true, unread: 0 }); return; }
     const r = sess.interact(targetId, verb);
     const ui = useUI.getState();
     if (!r.ok) { ui.toast({ id: `err_${Date.now()}`, text: r.message ?? 'Không thể thực hiện.', severity: 'warning' }); audio.cue('error'); return; }

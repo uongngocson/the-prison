@@ -6,7 +6,8 @@ import { audio } from '../../audio/audio';
 import { useUI } from '../store';
 import { NPC_BY_ID } from '../../content/npcs';
 import { ZONE_BY_ID } from '../../content/world';
-import { CONFLICT_TIMING, SELF_DEFENSE_MAX_STRIKES, TICKS_PER_SEC, calmChance, conflictChoose } from '../../domain/conflict';
+import { CONFLICT_TIMING, SELF_DEFENSE_MAX_STRIKES, TICKS_PER_SEC, calmChance, conflictChoose, oppName } from '../../domain/conflict';
+import { useSpectator } from '../../online/fightBridge';
 import type { ConflictChoice, ConflictState } from '../../domain/types';
 
 interface Btn { choice: ConflictChoice; key: string; label: string; sub?: string; tone?: 'danger' | 'primary' | 'calm'; disabled?: boolean }
@@ -33,8 +34,8 @@ export function ConflictOverlay() {
     prev.current = { phase: c.phase, alarm: c.alarm, hits: c.npcStrikes, strikes: c.playerStrikes, complied: c.complied };
   });
   const btns: Btn[] = !c || !s ? [] : c.phase === 'tension' ? [
-    { choice: 'leave', key: '1', label: 'Rời đi', sub: c.provokedBy === 'npc' ? 'Có thể bị chặn lại' : 'Kết thúc', tone: 'calm' },
-    { choice: 'calm', key: '2', label: 'Nói hạ nhiệt', sub: `~${Math.round(calmChance(s, c.npcId) * 100)}% thành công`, tone: 'calm' },
+    { choice: 'leave', key: '1', label: 'Rời đi', sub: c.provokedBy === 'npc' && c.opp !== 'peer' ? 'Có thể bị chặn lại' : 'Kết thúc', tone: 'calm' },
+    { choice: 'calm', key: '2', label: 'Nói hạ nhiệt', sub: c.opp === 'peer' ? (c.calmMine ? 'Chờ đối phương đồng ý' : c.calmTheirs ? 'Đối phương muốn bỏ qua' : 'Cần cả hai đồng ý') : `~${Math.round(calmChance(s, c.npcId) * 100)}% thành công`, tone: 'calm', disabled: !!c.calmMine },
     { choice: 'call_staff', key: '3', label: 'Gọi cán bộ', sub: c.provokedBy === 'npc' ? 'Bạn không bị ghi lỗi' : 'Cả hai bị nhắc nhở', tone: 'primary' },
     { choice: 'shove', key: '4', label: 'Xô ra', sub: 'Ra tay', tone: 'danger' },
     { choice: 'strike', key: '5', label: 'Đánh', sub: 'Ra tay', tone: 'danger' },
@@ -59,8 +60,9 @@ export function ConflictOverlay() {
     window.addEventListener('keydown', h, true);
     return () => window.removeEventListener('keydown', h, true);
   }, []);
-  if (!c || !s) return null;
-  const name = NPC_BY_ID[c.npcId]?.name ?? 'Bạn tù';
+  if (!s) return null;
+  if (!c) return <SpectatorAlarmOverlay />;
+  const name = oppName(c);
   const elapsed = (s.tick - c.phaseTick) / TICKS_PER_SEC;
   const total = c.phase === 'tension' ? CONFLICT_TIMING.tension : c.phase === 'brawl' ? CONFLICT_TIMING.brawlMax : c.phase === 'restrain' ? CONFLICT_TIMING.restrain : CONFLICT_TIMING.escort;
   const left = Math.max(0, 1 - elapsed / total);
@@ -124,9 +126,9 @@ export function ConflictReports() {
           <article key={r.id} className="rvr">
             <header><span className="rvr-no">{r.reportNo}</span><b>RULES VIOLATION REPORT · Ẩu đả</b><span className={`status ${tone}`}>{label}</span></header>
             <dl className="kv small">
-              <dt>Đối tượng liên quan</dt><dd>{NPC_BY_ID[r.npcId]?.name ?? r.npcId}</dd>
+              <dt>Đối tượng liên quan</dt><dd>{r.peerName ?? NPC_BY_ID[r.npcId]?.name ?? r.npcId}{r.peerName ? ' (người chơi)' : ''}</dd>
               <dt>Địa điểm</dt><dd>{ZONE_BY_ID[r.zone].name}</dd>
-              <dt>Người ra tay trước</dt><dd>{r.initiator === 'player' ? 'Bạn' : r.initiator === 'npc' ? NPC_BY_ID[r.npcId]?.name : '—'}</dd>
+              <dt>Người ra tay trước</dt><dd>{r.initiator === 'player' ? 'Bạn' : r.initiator === 'npc' ? r.peerName ?? NPC_BY_ID[r.npcId]?.name : '—'}</dd>
               <dt>Đòn của bạn</dt><dd>{r.playerStrikes}{r.sprayed ? ' · không chấp hành lệnh (hơi cay)' : ''}</dd>
               {r.hearingAt !== undefined && r.verdict === 'pending' && <><dt>Điều trần</dt><dd>Sau khi tách riêng 1 ngày</dd></>}
             </dl>
@@ -135,6 +137,42 @@ export function ConflictReports() {
           </article>
         );
       })}
+    </div>
+  );
+}
+
+/** Báo động của người chơi khác cùng khu: banner GET DOWN + nút nằm xuống (E / chạm). */
+function SpectatorAlarmOverlay() {
+  const alarm = useSpectator((x) => x.alarm);
+  const prone = useSpectator((x) => x.prone);
+  const played = useRef<string | null>(null);
+  useEffect(() => {
+    if (alarm && played.current !== alarm.from) { played.current = alarm.from; audio.conflictCue('alarm'); }
+    if (!alarm) played.current = null;
+  }, [alarm]);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const st = useSpectator.getState();
+      if (!st.alarm || controller.s?.conflict) return;
+      if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); st.set({ prone: !st.prone }); }
+    };
+    window.addEventListener('keydown', h, true);
+    return () => window.removeEventListener('keydown', h, true);
+  }, []);
+  if (!alarm) return null;
+  return (
+    <div className="cf-root" role="region" aria-label="Báo động">
+      <div className="cf-alarm" aria-hidden />
+      <div className="cf-alarm-banner" role="alert"><span className="cf-beacon" aria-hidden />ALARM · {ZONE_BY_ID[alarm.zone as keyof typeof ZONE_BY_ID]?.name.toUpperCase()} · ALL INMATES — GET DOWN!</div>
+      <section className="cf-card cf-restrain" aria-live="assertive">
+        <header className="cf-head"><span className="cf-tag restrain">BÁO ĐỘNG</span><b className="cf-name">{alarm.name} đang ẩu đả</b></header>
+        <p className="cf-order">{prone ? 'Đang nằm sấp · chờ cán bộ' : '“Tất cả nằm xuống!”'}</p>
+        <div className="cf-btns n1">
+          <button className="cf-btn primary" onClick={() => useSpectator.getState().set({ prone: !prone })}>
+            <kbd>E</kbd><span><b>{prone ? 'Đứng dậy' : 'Nằm xuống'}</b><small>{prone ? 'Chỉ đứng dậy khi hết báo động' : 'Không nằm xuống sẽ bị nhắc nhở'}</small></span>
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

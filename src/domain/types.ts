@@ -404,6 +404,18 @@ export interface ConflictState {
   responders: string[];
   nextNpcStrikeTick: number;
   log: string[];
+  /** Loại đối thủ: NPC cục bộ (mặc định), người chơi thật (trực tuyến) hoặc bạn tù AI trực tuyến. */
+  opp?: 'npc' | 'peer' | 'bot';
+  peer?: { id: string; name: string; look: Appearance; outfit: number };
+  /** Vị trí đối thủ trực tuyến (controller cập nhật mỗi khung) và tick thấy gần nhất. */
+  oppPos?: { x: number; z: number };
+  oppSeen?: number;
+  /** Mốc thời gian (epoch ms) đòn đầu tiên của mỗi bên — xác định người khởi xướng giữa hai máy. */
+  myFirstAt?: number;
+  theirFirstAt?: number;
+  calmMine?: boolean;
+  calmTheirs?: boolean;
+  lastBlockTick?: number;
 }
 export type ConflictVerdict = 'pending' | 'initiator' | 'mutual' | 'self_defense' | 'deescalated' | 'reported';
 export interface ConflictRecord {
@@ -418,6 +430,8 @@ export interface ConflictRecord {
   verdict: ConflictVerdict;
   incidentId?: string;
   hearingAt?: number;
+  /** Đối thủ là người chơi/bạn tù trực tuyến (tên hiển thị). */
+  peerName?: string;
   reportNo: string;
 }
 export interface HoldState { roomId: string; untilMinute: number; reason: string; conflictId: string }

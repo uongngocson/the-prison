@@ -7,7 +7,7 @@ import { useGate } from './queue';
 import type { Appearance } from '../domain/types';
 import {
   areaOf, BUBBLE_MS, MAX_PLAYERS_PER_ROOM, PEER_TIMEOUT_MS, posHzFor, PROTOCOL_VERSION, RateLimiter, ROOMS, sanitize, sanitizeName, sessionPeerId, shouldReceive,
-  validBotPos, validChat, validMeta, validPos, validRoster, type ChatLine, type ChatPacket, type ChatScope, type PeerMeta, type PosPacket,
+  validBotPos, validChat, validFight, validMeta, validPos, validRoster, validScene, FIGHT_COOLDOWN_MS, type ChatLine, type ChatPacket, type ChatScope, type FightPacket, type PeerMeta, type PosPacket, type ScenePacket,
 } from './protocol';
 
 export type OnlineStatus = 'off' | 'connecting' | 'online' | 'reconnecting' | 'error' | 'full';
@@ -83,7 +83,9 @@ class OnlineClient {
         .on('presence', { event: 'leave' }, ({ key }) => this.onLeave(key))
         .on('broadcast', { event: 'chat' }, ({ payload }) => this.onChat(payload))
         .on('broadcast', { event: 'bots' }, ({ payload }) => this.onRoster(payload))
-        .on('broadcast', { event: 'bpos' }, ({ payload }) => this.onBotPos(payload));
+        .on('broadcast', { event: 'bpos' }, ({ payload }) => this.onBotPos(payload))
+        .on('broadcast', { event: 'fight' }, ({ payload }) => this.onFight(payload))
+        .on('broadcast', { event: 'scene' }, ({ payload }) => this.onScene(payload));
       const ok = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), 12000);
         ch.subscribe(async (status) => {
@@ -116,7 +118,7 @@ class OnlineClient {
     const pch = this.posCh;
     this.posCh = null; this.area = -1;
     if (pch) { try { await (await cloud.sb()).removeChannel(pch); } catch { /* ignore */ } }
-    this.peers.clear(); this.seen.clear();
+    this.peers.clear(); this.seen.clear(); this.scenes.clear();
     if (ch) { try { await ch.untrack(); } catch { /* ignore */ } try { await (await cloud.sb()).removeChannel(ch); } catch { /* ignore */ } }
     if (!silent) { try { ss()?.removeItem(ROOM_KEY); ss()?.removeItem(LINES_KEY); } catch { /* ignore */ } }
     if (!silent) useOnline.getState().set({ status: 'off', room: null, peers: [], chatOpen: false, typing: false, whisperTo: null });
@@ -300,6 +302,46 @@ class OnlineClient {
     const pkt: ChatPacket = { id: botId, mid: `${botId}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, from: botId, name, text: clean, scope, to, x: pos.x, z: pos.z, t: Date.now() };
     void this.ch.send({ type: 'broadcast', event: 'chat', payload: pkt });
     this.onChat({ ...pkt }); // broadcast self:false → tự xử lý như người nhận
+  }
+
+  // ---------- xung đột trực tuyến ----------
+  /** Controller đăng ký: xử lý gói xung đột gửi tới mình. */
+  onFightIn: ((p: FightPacket, from: Peer) => void) | null = null;
+  /** Cảnh xung đột của người chơi khác (để dựng đối thủ NPC/cán bộ và báo động). Khóa = mã người chơi. */
+  scenes = new Map<string, ScenePacket & { seen: number }>();
+  private fightStarts = new Map<string, number>();
+  private fightLimiter = new RateLimiter(12, 4000, 120);
+  sendFight(p: Omit<FightPacket, 'from' | 'x' | 'z'>) {
+    if (!this.ch || useOnline.getState().status !== 'online') return;
+    if (!this.fightLimiter.check(Date.now()).ok) return;
+    void this.ch.send({ type: 'broadcast', event: 'fight', payload: { ...p, from: this.id, x: this.me.x, z: this.me.z } satisfies FightPacket });
+  }
+  private onFight(raw: unknown) {
+    if (!validFight(raw) || raw.to !== this.id || raw.from === this.id || this.blocked.has(raw.from)) return;
+    const peer = this.peers.get(raw.from);
+    if (!peer || peer.bot) return;
+    if (raw.k === 'start') {
+      // chống quấy rối: cùng một người gây sự liên tục → tự động từ chối
+      const last = this.fightStarts.get(raw.from) ?? 0;
+      if (Date.now() - last < FIGHT_COOLDOWN_MS) { this.sendFight({ to: raw.from, cid: raw.cid, k: 'busy', at: Date.now(), reason: 'cooldown' }); return; }
+      this.fightStarts.set(raw.from, Date.now());
+    }
+    this.onFightIn?.(raw, peer);
+  }
+  sendScene(p: Omit<ScenePacket, 'from' | 't'>) {
+    if (!this.ch || useOnline.getState().status !== 'online') return;
+    void this.ch.send({ type: 'broadcast', event: 'scene', payload: { ...p, from: this.id, t: Date.now() } satisfies ScenePacket });
+  }
+  private onScene(raw: unknown) {
+    if (!validScene(raw) || raw.from === this.id || !this.peers.has(raw.from)) return;
+    if (raw.end) { this.scenes.delete(raw.from); return; }
+    this.scenes.set(raw.from, { ...raw, seen: performance.now() });
+  }
+  /** Cảnh còn hiệu lực (bỏ cảnh không cập nhật > 3 s). */
+  liveScenes(): (ScenePacket & { seen: number })[] {
+    const now = performance.now();
+    for (const [id, sc] of this.scenes) if (now - sc.seen > 3000 || !this.peers.has(id)) this.scenes.delete(id);
+    return [...this.scenes.values()];
   }
 
   private push(line: ChatLine) {

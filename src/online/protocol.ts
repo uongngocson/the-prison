@@ -66,6 +66,30 @@ export interface BotPosBatch { host: string; t: number; bots: { id: string; x: n
 export function validRoster(p: unknown): p is BotRoster { const o = p as BotRoster; return !!o && typeof o.host === 'string' && Array.isArray(o.bots) && o.bots.length <= 20 && o.bots.every(validMeta); }
 export function validBotPos(p: unknown): p is BotPosBatch { const o = p as BotPosBatch; return !!o && typeof o.host === 'string' && Array.isArray(o.bots) && o.bots.length <= 20 && o.bots.every((b) => validPos({ ...b, t: 0 })); }
 
+// ---------- Xung đột trực tuyến ----------
+export type FightK = 'start' | 'strike' | 'break_away' | 'leave' | 'calm' | 'call' | 'busy';
+/** Lựa chọn trong một vụ xung đột giữa hai người chơi (broadcast 'fight', người nhận lọc theo `to`). */
+export interface FightPacket { from: string; to: string; cid: string; k: FightK; at: number; x: number; z: number; reason?: string }
+/** Một nhân vật phụ trong cảnh xung đột (đối thủ NPC, cán bộ) để người xem dựng lại. */
+export interface SceneActor { id: string; name?: string; look: Appearance; outfit: 'res' | 'staff'; x: number; z: number; yaw: number; pose: string }
+/** Cảnh xung đột của một người chơi (broadcast 'scene' ~4 Hz khi đang có xung đột; end = kết thúc). */
+export interface ScenePacket { from: string; cid: string; zone: string; phase: string; alarm: boolean; x: number; z: number; actors: SceneActor[]; end?: boolean; t: number }
+const FIGHT_K: FightK[] = ['start', 'strike', 'break_away', 'leave', 'calm', 'call', 'busy'];
+const num = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 500;
+export function validFight(p: unknown): p is FightPacket {
+  const o = p as FightPacket;
+  return !!o && typeof o.from === 'string' && o.from.length < 64 && typeof o.to === 'string' && o.to.length < 64 && typeof o.cid === 'string' && o.cid.length < 64
+    && FIGHT_K.includes(o.k) && typeof o.at === 'number' && Number.isFinite(o.at) && num(o.x) && num(o.z) && (o.reason === undefined || (typeof o.reason === 'string' && o.reason.length < 120));
+}
+export function validScene(p: unknown): p is ScenePacket {
+  const o = p as ScenePacket;
+  return !!o && typeof o.from === 'string' && o.from.length < 64 && typeof o.cid === 'string' && o.cid.length < 64 && typeof o.zone === 'string' && o.zone.length < 8
+    && typeof o.phase === 'string' && o.phase.length < 16 && typeof o.alarm === 'boolean' && num(o.x) && num(o.z) && Array.isArray(o.actors) && o.actors.length <= 6
+    && o.actors.every((a) => !!a && typeof a.id === 'string' && a.id.length < 40 && !!a.look && typeof a.look.body === 'string' && (a.outfit === 'res' || a.outfit === 'staff') && num(a.x) && num(a.z) && num(a.yaw) && typeof a.pose === 'string' && a.pose.length < 16 && (a.name === undefined || (typeof a.name === 'string' && a.name.length <= 40)));
+}
+/** Tối đa số lần bị gây sự bởi cùng một người trong 1 phút (chống quấy rối). */
+export const FIGHT_COOLDOWN_MS = 60_000;
+
 export interface ChatLine { mid: string; from: string; name: string; text: string; scope: ChatScope; to?: string; t: number; mine: boolean; system?: boolean }
 
 // ---------- Lọc nội dung ----------

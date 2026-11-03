@@ -1,10 +1,13 @@
 // Chế độ Trực tuyến — dựng người chơi khác: avatar Humanoid + tên trên đầu + bong bóng lời. Nội suy vị trí mượt.
 import { Color3, DynamicTexture, Mesh, MeshBuilder, Scene, StandardMaterial, TransformNode } from '@babylonjs/core';
 import { Humanoid, type Pose } from './characters';
-import { stripe } from './palette';
+import { STAFF_OUTFIT, stripe } from './palette';
 import type { Peer } from '../online/client';
+import type { ScenePacket } from '../online/protocol';
 
-const POSES = new Set<Pose>(['idle', 'walk', 'run', 'crouch', 'sit', 'lie', 'exercise', 'work', 'talk', 'read', 'eat', 'toilet', 'tend', 'water', 'sweep']);
+const POSES = new Set<Pose>(['idle', 'walk', 'run', 'crouch', 'sit', 'lie', 'exercise', 'work', 'talk', 'read', 'eat', 'toilet', 'tend', 'water', 'sweep', 'fight', 'prone', 'prone_cuffed', 'cuffed', 'restrain']);
+type Override = { pose: Pose; x: number; z: number; yaw: number };
+interface Ghost { h: Humanoid; x: number; z: number; yaw: number; seen: number }
 
 function textPlane(scene: Scene, name: string, w: number, h: number): { mesh: Mesh; tex: DynamicTexture; mat: StandardMaterial } {
   const tex = new DynamicTexture(`tx_${name}`, { width: Math.round(w * 256), height: Math.round(h * 256) }, scene, true);
@@ -36,15 +39,38 @@ export class RemotePlayers {
   private avatars = new Map<string, Avatar>();
   private selfBubble: ReturnType<typeof textPlane> | null = null;
   private selfText = '';
+  /** Nhân vật phụ trong cảnh xung đột của người khác (đối thủ NPC, cán bộ) — khóa: `người:mã`. */
+  private ghosts = new Map<string, Ghost>();
   constructor(private scene: Scene) {}
 
-  update(dt: number, peers: Map<string, Peer>, cam: { x: number; z: number }, cull: number, reducedMotion: boolean, blocked: (id: string) => boolean) {
+  update(dt: number, peers: Map<string, Peer>, cam: { x: number; z: number }, cull: number, reducedMotion: boolean, blocked: (id: string) => boolean, scenes: ScenePacket[] = [], local: Map<string, Override> = new Map()) {
     const now = performance.now();
+    // cảnh xung đột: bạn tù AI tham gia (`peer:mã`) bị ép tư thế/vị trí; NPC & cán bộ dựng thành `ghost`.
+    const overrides = new Map<string, Override>(local);
+    for (const sc of scenes) {
+      if (Math.hypot(sc.x - cam.x, sc.z - cam.z) > cull) continue;
+      for (const a of sc.actors) {
+        const pose = (POSES.has(a.pose as Pose) ? a.pose : 'idle') as Pose;
+        if (a.id.startsWith('peer:')) { overrides.set(a.id.slice(5), { pose, x: a.x, z: a.z, yaw: a.yaw }); continue; }
+        const key = `${sc.from}:${a.id}`;
+        let g = this.ghosts.get(key);
+        if (!g) { g = { h: new Humanoid(this.scene, `gh_${key}`, a.look, a.outfit === 'staff' ? STAFF_OUTFIT : stripe(a.look.outfit ?? 0)), x: a.x, z: a.z, yaw: a.yaw, seen: now }; this.ghosts.set(key, g); }
+        const k = Math.min(1, dt * 8);
+        const jump = Math.hypot(a.x - g.x, a.z - g.z) > 6;
+        const mv = Math.hypot(a.x - g.x, a.z - g.z) / Math.max(dt, 1e-3);
+        g.x = jump ? a.x : g.x + (a.x - g.x) * k; g.z = jump ? a.z : g.z + (a.z - g.z) * k; g.yaw = a.yaw; g.seen = now;
+        g.h.root.position.set(g.x, 0, g.z); g.h.root.rotation.y = g.yaw; g.h.setVisible(true);
+        g.h.animate(dt, pose, Math.min(mv, 6), reducedMotion);
+      }
+    }
+    for (const [k, g] of this.ghosts) if (now - g.seen > 400) { g.h.dispose(); this.ghosts.delete(k); }
     for (const [id, a] of this.avatars) if (!peers.has(id)) { this.dispose(a); this.avatars.delete(id); }
     for (const [id, p] of peers) {
       if (!p.pos || !p.target) { const old = this.avatars.get(id); if (old) { old.h.setVisible(false); old.tag.mesh.setEnabled(false); old.bubble.mesh.setEnabled(false); } continue; }
       let a = this.avatars.get(id);
       if (!a) a = this.create(id, p);
+      const ov = overrides.get(id);
+      if (ov) { p.target = { x: ov.x, z: ov.z, yaw: ov.yaw }; p.pose = ov.pose; }
       // nội suy mượt về vị trí mới nhất (8 Hz → 60 fps)
       const k = Math.min(1, dt * 6); // gói có thể thưa (1–8 Hz theo số người) → nội suy mềm
       const dx = p.target.x - p.pos.x, dz = p.target.z - p.pos.z;
@@ -131,7 +157,7 @@ export class RemotePlayers {
     tex.update();
   }
   private dispose(a: Avatar) { a.h.dispose(); a.tag.mesh.dispose(); a.tag.tex.dispose(); a.tag.mat.dispose(); a.bubble.mesh.dispose(); a.bubble.tex.dispose(); a.bubble.mat.dispose(); a.anchor.dispose(); }
-  disposeAll() { for (const a of this.avatars.values()) this.dispose(a); this.avatars.clear(); this.selfBubble?.mesh.dispose(); this.selfBubble = null; }
+  disposeAll() { for (const g of this.ghosts.values()) g.h.dispose(); this.ghosts.clear(); for (const a of this.avatars.values()) this.dispose(a); this.avatars.clear(); this.selfBubble?.mesh.dispose(); this.selfBubble = null; }
 }
 const POS_SPEED = 3; // hệ số chuyển khoảng cách còn lại → tốc độ animation đi bộ
 /** Khoảng cách camera (m) mà nhãn tên/bong bóng hiển thị đủ kích thước; gần hơn thì thu nhỏ tương ứng. */

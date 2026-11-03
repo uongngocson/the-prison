@@ -2,7 +2,7 @@
 // Luồng: căng thẳng (lời nói) → ẩu đả (thân thể) → báo động "GET DOWN" (cả khu nằm sấp) → đội phản ứng tới, khống chế,
 // còng tay → áp giải vào SHU (Ad-Seg chờ điều tra 1 ngày) → điều trần theo dữ kiện: khởi xướng / ẩu đả qua lại → SHU,
 // tự vệ → về khu thường. Không vũ khí, không máu, không mô tả thương tích chi tiết.
-import type { ConflictChoice, ConflictRecord, ConflictState, GameState, IncidentReview, ZoneId } from './types';
+import type { Appearance, ConflictChoice, ConflictRecord, ConflictState, GameState, IncidentReview, ZoneId } from './types';
 import { type Ctx, adjustRel, changeNeed, notify } from './core';
 import { NPC_BY_ID, NPCS } from '../content/npcs';
 import { CUSTODY_ROOM_BY_ID, SHU_CELLS, ZONE_BY_ID, doorNodes, zoneAt } from '../content/world';
@@ -48,19 +48,21 @@ export function canConflict(ctx: Ctx, npcId: string): string | null {
 let seq = 0;
 const cid = (s: GameState) => `cf_${s.tick.toString(36)}${(seq++).toString(36)}`;
 
-function begin(ctx: Ctx, npcId: string, provokedBy: 'player' | 'npc', line: string): ConflictState {
+function begin(ctx: Ctx, npcId: string, provokedBy: 'player' | 'npc', line: string, peer?: OnlineOpponent): ConflictState {
   const s = ctx.s;
-  const n = s.npcs[npcId];
+  const n = peer ? null : s.npcs[npcId];
+  const op = peer ? { x: peer.x, z: peer.z } : { x: n!.pos.x, z: n!.pos.z };
   const c: ConflictState = {
-    id: cid(s), npcId, zone: s.player.zone, pos: { x: (s.player.pos.x + n.pos.x) / 2, z: (s.player.pos.z + n.pos.z) / 2 }, phase: 'tension', phaseTick: s.tick,
+    id: peer?.cid ?? cid(s), npcId: peer ? '' : npcId, zone: s.player.zone, pos: { x: (s.player.pos.x + op.x) / 2, z: (s.player.pos.z + op.z) / 2 }, phase: 'tension', phaseTick: s.tick,
     startedMinute: s.minute, initiator: null, provokedBy, line, playerStrikes: 0, npcStrikes: 0, blocks: 0, escaped: false, alarm: false, complied: false,
     sprayed: false, responders: [], nextNpcStrikeTick: 0, log: [],
+    ...(peer ? { opp: peer.bot ? 'bot' as const : 'peer' as const, peer: { id: peer.id, name: peer.name, look: peer.look, outfit: peer.outfit }, oppPos: op, oppSeen: s.tick } : {}),
   };
   s.conflict = c;
   s.player.action = null;
   if (s.player.mode === 'seated') { s.player.mode = 'grounded'; s.player.seatedAt = null; }
-  n.path = []; n.talkingWithPlayer = false;
-  log(c, provokedBy === 'npc' ? `${NPC_BY_ID[npcId].name} gây sự: "${line}"` : `Bạn gây sự với ${NPC_BY_ID[npcId].name}.`);
+  if (n) { n.path = []; n.talkingWithPlayer = false; }
+  log(c, provokedBy === 'npc' ? `${oppName(c)} gây sự: "${line}"` : `Bạn gây sự với ${oppName(c)}.`);
   ctx.emit({ type: 'flag', key: 'conflict', value: true });
   return c;
 }
@@ -88,10 +90,11 @@ function setPhase(ctx: Ctx, c: ConflictState, phase: ConflictState['phase']) {
 }
 function startBrawl(ctx: Ctx, c: ConflictState, by: 'player' | 'npc') {
   if (c.initiator === null) c.initiator = by;
+  if (by === 'player' && c.myFirstAt === undefined) { c.myFirstAt = Date.now(); send(c, 'strike'); }
   setPhase(ctx, c, 'brawl');
   c.nextNpcStrikeTick = ctx.s.tick + sec(by === 'npc' ? 0.2 : 0.8);
-  log(c, by === 'player' ? 'Bạn ra tay trước.' : `${NPC_BY_ID[c.npcId].name} ra tay trước.`);
-  adjustRel(ctx, c.npcId, { trust: -12, respect: -4 }, 'Ẩu đả', `fight:${c.id}`);
+  log(c, by === 'player' ? 'Bạn ra tay trước.' : `${oppName(c)} ra tay trước.`);
+  if (!c.peer) adjustRel(ctx, c.npcId, { trust: -12, respect: -4 }, 'Ẩu đả', `fight:${c.id}`);
 }
 function npcStrike(ctx: Ctx, c: ConflictState, blocked: boolean) {
   c.npcStrikes++;
@@ -108,6 +111,7 @@ function end(ctx: Ctx, c: ConflictState, verdict: ConflictRecord['verdict'], tex
 function record(s: GameState, c: ConflictState, verdict: ConflictRecord['verdict'], extra: Partial<ConflictRecord> = {}): ConflictRecord {
   s.conflicts ??= [];
   const r: ConflictRecord = {
+    ...(c.peer ? { peerName: c.peer.name } : {}),
     id: c.id, minute: c.startedMinute, npcId: c.npcId, zone: c.zone, initiator: c.initiator, playerStrikes: c.playerStrikes, npcStrikes: c.npcStrikes, sprayed: c.sprayed, verdict,
     reportNo: `RVR-${dayOf(c.startedMinute).toString().padStart(3, '0')}-${(s.conflicts.length + 1).toString().padStart(3, '0')}`, ...extra,
   };
@@ -117,7 +121,7 @@ function record(s: GameState, c: ConflictState, verdict: ConflictRecord['verdict
 
 /** Xác suất nói hạ nhiệt thành công (quan hệ + kỹ năng giao tiếp). */
 export function calmChance(s: GameState, npcId: string): number {
-  const r = s.relationships[npcId];
+  const r = npcId ? s.relationships[npcId] : undefined;
   return Math.max(0.15, Math.min(0.9, 0.4 + (r?.trust ?? 0) / 200 + (r?.respect ?? 0) / 300 + (s.skills.communication ?? 0) * 0.05));
 }
 
@@ -126,8 +130,22 @@ export function conflictChoose(ctx: Ctx, choice: ConflictChoice): string | null 
   const s = ctx.s;
   const c = s.conflict;
   if (!c) return null;
-  const name = NPC_BY_ID[c.npcId].name;
+  const name = oppName(c);
+  const human = c.opp === 'peer';
   if (c.phase === 'tension') {
+    // đối thủ là người chơi thật: không có xác suất — mỗi bên tự quyết, gửi lựa chọn qua mạng
+    if (human && choice === 'leave') { send(c, 'leave'); end(ctx, c, 'deescalated', `Bạn bỏ đi khỏi ${name}.`); return 'ok'; }
+    if (human && choice === 'calm') {
+      if (c.calmMine) return null;
+      c.calmMine = true; send(c, 'calm'); log(c, 'Bạn: “Thôi, bỏ qua đi.”');
+      if (c.calmTheirs) { end(ctx, c, 'deescalated', `Cả hai cùng hạ nhiệt · ${name} bỏ đi.`); return 'ok'; }
+      return 'waiting';
+    }
+    if (human && choice === 'call_staff') {
+      send(c, 'call');
+      end(ctx, c, 'reported', c.provokedBy === 'npc' ? `Cán bộ tách hai người · ${name} bị nhắc nhở, bạn không bị ghi lỗi.` : 'Cán bộ nhắc nhở cả hai · không ai bị ghi lỗi.');
+      return 'ok';
+    }
     if (choice === 'leave') {
       if (c.provokedBy === 'player' || ctx.rng.next() < 0.7) { end(ctx, c, 'deescalated', `Bạn bỏ đi. ${name} không theo.`); return 'ok'; }
       log(c, `${name} không để bạn đi.`);
@@ -148,7 +166,7 @@ export function conflictChoose(ctx: Ctx, choice: ConflictChoice): string | null 
     if (choice === 'call_staff') {
       c.alarm = true; // cán bộ tới hiện trường nhưng chưa có ẩu đả → không báo động nằm sấp
       const npcFault = c.provokedBy === 'npc';
-      if (npcFault) holdNpc(s, c.npcId, s.minute + MIN_PER_DAY);
+      if (npcFault && !c.peer) holdNpc(s, c.npcId, s.minute + MIN_PER_DAY);
       end(ctx, c, 'reported', npcFault ? `Cán bộ tách hai người · ${name} bị đưa đi, bạn không bị ghi lỗi.` : 'Cán bộ nhắc nhở cả hai · không ai bị ghi lỗi.');
       return 'ok';
     }
@@ -161,9 +179,9 @@ export function conflictChoose(ctx: Ctx, choice: ConflictChoice): string | null 
     return null;
   }
   if (c.phase === 'brawl') {
-    if (choice === 'strike') { if (c.escaped) return null; c.playerStrikes++; changeNeed(ctx, 'energy', -2, 'Ẩu đả'); log(c, 'Bạn đánh trả.'); return 'ok'; }
-    if (choice === 'block') { c.blocks++; log(c, 'Bạn che chắn.'); return 'ok'; }
-    if (choice === 'break_away') { c.escaped = true; log(c, 'Bạn thoát ra, lùi lại.'); return 'ok'; }
+    if (choice === 'strike') { if (c.escaped) return null; if (c.myFirstAt === undefined) c.myFirstAt = Date.now(); c.playerStrikes++; changeNeed(ctx, 'energy', -2, 'Ẩu đả'); log(c, 'Bạn đánh trả.'); send(c, 'strike'); return 'ok'; }
+    if (choice === 'block') { c.blocks++; c.lastBlockTick = s.tick; log(c, 'Bạn che chắn.'); return 'ok'; }
+    if (choice === 'break_away') { c.escaped = true; log(c, 'Bạn thoát ra, lùi lại.'); send(c, 'break_away'); return 'ok'; }
     return null;
   }
   if (c.phase === 'restrain' && choice === 'comply' && !c.complied) {
@@ -180,19 +198,21 @@ export function conflictStep(ctx: Ctx) {
   const c = s.conflict;
   if (!c) return;
   const t = s.tick - c.phaseTick;
-  const n = s.npcs[c.npcId];
+  const op = c.peer ? c.oppPos ?? c.pos : s.npcs[c.npcId].pos;
   if (c.phase === 'tension') {
-    const d = Math.hypot(s.player.pos.x - n.pos.x, s.player.pos.z - n.pos.z);
+    const d = Math.hypot(s.player.pos.x - op.x, s.player.pos.z - op.z);
+    if (c.opp === 'peer' && s.tick - (c.oppSeen ?? c.phaseTick) > sec(6)) { end(ctx, c, 'deescalated', `${oppName(c)} đã rời đi.`); return; }
     if (d > 6) { conflictChoose(ctx, 'leave'); return; }
     if (t >= sec(CONFLICT_TIMING.tension)) {
-      if (c.provokedBy === 'npc') startBrawl(ctx, c, 'npc');
-      else end(ctx, c, 'deescalated', `${NPC_BY_ID[c.npcId].name} lườm bạn rồi bỏ đi.`);
+      // người chơi thật tự quyết định ra tay; hết giờ mà không ai ra tay thì tự tan
+      if (c.provokedBy === 'npc' && c.opp !== 'peer') startBrawl(ctx, c, 'npc');
+      else { if (c.opp === 'peer') send(c, 'leave'); end(ctx, c, 'deescalated', `${oppName(c)} lườm bạn rồi bỏ đi.`); }
     }
     return;
   }
   if (c.phase === 'brawl') {
     if (!c.alarm && t >= sec(CONFLICT_TIMING.alarmAfter)) raiseAlarm(ctx, c);
-    if (s.tick >= c.nextNpcStrikeTick && !c.escaped) {
+    if (c.opp !== 'peer' && s.tick >= c.nextNpcStrikeTick && !c.escaped) {
       npcStrike(ctx, c, ctx.rng.next() < Math.min(0.85, 0.25 + c.blocks * 0.08));
       c.nextNpcStrikeTick = s.tick + sec(0.9 + ctx.rng.next() * 0.6);
     }
@@ -254,7 +274,7 @@ function holdNpc(s: GameState, npcId: string, until: number) {
 function finishEscort(ctx: Ctx, c: ConflictState) {
   const s = ctx.s;
   const hearingAt = s.minute + MIN_PER_DAY;
-  const name = NPC_BY_ID[c.npcId].name;
+  const name = oppName(c);
   const inc: IncidentReview = {
     id: `inc_${c.id}`, kind: 'conduct', ruleId: 'fight', state: 'in_review',
     facts: [
@@ -268,7 +288,7 @@ function finishEscort(ctx: Ctx, c: ConflictState) {
   };
   s.life.incidents.push(inc);
   const rec = record(s, c, 'pending', { incidentId: inc.id, hearingAt });
-  holdNpc(s, c.npcId, hearingAt + 60);
+  if (!c.peer) holdNpc(s, c.npcId, hearingAt + 60);
   // đưa vào SHU
   if (isVN(s)) adSegForConflict(ctx, c.id, hearingAt);
   else {
@@ -298,7 +318,7 @@ export function conflictMinute(ctx: Ctx) {
     if (r.verdict !== 'pending' || r.hearingAt === undefined || s.minute < r.hearingAt) continue;
     const v = verdictFor(r);
     r.verdict = v;
-    const name = NPC_BY_ID[r.npcId]?.name ?? r.npcId;
+    const name = r.peerName ?? NPC_BY_ID[r.npcId]?.name ?? r.npcId;
     const inc = s.life.incidents.find((i) => i.id === r.incidentId);
     const vn = isVN(s);
     let text: string;
@@ -369,6 +389,78 @@ function maybeProvoke(ctx: Ctx) {
       return;
     }
   }
+}
+
+// ======================= Trực tuyến: người chơi ↔ người chơi / bạn tù AI =======================
+// Mỗi máy chạy máy trạng thái cho người chơi của mình; hai máy chỉ trao đổi lựa chọn (gây sự, đòn, rời đi, hạ nhiệt,
+// gọi cán bộ). Báo động, đội phản ứng, áp giải, điều trần chạy cục bộ trên từng máy theo cùng luật.
+export interface OnlineOpponent { id: string; name: string; look: Appearance; outfit: number; x: number; z: number; bot: boolean; cid?: string }
+export type FightKind = 'start' | 'strike' | 'break_away' | 'leave' | 'calm' | 'call' | 'busy';
+export interface FightOut { k: FightKind; cid: string; to: string; at: number; reason?: string }
+/** Hộp thư đi — controller lấy ra và gửi lên kênh phòng mỗi khung (domain không phụ thuộc mạng). */
+export const conflictOutbox: FightOut[] = [];
+function send(c: ConflictState, k: FightKind) {
+  if (c.opp !== 'peer' || !c.peer) return;
+  conflictOutbox.push({ k, cid: c.id, to: c.peer.id, at: k === 'strike' && c.playerStrikes <= 1 && c.myFirstAt ? c.myFirstAt : Date.now() });
+}
+export function oppName(c: ConflictState): string { return c.peer?.name ?? NPC_BY_ID[c.npcId]?.name ?? 'Bạn tù'; }
+
+/** Điều kiện gây sự với người chơi/bạn tù trực tuyến (không có kiểm tra quan hệ NPC). */
+export function canConflictOnline(ctx: Ctx): string | null {
+  const s = ctx.s;
+  if (!conflictEnabled(ctx)) return 'Nội dung xung đột đang tắt trong Cài đặt.';
+  if (s.conflict) return 'Đang có xung đột.';
+  if (inShuHold(s)) return 'Đang ở SHU.';
+  if (s.player.mode === 'sleeping' || s.player.mode === 'acting') return 'Bạn đang bận.';
+  if (s.life.episode.state !== 'admitted' && isVN(s)) return 'Chưa hoàn tất tiếp nhận.';
+  return null;
+}
+/** Người chơi gây sự với người chơi khác / bạn tù trực tuyến. */
+export function startPeerConflict(ctx: Ctx, o: OnlineOpponent): boolean {
+  if (canConflictOnline(ctx)) return false;
+  const c = begin(ctx, '', 'player', PLAYER_PROVOKE_LINE, o);
+  c.line = o.bot ? NPC_REPLY_TO_PLAYER[ctx.rng.int(0, NPC_REPLY_TO_PLAYER.length - 1)] : `Bạn gây sự với ${o.name}…`;
+  send(c, 'start');
+  return true;
+}
+/** Gói xung đột nhận từ người chơi khác. Trả về gói trả lời (vd. 'busy') nếu cần. */
+export function conflictRemote(ctx: Ctx, from: OnlineOpponent, k: FightKind, cidIn: string, at: number): FightOut | null {
+  const s = ctx.s;
+  const c = s.conflict;
+  if (k === 'start') {
+    const why = canConflictOnline(ctx);
+    if (why) return { k: 'busy', cid: cidIn, to: from.id, at: Date.now(), reason: why };
+    const nc = begin(ctx, '', 'npc', `${from.name} gây sự với bạn`, { ...from, bot: false, cid: cidIn });
+    notify(ctx, `${from.name} gây sự · ra tay trước = người khởi xướng.`, 'warning', 'life');
+    nc.line = 'Mày có vấn đề gì à?';
+    return null;
+  }
+  if (!c || c.id !== cidIn || c.peer?.id !== from.id) return null;
+  c.oppSeen = s.tick;
+  const name = oppName(c);
+  switch (k) {
+    case 'busy': end(ctx, c, 'deescalated', `${name} không thể tham gia lúc này.`); return null;
+    case 'leave': if (c.phase === 'tension') end(ctx, c, 'deescalated', `${name} bỏ đi.`); return null;
+    case 'call': if (c.phase === 'tension') end(ctx, c, 'reported', c.provokedBy === 'player' ? `${name} gọi cán bộ · bạn bị nhắc nhở.` : `${name} gọi cán bộ · cán bộ tách hai người.`); return null;
+    case 'calm':
+      if (c.phase !== 'tension') return null;
+      c.calmTheirs = true; log(c, `${name}: “Thôi, bỏ qua đi.”`); c.line = 'Thôi, bỏ qua đi.';
+      if (c.calmMine) end(ctx, c, 'deescalated', `Cả hai cùng hạ nhiệt · ${name} bỏ đi.`);
+      return null;
+    case 'break_away': log(c, `${name} lùi lại.`); return null;
+    case 'strike': {
+      if (c.theirFirstAt === undefined) c.theirFirstAt = at;
+      if (c.phase === 'tension') { startBrawl(ctx, c, 'npc'); npcStrike(ctx, c, false); } // đòn mở màn trúng người bị đánh
+      else if (c.phase === 'brawl') {
+        // khởi xướng = đòn đầu tiên sớm hơn theo đồng hồ hai máy; cả hai máy cùng so một cặp mốc nên kết luận giống nhau
+        if (c.myFirstAt !== undefined && c.initiator === 'player' && (c.theirFirstAt < c.myFirstAt)) { c.initiator = 'npc'; log(c, `${name} ra tay trước.`); }
+        const blocked = c.lastBlockTick !== undefined && s.tick - c.lastBlockTick < sec(0.9);
+        npcStrike(ctx, c, blocked);
+      }
+      return null;
+    }
+  }
+  return null;
 }
 
 /** NPC đang bị giữ ở SHU → vị trí neo trong buồng (để npcAi đặt). */
