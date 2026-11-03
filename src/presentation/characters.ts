@@ -3,7 +3,7 @@
 import { Color3, Color4, DynamicTexture, InstancedMesh, Mesh, MeshBuilder, Scene, StandardMaterial, Texture, TransformNode, VertexBuffer } from '@babylonjs/core';
 import type { Appearance } from '../domain/types';
 
-import { SKIN, HAIR } from './palette';
+import { SKIN, HAIR, STAFF_OUTFIT } from './palette';
 export { SKIN, HAIR, RES_OUTFIT, STAFF_OUTFIT, COSMETIC_OUTFIT } from './palette';
 
 export type Pose = 'idle' | 'walk' | 'run' | 'crouch' | 'sit' | 'lie' | 'exercise' | 'work' | 'talk' | 'read' | 'eat' | 'toilet' | 'tend' | 'water' | 'sweep';
@@ -47,9 +47,9 @@ function makeSources(scene: Scene): Sources {
   return sources;
 }
 
-/** Đồng phục kẻ sọc ngang (áo + quần cùng màu sọc), dạng 'stripe:#RRGGBB'. */
+/** Bộ liền thân (jumpsuit) phạm nhân: áo + quần cùng màu vải, dạng 'stripe:#RRGGBB' (tên giữ cho tương thích save). */
 type StripePart = 'torso' | 'hips' | 'arm' | 'leg';
-const STRIPE_REPEAT: Record<StripePart, number> = { torso: 4.5, hips: 1.5, arm: 5, leg: 7 };
+const STRIPE_REPEAT: Record<StripePart, number> = { torso: 1, hips: 1, arm: 1, leg: 1 };
 const stripeCache = new Map<string, Mesh>();
 let stripeScene: Scene | null = null;
 function stripedSource(scene: Scene, part: StripePart, color: string): Mesh {
@@ -57,10 +57,18 @@ function stripedSource(scene: Scene, part: StripePart, color: string): Mesh {
   const key = `${part}|${color}`;
   const hit = stripeCache.get(key);
   if (hit && !hit.isDisposed()) return hit;
-  const tex = new DynamicTexture(`tx_stripe_${key}`, { width: 16, height: 64 }, scene, true);
+  // vải cotton một màu: chuyển sắc nhẹ + đường may ngang (cổ tay/gấu/thắt lưng) cho cảm giác bộ liền thân
+  const tex = new DynamicTexture(`tx_stripe_${key}`, { width: 32, height: 64 }, scene, true);
   const ctx = tex.getContext() as CanvasRenderingContext2D;
-  ctx.fillStyle = '#e8e6dc'; ctx.fillRect(0, 0, 16, 64);
-  ctx.fillStyle = color; ctx.fillRect(0, 32, 16, 32);
+  const base = Color3.FromHexString(color);
+  const shade = (k: number) => base.scale(k).toHexString();
+  const g = ctx.createLinearGradient(0, 0, 0, 64);
+  g.addColorStop(0, shade(1.06)); g.addColorStop(0.5, color); g.addColorStop(1, shade(0.9));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 32, 64);
+  ctx.fillStyle = shade(0.78);
+  if (part === 'torso') { ctx.fillRect(15, 0, 2, 64); ctx.fillRect(0, 0, 32, 2); }
+  if (part === 'arm' || part === 'leg') ctx.fillRect(0, 60, 32, 4);
+  if (part === 'hips') ctx.fillRect(0, 0, 32, 3);
   tex.update();
   tex.wrapU = Texture.WRAP_ADDRESSMODE;
   tex.wrapV = Texture.WRAP_ADDRESSMODE;
@@ -128,7 +136,9 @@ export class Humanoid {
     this.stripeColor = outfitHex.startsWith('stripe:') ? outfitHex.slice(7) : null;
     const solidHex = this.stripeColor ? '#7f97ab' : outfitHex;
     const st = (part: StripePart, name: string, parent: TransformNode) => inst(stripedSource(scene, part, this.stripeColor!), name, parent, '#ffffff');
-    this.hips = this.stripeColor ? st('hips', 'hips', this.body) : inst(src.hips, 'hips', this.body, '#3d4246');
+    const officer = outfitHex === STAFF_OUTFIT;
+    const pants = officer ? '#1b212c' : '#3d4246';
+    this.hips = this.stripeColor ? st('hips', 'hips', this.body) : inst(src.hips, 'hips', this.body, pants);
     this.hips.position.y = 0.92;
     this.hips.scaling.x = k;
     this.torso = inst(src.torso, 'torso', this.body, solidHex);
@@ -147,6 +157,19 @@ export class Humanoid {
     if (look.hair === 0) { this.hair = inst(src.hair0, 'hair', this.body, hc); this.hair.position.y = 1.74; }
     else if (look.hair === 1) { this.hair = inst(src.hair1, 'hair', this.body, hc); this.hair.position.y = 1.81; }
     else if (look.hair === 2) { this.hair = inst(src.hair0, 'hair', this.body, hc); this.hair.position.y = 1.74; const b = inst(src.hair2, 'hairb', this.body, hc); b.position.set(0, 1.62, -0.09); }
+    if (officer) {
+      // trang bị nhân viên trại: thắt lưng công vụ, phù hiệu, bảng tên, bộ đàm vai, mũ lưỡi trai
+      const belt = inst(src.hips, 'belt', this.body, '#111317'); belt.position.y = 1.02; belt.scaling.set(1.06 * k, 0.42, 1.08);
+      const buckle = inst(src.eye, 'buckle', this.body, '#b9bec4'); buckle.position.set(0, 1.02, 0.12); buckle.scaling.set(1.4, 1, 0.5);
+      const badge = inst(src.eye, 'badge', this.body, '#d6b65a'); badge.position.set(0.1 * k, 1.44, 0.125); badge.scaling.set(1.7, 1.9, 0.5);
+      const tag = inst(src.hair1, 'nametag', this.body, '#cfd3d6'); tag.position.set(-0.1 * k, 1.42, 0.123); tag.scaling.set(0.3, 0.28, 0.04);
+      const radio = inst(src.hair1, 'radio', this.body, '#15171a'); radio.position.set(-0.15 * k, 1.53, 0.1); radio.scaling.set(0.17, 0.9, 0.17);
+      for (const sx of [-1, 1]) { const patch = inst(src.hair1, 'patch', this.body, '#c9a646'); patch.position.set(sx * 0.215 * k, 1.44, 0); patch.scaling.set(0.03, 0.7, 0.32); }
+      const cap = inst(src.hair0, 'cap', this.body, STAFF_OUTFIT); cap.position.y = 1.76; cap.scaling.set(1.06, 0.95, 1.06);
+      const brim = inst(src.hair1, 'brim', this.body, '#1b2638'); brim.position.set(0, 1.77, 0.12); brim.scaling.set(0.82, 0.28, 0.6);
+      const crest = inst(src.eye, 'capbadge', this.body, '#d6b65a'); crest.position.set(0, 1.83, 0.14); crest.scaling.set(1.3, 1.3, 0.5);
+      this.hair?.setEnabled(false);
+    }
     const limb = (side: number, isArm: boolean) => {
       const pivot = new TransformNode(`${isArm ? 'arm' : 'leg'}${side}_${id}`, scene);
       pivot.parent = this.body;
@@ -157,8 +180,10 @@ export class Humanoid {
         const h = inst(src.eye, 'hand', pivot, skin); h.scaling.setAll(2.4); h.position.y = -0.62;
       } else {
         pivot.position.set(side * 0.1 * k, 0.88, 0);
-        const l = this.stripeColor ? st('leg', 'legst', pivot) : inst(src.leg, 'leg', pivot, '#3d4246');
+        const l = this.stripeColor ? st('leg', 'legst', pivot) : inst(src.leg, 'leg', pivot, pants);
         l.position.y = -0.42;
+        // giày: phạm nhân dép/giày vải sáng, nhân viên giày da đen
+        const shoe = inst(src.hair1, 'shoe', pivot, officer ? '#0e0f11' : '#d9d6cc'); shoe.position.set(0, -0.83, 0.04); shoe.scaling.set(0.48, 0.9, 0.95);
       }
       return pivot;
     };

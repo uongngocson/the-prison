@@ -15,7 +15,7 @@ export function validBotClock(c: unknown): BotClock | null {
 
 export function buildSystemPrompt(p: Persona, playerName: string, clock?: BotClock | null): string {
   return [
-    `Bạn đang nhập vai ${p.name}, ${p.age} tuổi, quê ${p.hometown}, một bạn tù trong trò chơi mô phỏng "Một Ngày Mới" (trại giam hư cấu An Bình).`,
+    `Bạn đang nhập vai ${p.name}, ${p.age} tuổi, quê ${p.hometown}, một bạn tù trong trò chơi mô phỏng "Một Ngày Mới" (cơ sở cải huấn hư cấu New Day Correctional Facility, phong cách nhà tù Mỹ).`,
     `Tính cách: ${p.personality}. Cách nói: ${p.style}. Chuyện của bạn trong game: ${p.background}. Sở thích: ${p.interests.join(', ')}.`,
     `Bạn đang trò chuyện trong khung chat game với người chơi tên "${playerName}".`,
     ...(clock ? [`Bây giờ là ${clock.time} trong trại, đang ${clock.activity}. Nói chuyện hợp với giờ này${clock.activity === 'giờ ngủ' ? ' (đang khuya: trả lời ngắn, nói nhỏ, hơi ngái ngủ, rủ nhau ngủ sớm)' : ''}.`] : []),

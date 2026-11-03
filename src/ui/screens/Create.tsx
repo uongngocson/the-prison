@@ -12,7 +12,7 @@ const NAMES = ['Minh An', 'Quốc Bảo', 'Đức Huy', 'Thanh Tùng', 'Văn Lon
 const BODY: { id: Appearance['body']; label: string }[] = [{ id: 'slim', label: 'Mảnh' }, { id: 'medium', label: 'Vừa' }, { id: 'broad', label: 'Đậm' }];
 const HAIRS = ['Tóc ngắn', 'Cắt sát', 'Tóc dài', 'Không tóc'];
 const HAIR_COLORS = ['Đen', 'Nâu sẫm', 'Nâu', 'Muối tiêu'];
-const OUTFITS = ['Sọc xanh rêu', 'Sọc xanh than', 'Sọc xám'];
+const OUTFITS = ['Liền thân cam', 'Liền thân kaki', 'Liền thân xanh denim'];
 const SKIN_LABEL = ['Sáng', 'Sáng vừa', 'Trung bình', 'Ngăm', 'Sẫm'];
 const Preview = lazy(() => import('./CreatePreview'));
 
@@ -21,7 +21,7 @@ function Swatches({ label, colors, value, names, onChange, striped }: { label: s
     <fieldset style={{ border: 'none', padding: 0, margin: '8px 0' }}>
       <legend>{label}: <b>{names[value]}</b></legend>
       <div className="row">
-        {colors.map((c, i) => <button key={c} className="swatch" style={{ background: striped ? `repeating-linear-gradient(0deg, ${c} 0 6px, #e8e6dc 6px 12px)` : c }} aria-label={names[i]} aria-pressed={value === i} onClick={() => onChange(i)} />)}
+        {colors.map((c, i) => <button key={c} className="swatch" style={{ background: striped ? `linear-gradient(90deg, transparent 47%, rgba(0,0,0,.22) 47% 53%, transparent 53%), ${c}` : c }} aria-label={names[i]} aria-pressed={value === i} onClick={() => onChange(i)} />)}
       </div>
     </fieldset>
   );

@@ -1,30 +1,30 @@
-// Khẩu hiệu treo tường trong trại (băng rôn đỏ chữ vàng): đạo đức, hướng thiện, phòng ngừa vi phạm pháp luật.
-// SHORT dùng cho tường trong buồng giam (băng nhỏ); LONG dùng cho khu sinh hoạt, hành lang, sân.
+// Biển treo tường trong trại theo phong cách cơ sở cải huấn Mỹ (biển kim loại / bảng nội quy, tiếng Anh như biển thật).
+// SHORT dùng cho bảng nhỏ trong buồng giam; LONG dùng cho khu sinh hoạt, hành lang, sân.
 
 export const SHORT_SLOGANS = [
-  'Gia đình đang chờ bạn trở về',
-  'Biết sai — sửa sai — sống tốt',
-  'Mỗi ngày tốt hơn hôm qua',
-  'Một phút nóng giận, nhiều năm hối hận',
-  'Làm lại cuộc đời chưa bao giờ là muộn',
-  'Đừng để người thân phải khóc vì mình',
-  'Sống lương thiện — ngủ bình yên',
-  'Hướng thiện từ những việc nhỏ',
-  'Tự do là quý giá nhất',
-  'Hãy là tấm gương tốt cho con cái',
+  'Cell Rules Posted — Keep Area Clean',
+  'Bunk Must Be Made by 0700',
+  'Count Time: Stand at Your Door',
+  'Lights Out 2200',
+  'No Items on Bars or Vents',
+  'Family Is Waiting for You',
+  'One Day at a Time',
+  'Respect Your Cellmate',
+  'Ask Staff for Help',
+  'Report Maintenance Issues',
 ];
 
 export const LONG_SLOGANS = [
-  'Sống và làm việc theo Hiến pháp và pháp luật',
-  'Vi phạm pháp luật — cái giá phải trả là tự do',
-  'Pháp luật nghiêm minh — không có vùng cấm, không có ngoại lệ',
-  'Nói không với ma túy — nói có với cuộc sống',
-  'Lao động chân chính — sống lương thiện — hướng thiện',
-  'Cờ bạc, trộm cắp là con đường ngắn nhất vào trại giam',
-  'Không có con đường tắt nào dẫn đến hạnh phúc',
-  'Tôn trọng người khác là tôn trọng chính mình',
-  'Tự do là quý giá nhất — hãy giữ gìn bằng việc sống đúng pháp luật',
-  'Học tập — lao động — rèn luyện để sớm trở về với gia đình',
-  'Một phút nóng giận, cả đời hối hận',
-  'Mỗi người tuân thủ pháp luật — xã hội bình yên',
+  'Respect · Responsibility · Reentry',
+  'Education Opens Doors — Enroll in GED Today',
+  'Keep It Clean · Keep It Safe',
+  'Respect the Process — Earn Your Release',
+  'Contraband Is Prohibited — Subject to Search',
+  'Every Choice Counts — Choose Wisely',
+  'Your Future Starts Today',
+  'Treat Others the Way You Want to Be Treated',
+  'Freedom Is Earned Every Day',
+  'Learn a Trade — Build a Future',
+  'Think Before You Act',
+  'A Safe Facility Is Everyone’s Responsibility',
 ];

@@ -1,6 +1,6 @@
 // Gộp hình học nhanh: tích lũy "mảnh" (hộp/trụ/cầu/mesh có sẵn) rồi ghi thẳng vào một buffer vertex-color.
 // Không tạo hàng nghìn Mesh trung gian (mỗi Mesh = GPU buffer + scene graph + dispose) — nguyên nhân chính làm loading treo.
-import { Color3, Color4, Matrix, Mesh, Quaternion, Scene, Vector3, VertexBuffer, VertexData, CreateBoxVertexData, CreateCylinderVertexData, CreateSphereVertexData } from '@babylonjs/core';
+import { Color3, Color4, Matrix, Mesh, Quaternion, Scene, Vector3, VertexBuffer, VertexData, CreateBoxVertexData, CreateCylinderVertexData, CreateSphereVertexData, CreateTorusVertexData } from '@babylonjs/core';
 
 export interface Piece { position: Vector3; rotation: Vector3; scaling: Vector3; color: Color4; data: () => VertexData; mesh?: Mesh }
 
@@ -23,6 +23,9 @@ export function cylPiece(dia: number, h: number, tess: number, color: Color4, di
 }
 export function sphPiece(dia: number, color: Color4, segments = 6): Piece {
   return { position: new Vector3(), rotation: new Vector3(), scaling: new Vector3(1, 1, 1), color, data: cached(`s${dia}|${segments}`, () => CreateSphereVertexData({ diameter: dia, segments })) };
+}
+export function torusPiece(dia: number, thick: number, tess: number, color: Color4): Piece {
+  return { position: new Vector3(), rotation: new Vector3(), scaling: new Vector3(1, 1, 1), color, data: cached(`t${dia}|${thick}|${tess}`, () => CreateTorusVertexData({ diameter: dia, thickness: thick, tessellation: tess })) };
 }
 /** Mesh tạo bằng MeshBuilder (torus/ground…) — được nướng vào buffer rồi giải phóng. */
 export function meshPiece(m: Mesh): Piece {

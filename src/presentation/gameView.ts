@@ -84,7 +84,7 @@ export class GameView {
     this.player = new Humanoid(this.scene, 'player', s.character.appearance, stripe(s.character.appearance.outfit));
     let i = 0;
     for (const n of NPCS) {
-      this.npcs.set(n.id, new Humanoid(this.scene, n.id, n.appearance, n.role === 'staff' ? STAFF_OUTFIT : stripe(0)));
+      this.npcs.set(n.id, new Humanoid(this.scene, n.id, n.appearance, n.role === 'staff' ? STAFF_OUTFIT : stripe(n.appearance.outfit)));
       if (++i % 12 === 0) await new Promise((r) => setTimeout(r, 0));
     }
     this.yaw = s.player.yaw;

@@ -59,24 +59,24 @@ const CORR = 2; // corridor half-width
 
 export const ZONES: ZoneDef[] = [];
 const north: [ZoneId, string, number, number, string, ZoneDef['tier'], string][] = [
-  ['L01', 'Tiếp nhận', 16, 12, '#8a8f8c', 'full', 'Tiếp nhận người mới, hồ sơ hành trình, định hướng'],
-  ['L18', 'Hướng nghiệp & chuẩn bị ra', 14, 10, '#9b8d78', 'life', 'Kế hoạch tái hòa nhập, nhận lại tài sản, rời cơ sở'],
-  ['L02', 'Khu phòng ở', 26, 14, '#7f8a86', 'slice', 'Phòng ở, giường, tủ cá nhân, sinh hoạt chung, điểm danh'],
-  ['L05', 'Nhà ăn', 22, 16, '#8c8478', 'slice', 'Nhận suất ăn, chọn chỗ ngồi, gặp gỡ'],
-  ['L06', 'Nhà bếp', 14, 12, '#a3a7a5', 'full', 'Ca bếp, chuẩn bị và dọn rửa'],
-  ['L07', 'Thư viện', 16, 12, '#8b7660', 'mvp', 'Mượn sách, đọc, sắp xếp sách, nhóm đọc'],
-  ['L14', 'Phòng học', 18, 12, '#8f8070', 'full', 'Lớp học, khóa kỹ năng, giấy ghi nhận'],
-  ['L17', 'Phòng yên tĩnh', 12, 10, '#7d8a7a', 'life', 'Nghỉ yên tĩnh, hỗ trợ đồng đẳng, sinh hoạt văn hóa tự chọn'],
+  ['L01', 'Tiếp nhận', 16, 12, '#c7c4bb', 'full', 'Tiếp nhận người mới, hồ sơ hành trình, định hướng'],
+  ['L18', 'Hướng nghiệp & chuẩn bị ra', 14, 10, '#cbc3b2', 'life', 'Kế hoạch tái hòa nhập, nhận lại tài sản, rời cơ sở'],
+  ['L02', 'Khu phòng ở', 26, 14, '#c3c1b8', 'slice', 'Phòng ở, giường, tủ cá nhân, sinh hoạt chung, điểm danh'],
+  ['L05', 'Nhà ăn', 22, 16, '#cdc6b6', 'slice', 'Nhận suất ăn, chọn chỗ ngồi, gặp gỡ'],
+  ['L06', 'Nhà bếp', 14, 12, '#d3d4cf', 'full', 'Ca bếp, chuẩn bị và dọn rửa'],
+  ['L07', 'Thư viện', 16, 12, '#c9bea8', 'mvp', 'Mượn sách, đọc, sắp xếp sách, nhóm đọc'],
+  ['L14', 'Phòng học', 18, 12, '#cbc4b3', 'full', 'Lớp học, khóa kỹ năng, giấy ghi nhận'],
+  ['L17', 'Phòng yên tĩnh', 12, 10, '#c2c8bd', 'life', 'Nghỉ yên tĩnh, hỗ trợ đồng đẳng, sinh hoạt văn hóa tự chọn'],
 ];
 const south: [ZoneId, string, number, number, string, ZoneDef['tier'], string][] = [
-  ['L11', 'Hồ sơ & tư vấn', 16, 10, '#8a8578', 'full', 'Đơn yêu cầu, xem xét lại, cố vấn hồ sơ hư cấu'],
-  ['L16', 'Góc liên lạc', 14, 10, '#7f8590', 'life', 'Thư từ, cuộc gọi giả lập, tư vấn riêng'],
-  ['L15', 'Quầy dịch vụ', 12, 10, '#8e8a80', 'life', 'Cấp phát thiết yếu, đặt hàng nội bộ, nhận hàng'],
-  ['L13', 'Vệ sinh & giặt', 16, 10, '#9aa3a6', 'mvp', 'Rửa, tắm kín đáo, đổi đồ giặt, cắt tóc'],
-  ['L08', 'Phòng y tế', 14, 10, '#a9b1ae', 'full', 'Hẹn chăm sóc, nghỉ phục hồi, kế hoạch hỗ trợ'],
-  ['L12', 'Phòng thăm gặp', 20, 12, '#957f6a', 'full', 'Thăm gặp người thân hư cấu'],
-  ['L09', 'Phòng tập', 20, 12, '#6f7a80', 'full', 'Tập luyện trong nhà, thay thế khi mưa'],
-  ['L10', 'Xưởng lao động', 26, 14, '#857a6a', 'full', 'Ca làm việc, phân loại, kiểm kê'],
+  ['L11', 'Hồ sơ & tư vấn', 16, 10, '#c8c3b6', 'full', 'Đơn yêu cầu, xem xét lại, cố vấn hồ sơ hư cấu'],
+  ['L16', 'Góc liên lạc', 14, 10, '#c2c5ca', 'life', 'Thư từ, cuộc gọi giả lập, tư vấn riêng'],
+  ['L15', 'Quầy dịch vụ', 12, 10, '#c9c5bb', 'life', 'Cấp phát thiết yếu, đặt hàng nội bộ, nhận hàng'],
+  ['L13', 'Vệ sinh & giặt', 16, 10, '#cfd5d6', 'mvp', 'Rửa, tắm kín đáo, đổi đồ giặt, cắt tóc'],
+  ['L08', 'Phòng y tế', 14, 10, '#dde2e0', 'full', 'Hẹn chăm sóc, nghỉ phục hồi, kế hoạch hỗ trợ'],
+  ['L12', 'Phòng thăm gặp', 20, 12, '#cfc5b3', 'full', 'Thăm gặp người thân hư cấu'],
+  ['L09', 'Phòng tập', 20, 12, '#bfc3c4', 'full', 'Tập luyện trong nhà, thay thế khi mưa'],
+  ['L10', 'Xưởng lao động', 26, 14, '#c0b9aa', 'full', 'Ca làm việc, phân loại, kiểm kê'],
 ];
 
 const HOURS: Partial<Record<ZoneId, [number, number]>> = {
@@ -105,7 +105,7 @@ function layoutSide(list: typeof north, side: 'north' | 'south') {
     const z1 = side === 'north' ? CORR + d : -CORR;
     ZONES.push({
       id, name, side, x0: x, x1: x + w, z0, z1, height: 3.4,
-      floor: side === 'north' ? '#5d605c' : '#5a5d60', wall, accent: '#e8b77a',
+      floor: side === 'north' ? '#7d7e79' : '#7a7c7d', wall, accent: '#e8b77a',
       door: { x: x + w / 2, z: side === 'north' ? CORR : -CORR, axis: 'x', width: 1.8 },
       tier, purpose, hours: HOURS[id],
     });
@@ -114,20 +114,20 @@ function layoutSide(list: typeof north, side: 'north' | 'south') {
 }
 // Khu giam giữ (L19–L22) đặt trước để là phòng đầu dãy (tường tây) — phía tây hành lang chính.
 const custodyWing: [ZoneId, string, 'north' | 'south', number, number, number, string, string][] = [
-  ['L21', 'Buồng bố trí riêng', 'north', -101, 12, 10, '#7f8786', 'Bố trí riêng theo lý do được ghi nhận (không phải kỷ luật)'],
-  ['L19', 'Khu giam giữ A', 'north', -89, 20, 14, '#8a8d80', 'Buồng ở nhóm A, giờ ra/về buồng theo lịch'],
-  ['L22', 'Buồng kỷ luật', 'south', -101, 12, 10, '#7a7b7e', 'Chấp hành quyết định kỷ luật có thời hạn, dịch vụ tại buồng'],
-  ['L20', 'Khu giam giữ B', 'south', -89, 20, 14, '#858278', 'Buồng ở nhóm B, giờ ra/về buồng theo lịch'],
+  ['L21', 'Buồng bố trí riêng', 'north', -101, 12, 10, '#b9bab4', 'Bố trí riêng theo lý do được ghi nhận (không phải kỷ luật)'],
+  ['L19', 'Khu giam giữ A', 'north', -89, 20, 14, '#c2c1b6', 'Buồng ở nhóm A, giờ ra/về buồng theo lịch'],
+  ['L22', 'Buồng kỷ luật', 'south', -101, 12, 10, '#b4b5b6', 'Chấp hành quyết định kỷ luật có thời hạn, dịch vụ tại buồng'],
+  ['L20', 'Khu giam giữ B', 'south', -89, 20, 14, '#c1bdb1', 'Buồng ở nhóm B, giờ ra/về buồng theo lịch'],
 ];
 for (const [id, name, side, x, w, d, wall, purpose] of custodyWing) {
   const z0 = side === 'north' ? CORR : -CORR - d;
   const z1 = side === 'north' ? CORR + d : -CORR;
-  ZONES.push({ id, name, side, x0: x, x1: x + w, z0, z1, height: 3.2, floor: '#56595a', wall, accent: '#c9b25a', door: { x: x + w / 2, z: side === 'north' ? CORR : -CORR, axis: 'x', width: 1.8 }, tier: 'life', purpose });
+  ZONES.push({ id, name, side, x0: x, x1: x + w, z0, z1, height: 3.2, floor: '#6f716f', wall, accent: '#c9b25a', door: { x: x + w / 2, z: side === 'north' ? CORR : -CORR, axis: 'x', width: 1.8 }, tier: 'life', purpose });
 }
 layoutSide(north, 'north');
 layoutSide(south, 'south');
-ZONES.push({ id: 'L03', name: 'Hành lang chính', side: 'corridor', x0: -101, x1: 69, z0: -CORR, z1: CORR, height: 3.6, floor: '#4f5452', wall: '#6d7774', accent: '#e8b77a', door: null, tier: 'slice', purpose: 'Kết nối các khu, bảng lịch, biển chỉ dẫn' });
-ZONES.push({ id: 'L04', name: 'Sân sinh hoạt', side: 'yard', x0: 69, x1: 109, z0: -16, z1: 12, height: 5, floor: '#5b5b55', wall: '#7b7468', accent: '#8fd1aa', outdoor: true, door: { x: 69, z: 0, axis: 'z', width: 1.8 }, tier: 'slice', purpose: 'Đi bộ, tập luyện, kết bạn, quan sát ngày đêm', hours: HOURS.L04 });
+ZONES.push({ id: 'L03', name: 'Hành lang chính', side: 'corridor', x0: -101, x1: 69, z0: -CORR, z1: CORR, height: 3.6, floor: '#72756f', wall: '#bdb8ab', accent: '#e8b77a', door: null, tier: 'slice', purpose: 'Kết nối các khu, bảng lịch, biển chỉ dẫn' });
+ZONES.push({ id: 'L04', name: 'Sân sinh hoạt', side: 'yard', x0: 69, x1: 109, z0: -16, z1: 12, height: 5, floor: '#5b5b55', wall: '#a19b8f', accent: '#8fd1aa', outdoor: true, door: { x: 69, z: 0, axis: 'z', width: 1.8 }, tier: 'slice', purpose: 'Đi bộ, tập luyện, kết bạn, quan sát ngày đêm', hours: HOURS.L04 });
 // CR-LAB-01 khu lao động nối qua sân (L23–L25 ngoài trời, L27 trong nhà). Bố cục blockout hư cấu.
 const ANNEX: [ZoneId, string, number, number, number, number, number, 1 | -1, boolean, string, string][] = [
   ['L23', 'Vườn rau', 69, 91, 12, 32, 80, 1, true, '#6d6a4c', 'Luống rau theo phân công: làm đất, gieo, tưới, thu hoạch'],
@@ -136,7 +136,7 @@ const ANNEX: [ZoneId, string, number, number, number, number, number, 1 | -1, bo
   ['L27', 'Kho & kiểm nhận', 93, 109, -32, -16, 106, -1, false, '#8a8578', 'Cấp phát dụng cụ, cân, kiểm nhận và bàn giao lô'],
 ];
 for (const [id, name, x0, x1, z0, z1, dx, dir, outdoor, color, purpose] of ANNEX) {
-  ZONES.push({ id, name, side: 'annex', via: 'L04', doorIn: { x: 0, z: dir }, x0, x1, z0, z1, height: outdoor ? 3 : 3.4, floor: color, wall: outdoor ? '#7b7468' : '#8a8578', accent: '#91be9a', outdoor, door: { x: dx, z: dir === 1 ? z0 : z1, axis: 'x', width: 1.8 }, tier: 'life', purpose, hours: HOURS[id] });
+  ZONES.push({ id, name, side: 'annex', via: 'L04', doorIn: { x: 0, z: dir }, x0, x1, z0, z1, height: outdoor ? 3 : 3.4, floor: color, wall: outdoor ? '#a19b8f' : '#8a8578', accent: '#91be9a', outdoor, door: { x: dx, z: dir === 1 ? z0 : z1, axis: 'x', width: 1.8 }, tier: 'life', purpose, hours: HOURS[id] });
 }
 
 export const ZONE_BY_ID: Record<ZoneId, ZoneDef> = Object.fromEntries(ZONES.map((z) => [z.id, z])) as Record<ZoneId, ZoneDef>;
@@ -282,25 +282,25 @@ function lineToWorld(zone: ZoneDef, u0: number, v0: number, u1: number, v1: numb
 ZONES.filter((z) => z.side === 'north').forEach((z, i) => roomShell(z, i === 0));
 ZONES.filter((z) => z.side === 'south').forEach((z, i) => roomShell(z, i === 0));
 // Corridor west end, yard
-WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
-WALLS.push({ x0: 69, z0: -CORR, x1: 69, z1: -0.9, h: 3.6, zone: 'L03', color: '#6d7774' });
-WALLS.push({ x0: 69, z0: 0.9, x1: 69, z1: CORR, h: 3.6, zone: 'L03', color: '#6d7774' });
-WALLS.push({ x0: 69, z0: -0.9, x1: 69, z1: 0.9, h: 3.6, zone: 'L04', color: '#7b7468', doorId: 'door_L04' });
-for (const [a, b] of [[69, 79.1], [80.9, 99.1], [100.9, 109]]) WALLS.push({ x0: a, z0: 12, x1: b, z1: 12, h: 5, zone: 'L04', color: '#7b7468' });
-WALLS.push({ x0: 79.1, z0: 12, x1: 80.9, z1: 12, h: 3, zone: 'L23', color: '#7b7468', doorId: 'door_L23' });
-WALLS.push({ x0: 99.1, z0: 12, x1: 100.9, z1: 12, h: 3, zone: 'L25', color: '#7b7468', doorId: 'door_L25' });
-WALLS.push({ x0: 109, z0: -16, x1: 109, z1: 12, h: 5, zone: 'L04', color: '#7b7468' });
-for (const [a, b] of [[69, 80.1], [81.9, 105.1], [106.9, 109]]) WALLS.push({ x0: a, z0: -16, x1: b, z1: -16, h: 5, zone: 'L04', color: '#7b7468' });
-WALLS.push({ x0: 80.1, z0: -16, x1: 81.9, z1: -16, h: 3, zone: 'L24', color: '#7b7468', doorId: 'door_L24' });
+WALLS.push({ x0: -101, z0: -CORR, x1: -101, z1: CORR, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: 69, z0: -CORR, x1: 69, z1: -0.9, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: 69, z0: 0.9, x1: 69, z1: CORR, h: 3.6, zone: 'L03', color: '#bdb8ab' });
+WALLS.push({ x0: 69, z0: -0.9, x1: 69, z1: 0.9, h: 3.6, zone: 'L04', color: '#a19b8f', doorId: 'door_L04' });
+for (const [a, b] of [[69, 79.1], [80.9, 99.1], [100.9, 109]]) WALLS.push({ x0: a, z0: 12, x1: b, z1: 12, h: 5, zone: 'L04', color: '#a19b8f' });
+WALLS.push({ x0: 79.1, z0: 12, x1: 80.9, z1: 12, h: 3, zone: 'L23', color: '#a19b8f', doorId: 'door_L23' });
+WALLS.push({ x0: 99.1, z0: 12, x1: 100.9, z1: 12, h: 3, zone: 'L25', color: '#a19b8f', doorId: 'door_L25' });
+WALLS.push({ x0: 109, z0: -16, x1: 109, z1: 12, h: 5, zone: 'L04', color: '#a19b8f' });
+for (const [a, b] of [[69, 80.1], [81.9, 105.1], [106.9, 109]]) WALLS.push({ x0: a, z0: -16, x1: b, z1: -16, h: 5, zone: 'L04', color: '#a19b8f' });
+WALLS.push({ x0: 80.1, z0: -16, x1: 81.9, z1: -16, h: 3, zone: 'L24', color: '#a19b8f', doorId: 'door_L24' });
 WALLS.push({ x0: 105.1, z0: -16, x1: 106.9, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578', doorId: 'door_L27' });
 // tường bao khu lao động (hàng rào cao 3 m ngoài trời)
-WALLS.push({ x0: 69, z0: 12, x1: 69, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
-WALLS.push({ x0: 69, z0: 32, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
-WALLS.push({ x0: 91, z0: 12, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#7b7468' });
-WALLS.push({ x0: 91, z0: 32, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#7b7468' });
-WALLS.push({ x0: 109, z0: 12, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#7b7468' });
-WALLS.push({ x0: 69, z0: -36, x1: 69, z1: -16, h: 3, zone: 'L24', color: '#7b7468' });
-WALLS.push({ x0: 69, z0: -36, x1: 93, z1: -36, h: 3, zone: 'L24', color: '#7b7468' });
+WALLS.push({ x0: 69, z0: 12, x1: 69, z1: 32, h: 3, zone: 'L23', color: '#a19b8f' });
+WALLS.push({ x0: 69, z0: 32, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#a19b8f' });
+WALLS.push({ x0: 91, z0: 12, x1: 91, z1: 32, h: 3, zone: 'L23', color: '#a19b8f' });
+WALLS.push({ x0: 91, z0: 32, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#a19b8f' });
+WALLS.push({ x0: 109, z0: 12, x1: 109, z1: 32, h: 3, zone: 'L25', color: '#a19b8f' });
+WALLS.push({ x0: 69, z0: -36, x1: 69, z1: -16, h: 3, zone: 'L24', color: '#a19b8f' });
+WALLS.push({ x0: 69, z0: -36, x1: 93, z1: -36, h: 3, zone: 'L24', color: '#a19b8f' });
 WALLS.push({ x0: 93, z0: -36, x1: 93, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578' });
 WALLS.push({ x0: 93, z0: -32, x1: 109, z1: -32, h: 3.4, zone: 'L27', color: '#8a8578' });
 WALLS.push({ x0: 109, z0: -32, x1: 109, z1: -16, h: 3.4, zone: 'L27', color: '#8a8578' });
@@ -691,9 +691,9 @@ export const SAFE_ANCHORS: Partial<Record<ZoneId, Vec3>> = Object.fromEntries(ZO
     const xs = ZONES.filter((z) => z.side === side).map((z) => z.x0).sort((a, b) => a - b).slice(1);
     xs.forEach((x, i) => { if (i % 2 === (side === 'north' ? 0 : 1)) bannerL('L03', x - corr.x0, side === 'north' ? depth - 0.12 : 0.12, side === 'north' ? Math.PI : 0, 3.4, 'long', 2.85); });
   }
-  WALL_BANNERS.push({ id: 'banner_L27', zone: 'L27', x: 101, y: 2.75, z: -31.88, yaw: 0, w: 6, h: 0.62, text: 'Lao động chân chính — sống lương thiện — hướng thiện', size: 'long' });
-  WALL_BANNERS.push({ id: 'banner_L23', zone: 'L23', x: 80, y: 2.3, z: 31.88, yaw: Math.PI, w: 7, h: 0.8, text: 'Học tập — lao động — rèn luyện để sớm trở về với gia đình', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_L27', zone: 'L27', x: 101, y: 2.75, z: -31.88, yaw: 0, w: 6, h: 0.62, text: 'Learn a Trade — Build a Future', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_L23', zone: 'L23', x: 80, y: 2.3, z: 31.88, yaw: Math.PI, w: 7, h: 0.8, text: 'Work Hard · Stay Focused · Go Home', size: 'long' });
   const yard = ZONE_BY_ID.L04;
-  WALL_BANNERS.push({ id: 'banner_yard_e', zone: 'L04', x: yard.x1 - 0.12, y: 3.6, z: -10, yaw: -Math.PI / 2, w: 9, h: 1, text: 'Tự do là quý giá nhất — hãy giữ gìn bằng việc sống đúng pháp luật', size: 'long' });
-  WALL_BANNERS.push({ id: 'banner_yard_n', zone: 'L04', x: 89, y: 3.6, z: yard.z1 - 0.12, yaw: Math.PI, w: 9, h: 1, text: 'Học tập — lao động — rèn luyện để sớm trở về với gia đình', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_yard_e', zone: 'L04', x: yard.x1 - 0.12, y: 3.6, z: -10, yaw: -Math.PI / 2, w: 9, h: 1, text: 'Freedom Is Earned Every Day', size: 'long' });
+  WALL_BANNERS.push({ id: 'banner_yard_n', zone: 'L04', x: 89, y: 3.6, z: yard.z1 - 0.12, yaw: Math.PI, w: 9, h: 1, text: 'Recreation Yard · Stay Inside Painted Boundaries', size: 'long' });
 }

@@ -4,7 +4,7 @@ import { Color3, Color4, DynamicTexture, Mesh, MeshBuilder, Scene, StandardMater
 import { CELL_DOORS, PROPS, WALLS, WALL_BANNERS, ZONES, ZONE_BY_ID, type PropDef, type WallBanner } from '../content/world';
 import type { ZoneId } from '../domain/types';
 import { hash32 } from '../domain/util';
-import { boxPiece, color4, cylPiece, mergePieces, meshPiece, sphPiece, yieldFrame, type Piece } from './geo';
+import { boxPiece, color4, cylPiece, mergePieces, meshPiece, sphPiece, torusPiece, yieldFrame, type Piece } from './geo';
 
 export interface WorldHandles {
   zoneMeshes: Map<ZoneId, Mesh[]>;
@@ -18,6 +18,24 @@ export interface WorldHandles {
   /** CR-VN-01: cửa buồng động — hình ảnh tách khỏi quyền (evaluator quyết định). */
   cellDoors: Map<string, { mesh: Mesh; closedPos: Vector3; openPos: Vector3; t: number }>;
 }
+
+const SAFETY_YELLOW = '#e3b21f';
+/** v (độ sâu từ tường hành lang) của dãy song sắt buồng giam — để vẽ vạch vàng phía trước. */
+const BARS_V: Partial<Record<ZoneId, number>> = { L02: 8, L19: 8, L20: 8, L21: 4, L22: 4 };
+/** Màu sơn chân tường (wainscot) kiểu cơ sở cải huấn Mỹ: tường gạch block sơn sáng, nửa dưới sơn màu đậm. */
+const WAINSCOT: Partial<Record<ZoneId, string>> = {
+  L02: '#4f6f82', L19: '#4f6f82', L20: '#4f6f82', L21: '#6c6458', L22: '#7a4b45', L03: '#33506b', L01: '#4a5b6c',
+  L05: '#7a5238', L06: '#5f7f80', L07: '#5d4c3a', L14: '#45627a', L17: '#5f7464', L11: '#4a5b6c', L16: '#4a5b6c',
+  L15: '#4a5b6c', L13: '#5f8a88', L08: '#5f8a88', L12: '#6b5843', L09: '#3c4c5c', L10: '#5a5e62', L18: '#4a5b6c', L27: '#5a5e62',
+};
+/** Tên khu tiếng Anh trên biển chỉ dẫn (chỉ trình bày; tên trong UI giữ nguyên). */
+const SIGN_EN: Partial<Record<ZoneId, string>> = {
+  L01: 'INTAKE & PROCESSING', L02: 'HOUSING UNIT', L03: 'MAIN CORRIDOR', L04: 'RECREATION YARD', L05: 'DINING HALL', L06: 'KITCHEN',
+  L07: 'LIBRARY', L08: 'MEDICAL', L09: 'GYMNASIUM', L10: 'INDUSTRIES SHOP', L11: 'CASE MANAGEMENT', L12: 'VISITATION',
+  L13: 'SHOWERS & LAUNDRY', L14: 'EDUCATION · GED', L15: 'COMMISSARY', L16: 'MAIL & PHONES', L17: 'CHAPEL · QUIET ROOM', L18: 'REENTRY CENTER',
+  L19: 'CELL BLOCK A', L20: 'CELL BLOCK B', L21: 'ADMIN SEGREGATION', L22: 'RESTRICTED HOUSING', L23: 'GARDEN', L24: 'AQUACULTURE', L25: 'NURSERY', L27: 'WAREHOUSE',
+};
+const SIGN_FONT = '"Bahnschrift", "Barlow Condensed", "Arial Narrow", "Noto Sans", "Segoe UI", sans-serif';
 
 function hexToColor4(hex: string, mul = 1): Color4 {
   const c = Color3.FromHexString(hex);
@@ -109,12 +127,38 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
       box('L04', w - 8, 0.02, 0.5, cx, 0.01, -10, '#d8c27a'); box('L04', w - 8, 0.02, 0.5, cx, 0.01, 6, '#d8c27a');
       box('L04', 0.5, 0.02, 16, 75, 0.01, -2, '#d8c27a'); box('L04', 0.5, 0.02, 16, 103, 0.01, -2, '#d8c27a');
       box('L04', w, 0.05, 2.2, cx, 0.02, 11, '#5f7a4a'); box('L04', w, 0.05, 1.8, cx, 0.02, -15.1, '#5f7a4a');
-      box('L04', 14, 0.02, 8, 95, 0.012, -2, '#6c6f74');
-      // distant skyline (cảnh quan, không phải bản vẽ thật)
-      box('L04', 70, 6, 1, 89, 8, 40, '#8d958f', 0, 0.9); box('L04', 1, 6, 50, 118, 8, -2, '#8d958f', 0, 0.85);
+      // nửa sân bóng rổ sơn xanh (rổ ở x=108.5): biên, vùng cấm, vòng ném phạt
+      const LINE = '#eceae2';
+      box('L04', 5.6, 0.02, 12, 106.2, 0.012, -2, '#3d5f80');
+      box('L04', 4.2, 0.022, 3.6, 106.7, 0.013, -2, '#8c3b32');
+      for (const [w2, d2, x2, z2] of [[5.6, 0.08, 106.2, 4], [5.6, 0.08, 106.2, -8], [0.08, 12, 103.4, -2], [0.08, 3.6, 104.6, -2], [4.2, 0.08, 106.7, -0.2], [4.2, 0.08, 106.7, -3.8]] as [number, number, number, number][]) box('L04', w2, 0.024, d2, x2, 0.014, z2, LINE);
+      { const ft = torusPiece(3.2, 0.06, 32, color4(LINE)); ft.position.set(104.6, 0.014, -2); ft.scaling.y = 0.15; batch.add('L04', ft); }
+      // khu tạ ngoài trời: thảm cao su + băng ghế tạ
+      box('L04', 6, 0.03, 3, 99.5, 0.015, -13.6, '#26282b');
+      for (const bx of [97.5, 101.5]) { box('L04', 0.35, 0.45, 1.3, bx, 0.25, -13.2, '#202226'); box('L04', 0.05, 1.1, 0.05, bx - 0.5, 0.55, -13.9, '#8b949b'); box('L04', 0.05, 1.1, 0.05, bx + 0.5, 0.55, -13.9, '#8b949b'); { const bar = cylPiece(0.035, 1.7, 6, color4('#c3c9ce')); bar.position.set(bx, 1.1, -13.9); bar.rotation.z = Math.PI / 2; batch.add('L04', bar); } for (const sd of [-0.7, 0.7]) { const pl = cylPiece(0.42, 0.06, 14, color4('#141518')); pl.position.set(bx + sd, 1.1, -13.9); pl.rotation.z = Math.PI / 2; batch.add('L04', pl); } }
+      // cột đèn pha cao 4 góc sân
+      for (const [lx, lz] of [[70.6, -14.6], [107.4, -14.6], [70.6, 10.6], [107.4, 10.6]] as [number, number][]) {
+        cyl('L04', 0.22, 9, lx, 4.5, lz, '#5a6168', 8, 0.14);
+        box('L04', 1.6, 0.12, 0.16, lx, 9.0, lz, '#3a3f45');
+        for (const o of [-0.5, 0, 0.5]) { box('L04', 0.36, 0.3, 0.3, lx + o, 8.8, lz, '#2b2f34'); const lm = boxPiece(0.3, 0.04, 0.24, color4('#ffffff')); lm.position.set(lx + o, 8.64, lz); emissive.push(lm); }
+      }
+      // chòi canh bên ngoài tường sân (nhìn thấy qua đỉnh tường)
+      for (const [tx, tz] of [[113.5, -20], [64.5, 36]] as [number, number][]) {
+        cyl('L04', 2.2, 10, tx, 5, tz, '#9a958a', 12, 1.8);
+        box('L04', 3.6, 0.25, 3.6, tx, 10.1, tz, '#4a4f56');
+        box('L04', 3.2, 1.6, 3.2, tx, 11.0, tz, '#3b4048');
+        const glass = boxPiece(3.25, 1.0, 3.25, color4('#ffffff')); glass.position.set(tx, 11.1, tz); emissive.push(glass);
+        box('L04', 4.2, 0.22, 4.2, tx, 11.95, tz, '#2a2e34');
+        for (const [ox, oz] of [[-1.7, 0], [1.7, 0], [0, -1.7], [0, 1.7]] as [number, number][]) box('L04', ox ? 0.06 : 3.4, 0.9, oz ? 0.06 : 3.4, tx + ox, 10.6, tz + oz, '#5a6168');
+      }
+      // dãy nhà xa & hàng rào ngoài (cảnh quan, không phải bản vẽ thật)
+      box('L04', 70, 6, 1, 89, 8, 40, '#7d7a72', 0, 0.9); box('L04', 1, 6, 50, 118, 8, -2, '#7d7a72', 0, 0.85);
+      for (let i = 0; i < 16; i++) box('L04', 0.12, 4.2, 0.12, 70 + i * 4.4, 2.1, 37, '#6b737a');
+      box('L04', 66, 0.08, 0.08, 103, 4.1, 37, '#8a9298'); box('L04', 66, 0.08, 0.08, 103, 2.0, 37, '#8a9298');
+      razorWire('L04', 70, 37, 136, 37, 4.2);
       continue;
     }
-    const floorColor = z.id === 'L13' ? '#7f8c90' : z.id === 'L08' ? '#9aa3a0' : z.id === 'L07' ? '#6b5a48' : z.id === 'L09' ? '#4a5560' : z.floor;
+    const floorColor = z.id === 'L13' ? '#9ea7a9' : z.id === 'L08' ? '#c3c9c6' : z.id === 'L07' ? '#6d6253' : z.id === 'L09' ? '#38434f' : z.id === 'L05' ? '#8e8b83' : z.floor;
     box(z.id, w, 0.1, d, cx, -0.05, cz, floorColor, 0, 1, hash32(z.id));
     // ceiling (faces down)
     const c = MeshBuilder.CreateGround(`ceil_${z.id}`, { width: w, height: d }, scene);
@@ -130,15 +174,20 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
       lm.position.set(z.x0 + (i + 0.5) * (w / nx), z.height - 0.03, z.z0 + (j + 0.5) * (d / nz));
       emissive.push(lm);
     }
-    // skirting accent stripe on floor edges for wayfinding in corridor
+    // hành lang: vạch vàng an toàn hai bên ("Stay behind the yellow line") + vạch dẫn hướng xanh ở giữa
     if (z.id === 'L03') {
-      box('L03', w, 0.01, 0.35, cx, 0.006, 0, '#c9a56a', 0, 0.9);
+      for (const sz of [-1.55, 1.55]) box('L03', w, 0.012, 0.1, cx, 0.007, sz, SAFETY_YELLOW);
+      box('L03', w, 0.01, 0.06, cx, 0.006, 0, '#3e6c9a', 0, 0.9);
     }
+    // vạch vàng trước dãy song sắt buồng giam
+    const barsV = BARS_V[z.id];
+    if (barsV !== undefined) box(z.id, w - 0.4, 0.012, 0.1, cx, 0.007, z.side === 'north' ? z.z0 + barsV - 0.9 : z.z1 - barsV + 0.9, SAFETY_YELLOW);
   }
 
   // ---------- iron bar grille (song sắt) ----------
-  const STEEL = '#8a9196';
-  const STEEL_DARK = '#5f676c';
+  // song sắt sơn tĩnh điện xám xanh như dãy buồng giam Mỹ
+  const STEEL = '#8b9ba6';
+  const STEEL_DARK = '#56656f';
   /** Vertical bars + horizontal flat straps + frame along a segment (local x = along, centred at origin). */
   const grille = (len: number, h: number, add: (w: number, hh: number, d: number, lx: number, y: number, color: string, mul?: number) => void) => {
     const n = Math.max(2, Math.round(len / 0.13));
@@ -162,7 +211,7 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
       const barH = Math.min(2.5, w.h);
       grille(len, barH, (bw, bh, bd, lx, y, color, mul) => box(w.zone, bw, bh, bd, cx + lx * c, y, cz - lx * sn, color, yaw, mul ?? 1));
       // painted header beam above the bars (như ảnh: dầm sáng phía trên song)
-      if (w.h > barH) box(w.zone, len + 0.2, w.h - barH, 0.24, cx, barH + (w.h - barH) / 2, cz, '#c9c4b4', yaw);
+      if (w.h > barH) box(w.zone, len + 0.2, w.h - barH, 0.24, cx, barH + (w.h - barH) / 2, cz, '#a7aeb1', yaw);
       continue;
     }
     const len = Math.hypot(w.x1 - w.x0, w.z1 - w.z0);
@@ -170,9 +219,39 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const cx = (w.x0 + w.x1) / 2;
     const cz = (w.z0 + w.z1) / 2;
     const yaw = Math.atan2(w.x1 - w.x0, w.z1 - w.z0) + Math.PI / 2;
-    const lower = Math.min(1.1, w.h);
-    box(w.zone, len + 0.2, lower, 0.2, cx, lower / 2, cz, w.color, yaw, 0.72);
-    if (w.h > lower) box(w.zone, len + 0.2, w.h - lower, 0.2, cx, lower + (w.h - lower) / 2, cz, w.color, yaw, 1.08);
+    const outdoor = !!ZONE_BY_ID[w.zone].outdoor;
+    if (outdoor) {
+      // tường bê tông đúc ngoài trời: chân đậm, đỉnh có gờ + hàng cuộn dây thép gai
+      box(w.zone, len + 0.2, 0.5, 0.28, cx, 0.25, cz, w.color, yaw, 0.78);
+      box(w.zone, len + 0.2, w.h - 0.5, 0.2, cx, 0.5 + (w.h - 0.5) / 2, cz, w.color, yaw, 1.0);
+      box(w.zone, len + 0.3, 0.12, 0.34, cx, w.h + 0.06, cz, w.color, yaw, 0.86);
+      razorWire(w.zone, w.x0, w.z0, w.x1, w.z1, w.h + 0.12);
+      continue;
+    }
+    // gạch block sơn: nửa dưới màu đậm (wainscot) + nẹp phân cách + nửa trên màu sáng + chân tường
+    const lower = Math.min(1.2, w.h);
+    // tường cửa giáp hành lang (z = ±2) dùng màu hành lang để dãy hành lang đồng nhất
+    const onCorridor = Math.abs(Math.abs(w.z0) - 2) < 0.01 && Math.abs(Math.abs(w.z1) - 2) < 0.01;
+    const wain = onCorridor ? WAINSCOT.L03 : WAINSCOT[w.zone];
+    const upper = onCorridor ? ZONE_BY_ID.L03.wall : w.color;
+    box(w.zone, len + 0.2, lower, 0.2, cx, lower / 2, cz, wain ?? w.color, yaw, wain ? 1 : 0.72);
+    box(w.zone, len + 0.21, 0.06, 0.21, cx, lower, cz, '#2b3440', yaw);
+    box(w.zone, len + 0.21, 0.1, 0.21, cx, 0.05, cz, '#2b3440', yaw);
+    if (w.h > lower) box(w.zone, len + 0.2, w.h - lower, 0.2, cx, lower + (w.h - lower) / 2, cz, upper, yaw, 1.04);
+  }
+
+  /** Cuộn dây thép gai (concertina) dọc đỉnh tường ngoài trời — vòng xuyến nghiêng theo hướng tường. */
+  function razorWire(zone: ZoneId, x0: number, z0: number, x1: number, z1: number, y: number) {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const n = Math.max(1, Math.round(len / 0.42));
+    const yaw = Math.atan2(x1 - x0, z1 - z0);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const m = torusPiece(0.62, 0.018, 8, color4(i % 2 ? '#c2c9ce' : '#a9b1b7'));
+      m.position.set(x0 + (x1 - x0) * t, y + 0.3, z0 + (z1 - z0) * t);
+      m.rotation.set(Math.PI / 2, yaw, 0.35 * (i % 2 ? 1 : -1));
+      batch.add(zone, m);
+    }
   }
 
   // ---------- doors: cửa trượt song sắt ----------
@@ -225,11 +304,14 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     if (d.dynamic) cellDoors.set(d.roomId, { mesh: leaf, openPos: leaf.position.clone(), closedPos: new Vector3(d.x, 1.2, d.z + d.inward * 0.12), t: 0 });
     else leaf.freezeWorldMatrix();
     for (const sd of [-1, 1]) box('L02', 0.1, 2.5, 0.12, d.x + sd * d.width / 2, 1.25, d.z, STEEL_DARK);
+    // biển số buồng: tấm nhựa khắc đen chữ trắng, vạch vàng phía trên
     const tex = new DynamicTexture(`tx_no_${d.roomId}`, { width: 128, height: 64 }, scene, true);
     const ctx = tex.getContext() as CanvasRenderingContext2D;
-    ctx.fillStyle = '#e9e5d8'; ctx.fillRect(0, 0, 128, 64);
-    ctx.fillStyle = '#2b2b2b'; ctx.font = 'bold 40px "Noto Sans", "Segoe UI", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(d.number, 64, 46);
+    ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, 128, 64);
+    ctx.fillStyle = SAFETY_YELLOW; ctx.fillRect(0, 0, 128, 7);
+    ctx.strokeStyle = '#8b96a0'; ctx.lineWidth = 3; ctx.strokeRect(1.5, 1.5, 125, 61);
+    ctx.fillStyle = '#f4f4f0'; ctx.font = `700 36px ${SIGN_FONT}`; ctx.textAlign = 'center';
+    ctx.fillText(d.number, 64, 48);
     tex.update();
     const mat = new StandardMaterial(`m_no_${d.roomId}`, scene);
     mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.25, 0.25, 0.25); mat.specularColor = new Color3(0, 0, 0);
@@ -243,7 +325,8 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     }
   }
 
-  // ---------- băng rôn khẩu hiệu (đỏ chữ vàng) ----------
+  // ---------- biển treo tường kiểu cơ sở cải huấn Mỹ ----------
+  // long: biển kim loại xanh navy chữ trắng, viền bạc + vạch vàng; short: bảng nội quy giấy trắng có dải "NOTICE" đỏ.
   const bannerMats = new Map<string, StandardMaterial>();
   const bannerMat = (b: WallBanner) => {
     const key = `${b.size}|${b.w}|${b.h}|${b.text}`;
@@ -253,18 +336,39 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const H = Math.max(64, Math.round((W * b.h) / b.w));
     const tex = new DynamicTexture(`tx_banner_${bannerMats.size}`, { width: W, height: H }, scene, true);
     const ctx = tex.getContext() as CanvasRenderingContext2D;
-    ctx.fillStyle = '#b3201c'; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = '#f4c542'; ctx.lineWidth = Math.max(3, H * 0.05); ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, W - ctx.lineWidth * 2, H - ctx.lineWidth * 2);
-    ctx.fillStyle = '#ffd95a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const pad = W * 0.05;
+    const notice = b.size === 'short';
+    let top = 0;
+    if (notice) {
+      ctx.fillStyle = '#f2f0ea'; ctx.fillRect(0, 0, W, H);
+      top = Math.round(H * 0.3);
+      ctx.fillStyle = '#b8231c'; ctx.fillRect(0, 0, W, top);
+      ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `800 ${Math.round(top * 0.72)}px ${SIGN_FONT}`; ctx.fillText('NOTICE', W / 2, top / 2 + 1);
+      ctx.strokeStyle = '#1d2128'; ctx.lineWidth = Math.max(3, H * 0.035); ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, W - ctx.lineWidth, H - ctx.lineWidth);
+      ctx.fillStyle = '#16191e';
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#20396a'); g.addColorStop(1, '#142a50');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      const lw = Math.max(3, H * 0.045);
+      ctx.strokeStyle = '#dfe5ec'; ctx.lineWidth = lw; ctx.strokeRect(lw * 1.5, lw * 1.5, W - lw * 3, H - lw * 3);
+      ctx.fillStyle = SAFETY_YELLOW; ctx.fillRect(lw * 3, H - lw * 3.6, W - lw * 6, lw * 0.7);
+      // bu lông 4 góc
+      ctx.fillStyle = '#b9c2cc';
+      for (const [bx, by] of [[lw * 0.8, lw * 0.8], [W - lw * 0.8, lw * 0.8], [lw * 0.8, H - lw * 0.8], [W - lw * 0.8, H - lw * 0.8]]) { ctx.beginPath(); ctx.arc(bx, by, lw * 0.45, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#ffffff';
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const pad = W * 0.06;
     const text = b.text.toUpperCase();
+    const avail = H - top;
     // một dòng nếu vừa, nếu không chia hai dòng ở khoảng trắng gần giữa
-    let size = H * 0.5;
+    let size = avail * 0.5;
     // đo một lần ở cỡ chuẩn rồi tính tỉ lệ (trước đây giảm 1px mỗi lần + đo lại → ~2 giây khi tải)
-    const fit = (lines: string[]) => { ctx.font = `800 100px "Noto Sans", "Segoe UI", sans-serif`; const wmax = Math.max(...lines.map((l) => ctx.measureText(l).width)); return Math.max(10, Math.min(size, (100 * (W - pad * 2)) / wmax, (H * 0.78) / (lines.length * 1.12))); };
+    const fit = (lines: string[]) => { ctx.font = `700 100px ${SIGN_FONT}`; const wmax = Math.max(...lines.map((l) => ctx.measureText(l).width)); return Math.max(10, Math.min(size, (100 * (W - pad * 2)) / wmax, (avail * 0.72) / (lines.length * 1.12))); };
     let lines = [text];
     let fs = fit(lines);
-    if (fs < H * 0.3) {
+    if (fs < avail * 0.3) {
       const mid = text.length / 2;
       let cut = text.indexOf(' ', Math.floor(mid));
       const back = text.lastIndexOf(' ', Math.floor(mid));
@@ -272,11 +376,12 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
       if (cut > 0) { const two = [text.slice(0, cut), text.slice(cut + 1)]; const fs2 = fit(two); if (fs2 > fs) { lines = two; fs = fs2; } }
     }
     size = fs;
-    ctx.font = `800 ${size}px "Noto Sans", "Segoe UI", sans-serif`;
-    lines.forEach((l, i) => ctx.fillText(l, W / 2, H / 2 + (i - (lines.length - 1) / 2) * size * 1.12));
+    ctx.font = `700 ${size}px ${SIGN_FONT}`;
+    const midY = notice ? top + avail / 2 : H / 2 - H * 0.03;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, midY + (i - (lines.length - 1) / 2) * size * 1.12));
     tex.update();
     const mat = new StandardMaterial(`m_banner_${bannerMats.size}`, scene);
-    mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.42, 0.38, 0.36); mat.specularColor = new Color3(0, 0, 0);
+    mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.4, 0.4, 0.4); mat.specularColor = notice ? new Color3(0, 0, 0) : new Color3(0.18, 0.18, 0.2);
     bannerMats.set(key, mat);
     return mat;
   };
@@ -303,22 +408,23 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
   /** Bồn cầu sứ chi tiết: chân bệ, lòng bồn + nước, bệ ngồi, nắp bật, két nước, nút xả, ống cấp, giá giấy.
    *  Biến thể buồng giam (meta.cell): thêm vách che thấp phía song sắt. Biến thể khu vệ sinh: sàn gạch + cửa buồng mở. */
   function buildToilet(p: PropDef) {
-    const PORC = '#f2f2ee', CHROME = '#c3c9cc';
     const cell = !!p.meta?.cell;
+    // buồng giam: bồn cầu thép không gỉ (kiểu combo inox của nhà tù Mỹ); khu vệ sinh chung: sứ trắng
+    const PORC = cell ? '#b4bcc2' : '#f2f2ee', CHROME = cell ? '#dde2e6' : '#c3c9cc';
     const yawM = <T extends { rotation: Vector3 }>(m: T) => { m.rotation.y = p.yaw; return m; };
     // chân bệ (thon dần lên trên)
     { const [x, z] = local(p, 0, -0.16); const m = cyl(p.zone, 0.26, 0.3, x, 0.15, z, PORC, 14, 0.34); m.scaling.z = 1.35; yawM(m); }
     // lòng bồn (oval)
     { const [x, z] = local(p, 0, -0.12); const m = cyl(p.zone, 0.42, 0.13, x, 0.355, z, PORC, 20, 0.44); m.scaling.z = 1.3; yawM(m); }
     // nước trong lòng bồn
-    { const [x, z] = local(p, 0, -0.1); const m = cyl(p.zone, 0.27, 0.01, x, 0.4, z, '#9cc4cf', 16); m.scaling.z = 1.3; yawM(m); }
+    { const [x, z] = local(p, 0, -0.1); const m = cyl(p.zone, 0.27, 0.01, x, 0.4, z, cell ? '#8fb3bd' : '#9cc4cf', 16); m.scaling.z = 1.3; yawM(m); }
     // bệ ngồi (vòng oval)
-    { const [x, z] = local(p, 0, -0.12); const t = MeshBuilder.CreateTorus(`tseat${uid++}`, { diameter: 0.36, thickness: 0.055, tessellation: 24 }, scene); t.position.set(x, 0.44, z); t.scaling.z = 1.3; t.scaling.y = 0.6; yawM(t); colorize(t, '#fafaf7'); batch.add(p.zone, t); }
+    { const [x, z] = local(p, 0, -0.12); const t = MeshBuilder.CreateTorus(`tseat${uid++}`, { diameter: 0.36, thickness: 0.055, tessellation: 24 }, scene); t.position.set(x, 0.44, z); t.scaling.z = 1.3; t.scaling.y = 0.6; yawM(t); colorize(t, cell ? '#c6cdd2' : '#fafaf7'); batch.add(p.zone, t); }
     // nắp bật dựng tựa vào két
-    pbox(p, 0.38, 0.46, 0.03, 0, 0.68, -0.39, '#f7f7f3');
+    pbox(p, 0.38, 0.46, 0.03, 0, 0.68, -0.39, cell ? '#a9b1b7' : '#f7f7f3');
     // két nước + nắp két + nút xả
     pbox(p, 0.44, 0.36, 0.17, 0, 0.66, -0.5, PORC);
-    pbox(p, 0.47, 0.035, 0.2, 0, 0.86, -0.5, '#fbfbf8');
+    pbox(p, 0.47, 0.035, 0.2, 0, 0.86, -0.5, cell ? '#c6cdd2' : '#fbfbf8');
     { const [x, z] = local(p, 0.08, -0.5); cyl(p.zone, 0.055, 0.02, x, 0.885, z, CHROME, 12); }
     // ống cấp nước + van chặn
     pbox(p, 0.025, 0.42, 0.025, -0.18, 0.21, -0.58, CHROME);
@@ -359,14 +465,27 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const seed = hash32(p.id);
     switch (p.kind) {
       case 'bed': {
-        pbox(p, p.w, 0.3, p.d, 0, 0.25, 0, '#3e4a50');
-        pbox(p, p.w - 0.08, 0.14, p.d - 0.08, 0, 0.47, 0, '#7d8fa0');
-        pbox(p, p.w - 0.25, 0.1, 0.35, 0, 0.58, -p.d / 2 + 0.3, '#e6e2d6');
-        pbox(p, p.w - 0.04, 0.06, p.d * 0.55, 0, 0.56, p.d * 0.18, ['#55707e', '#7a6a58', '#5b6b52', '#6c5a6e'][seed % 4]);
-        pbox(p, 0.05, 0.5, 0.05, -p.w / 2 + 0.03, 0.55, -p.d / 2 + 0.03, '#2e373b'); pbox(p, 0.05, 0.5, 0.05, p.w / 2 - 0.03, 0.55, -p.d / 2 + 0.03, '#2e373b');
+        // giường thép hàn tường kiểu buồng giam Mỹ: khung thép sơn, đệm vinyl xanh, chăn len xám, ngăn chứa đồ dưới gầm
+        const FR = '#6e7b84';
+        pbox(p, p.w, 0.06, p.d, 0, 0.4, 0, FR);
+        pbox(p, p.w, 0.3, 0.05, 0, 0.22, -p.d / 2 + 0.03, FR); pbox(p, p.w, 0.3, 0.05, 0, 0.22, p.d / 2 - 0.03, FR);
+        pbox(p, 0.05, 0.38, p.d, -p.w / 2 + 0.03, 0.2, 0, '#56636c'); pbox(p, 0.05, 0.38, p.d, p.w / 2 - 0.03, 0.2, 0, '#56636c');
+        pbox(p, p.w - 0.1, 0.1, p.d - 0.1, 0, 0.48, 0, '#3f6a8c');
+        pbox(p, p.w - 0.3, 0.09, 0.34, 0, 0.57, -p.d / 2 + 0.28, '#ecebe4');
+        pbox(p, p.w - 0.06, 0.05, p.d * 0.58, 0, 0.55, p.d * 0.17, ['#6f7377', '#7b7466', '#626c74', '#6d6a62'][seed % 4]);
+        pbox(p, p.w - 0.06, 0.012, 0.08, 0, 0.58, p.d * 0.17 - p.d * 0.29 + 0.04, '#e3e1d8');
+        pbox(p, p.w * 0.38, 0.18, 0.4, -p.w * 0.2, 0.1, p.d * 0.2, '#b9a888');
         break;
       }
-      case 'locker': pbox(p, p.w, p.h, p.d, 0, p.h / 2, 0, '#6b7f74'); pbox(p, 0.04, 0.12, 0.03, 0.18, 1.0, p.d / 2 + 0.01, '#c9c9c9'); break;
+      case 'locker': {
+        // tủ thép cá nhân: thân xám, lỗ thông gió, tay khóa, nhãn số
+        pbox(p, p.w, p.h, p.d, 0, p.h / 2, 0, '#7d8891');
+        pbox(p, p.w - 0.06, p.h - 0.08, 0.01, 0, p.h / 2, p.d / 2 + 0.005, '#8994a0');
+        for (let i = 0; i < 4; i++) pbox(p, p.w * 0.5, 0.012, 0.012, 0, p.h - 0.2 - i * 0.04, p.d / 2 + 0.012, '#4a525a');
+        pbox(p, 0.04, 0.14, 0.03, 0.2, 1.0, p.d / 2 + 0.02, '#c9ced2');
+        pbox(p, 0.14, 0.06, 0.01, 0, p.h - 0.38, p.d / 2 + 0.012, '#e8e6de');
+        break;
+      }
       case 'desk': pbox(p, p.w, 0.05, p.d, 0, 0.74, 0, '#8b6f52'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.05, 0.72, 0.05, a * (p.w / 2 - 0.05), 0.36, b * (p.d / 2 - 0.05), '#3a3a3a'); break;
       case 'chair': pbox(p, 0.45, 0.05, 0.45, 0, 0.46, 0, '#566b75'); pbox(p, 0.45, 0.45, 0.05, 0, 0.7, -0.2, '#566b75'); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pbox(p, 0.04, 0.45, 0.04, a * 0.19, 0.22, b * 0.19, '#2f2f2f'); break;
       case 'table': {
@@ -408,16 +527,29 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
         break;
       }
       case 'board': case 'whiteboard': {
-        const tex = new DynamicTexture(`tx_${p.id}`, { width: 512, height: p.kind === 'whiteboard' ? 220 : 340 }, scene, true);
+        const wb = p.kind === 'whiteboard';
+        const TH = wb ? 220 : 340;
+        const tex = new DynamicTexture(`tx_${p.id}`, { width: 512, height: TH }, scene, true);
         const ctx = tex.getContext() as CanvasRenderingContext2D;
-        ctx.fillStyle = p.kind === 'whiteboard' ? '#f4f4ef' : '#2a3b3e';
-        ctx.fillRect(0, 0, 512, 512);
-        ctx.fillStyle = p.kind === 'whiteboard' ? '#2b3f6b' : '#f2f0e8';
-        ctx.font = 'bold 40px "Noto Sans", "Segoe UI", sans-serif';
-        wrapText(ctx, p.label, 24, 64, 464, 46);
-        ctx.fillStyle = p.kind === 'whiteboard' ? '#7a7a7a' : '#e8b77a';
-        ctx.font = '28px "Noto Sans", "Segoe UI", sans-serif';
-        ctx.fillText('[E] để xem', 24, p.kind === 'whiteboard' ? 200 : 310);
+        if (wb) {
+          ctx.fillStyle = '#f4f4ef'; ctx.fillRect(0, 0, 512, TH);
+          ctx.strokeStyle = '#9aa3ab'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 502, TH - 10);
+          ctx.fillStyle = '#1f3d75';
+        } else {
+          // bảng tin kiểu Mỹ: khung nhôm, nền bần (cork), tờ thông báo trắng ghim đỏ
+          ctx.fillStyle = '#a27a4c'; ctx.fillRect(0, 0, 512, TH);
+          for (let i = 0; i < 260; i++) { ctx.fillStyle = i % 2 ? 'rgba(80,50,20,.18)' : 'rgba(255,230,190,.12)'; ctx.fillRect((i * 97) % 512, (i * 53) % TH, 3, 2); }
+          ctx.strokeStyle = '#aeb5bb'; ctx.lineWidth = 14; ctx.strokeRect(7, 7, 498, TH - 14);
+          ctx.fillStyle = '#f6f5f0'; ctx.fillRect(32, 30, 448, TH - 60);
+          ctx.fillStyle = '#1c3561'; ctx.fillRect(32, 30, 448, 12);
+          ctx.fillStyle = '#c62f26'; for (const px of [52, 460]) { ctx.beginPath(); ctx.arc(px, 50, 7, 0, Math.PI * 2); ctx.fill(); }
+          ctx.fillStyle = '#16191e';
+        }
+        ctx.font = `700 40px ${SIGN_FONT}`;
+        wrapText(ctx, p.label, wb ? 24 : 48, wb ? 64 : 96, wb ? 464 : 416, 46);
+        ctx.fillStyle = wb ? '#7a7a7a' : '#1c3561';
+        ctx.font = `600 28px ${SIGN_FONT}`;
+        ctx.fillText('[E] để xem', wb ? 24 : 48, wb ? 200 : 290);
         tex.update();
         const mat = new StandardMaterial(`m_${p.id}`, scene);
         mat.diffuseTexture = tex;
@@ -500,6 +632,9 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
         m.rotation.y = p.yaw + Math.PI;
         windows.push(m);
         pbox(p, p.w + 0.12, 0.08, 0.06, 0, 1.28, 0, '#3a4446'); pbox(p, p.w + 0.12, 0.08, 0.06, 0, 2.32, 0, '#3a4446');
+        // song chắn cửa sổ an ninh
+        for (let i = 1; i < 6; i++) pbox(p, 0.035, p.h + 0.04, 0.035, -p.w / 2 + (i * p.w) / 6, 1.8, -0.04, STEEL_DARK);
+        pbox(p, p.w, 0.035, 0.035, 0, 1.8, -0.04, STEEL_DARK);
         break;
       }
       case 'staff_post': break;
@@ -521,12 +656,18 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     if (!z.door) continue;
     const tex = new DynamicTexture(`sign_${z.id}`, { width: 512, height: 128 }, scene, true);
     const c = tex.getContext() as CanvasRenderingContext2D;
-    c.fillStyle = '#1b2629'; c.fillRect(0, 0, 512, 128);
-    c.fillStyle = '#e8b77a'; c.fillRect(0, 118, 512, 10);
-    c.fillStyle = '#f2f0e8'; c.font = 'bold 44px "Noto Sans", "Segoe UI", sans-serif';
-    c.fillText(z.name, 20, 62);
-    c.fillStyle = '#c2cdca'; c.font = '30px "Noto Sans", "Segoe UI", sans-serif';
-    c.fillText(`${z.id}${z.hours ? ' · có giờ mở cửa' : ''}`, 20, 104);
+    // biển chỉ dẫn khu: nền navy, mã khu trong ô vàng, tên tiếng Anh + tên Việt nhỏ
+    c.fillStyle = '#13284b'; c.fillRect(0, 0, 512, 128);
+    c.strokeStyle = '#dfe5ec'; c.lineWidth = 5; c.strokeRect(4, 4, 504, 120);
+    c.fillStyle = SAFETY_YELLOW; c.fillRect(14, 14, 92, 100);
+    c.fillStyle = '#111418'; c.font = `800 38px ${SIGN_FONT}`; c.textAlign = 'center';
+    c.fillText(z.id, 60, 78);
+    c.textAlign = 'left';
+    const en = SIGN_EN[z.id] ?? z.name.toUpperCase();
+    c.fillStyle = '#ffffff'; c.font = `700 ${en.length > 16 ? 34 : 40}px ${SIGN_FONT}`;
+    c.fillText(en, 122, 62, 376);
+    c.fillStyle = '#b9c6d6'; c.font = `500 26px ${SIGN_FONT}`;
+    c.fillText(`${z.name}${z.hours ? ' · có giờ mở cửa' : ''}`, 122, 102, 376);
     tex.update();
     const mat = new StandardMaterial(`msign_${z.id}`, scene);
     mat.diffuseTexture = tex; mat.emissiveColor = new Color3(0.6, 0.6, 0.6); mat.specularColor = new Color3(0, 0, 0);

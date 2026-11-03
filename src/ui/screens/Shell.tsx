@@ -38,7 +38,7 @@ export function Landing() {
     <main className={`home ${portrait ? 'home-portrait' : ''}`} id="main">
       <div className="home-bg"><GateScene portrait={portrait} /></div>
       <header className="home-bar">
-        <div className="home-brand"><span className="brand-mark">★</span><b>MỘT NGÀY MỚI</b></div>
+        <div className="home-brand"><span className="brand-mark" aria-hidden>ND</span><b>MỘT NGÀY MỚI</b><small className="home-brand-sub">NEW DAY CORRECTIONAL FACILITY</small></div>
         <nav className="home-nav">
           <button onClick={() => setModal('about')}>Giới thiệu</button>
           <button onClick={() => set({ screen: 'auth' })}>Đăng nhập</button>
@@ -46,7 +46,8 @@ export function Landing() {
       </header>
       <section className="home-hero">
         <h1 className="home-slogan">{SLOGAN}</h1>
-        <p className="home-lead">Kỷ luật · Học tập · Lao động · Trở về với gia đình</p>
+        <p className="home-eyebrow">{FACILITY_NAME} · Cơ sở hư cấu</p>
+        <p className="home-lead">Kỷ luật · Giáo dục · Việc làm · Tái hòa nhập</p>
         <div className="home-cta" id="cta">
           <button className="btn primary lg" disabled={!cap.ok} onClick={() => set({ screen: 'menu' })} data-autofocus>▶ Chơi ngay</button>
         </div>
@@ -55,17 +56,17 @@ export function Landing() {
       <SloganTicker />
 
       {modal === 'law' && (
-        <Panel title="Tuyên truyền pháp luật" onClose={() => setModal(null)} width="mid">
+        <Panel title="Thông báo của trại" onClose={() => setModal(null)} width="mid">
           <p className="law-lead">“{SLOGANS[0].text}”</p>
           <ul className="law-list">
             {SLOGANS.slice(1).map((sl) => <li key={sl.text}><span aria-hidden>{sl.icon}</span>{sl.text}</li>)}
           </ul>
-          <p className="muted small">Nội dung mang tính giáo dục ý thức chấp hành pháp luật, không phải tư vấn pháp lý.</p>
+          <p className="muted small">Nội dung mang tính giáo dục, không phải tư vấn pháp lý.</p>
         </Panel>
       )}
       {modal === 'about' && (
         <Panel title="Giới thiệu" onClose={() => setModal(null)} width="mid">
-          <p>Mô phỏng đời sống 3D trong một trại giam <b>hư cấu</b>: sinh hoạt, học tập, lao động, giữ liên lạc với gia đình và chuẩn bị ngày trở về. Không có chiến đấu, vượt ngục hay tiền thật.</p>
+          <p>Mô phỏng đời sống 3D trong một cơ sở cải huấn <b>hư cấu</b> theo phong cách Mỹ: sinh hoạt, học tập, lao động, giữ liên lạc với gia đình và chuẩn bị ngày trở về. Không có chiến đấu, vượt ngục hay tiền thật.</p>
           <dl className="kv small">
             <dt>Nội dung</dt><dd>18 khu · 60 nhân vật · 18 nhiệm vụ</dd>
             <dt>Thiết bị</dt><dd>Máy tính, máy tính bảng, điện thoại, tay cầm</dd>
@@ -92,8 +93,8 @@ function GameShell({ children, portrait }: { children: React.ReactNode; portrait
 function Brand() {
   return (
     <header className="gm-brand">
-      <span className="gm-mark" aria-hidden>★</span>
-      <div><h1>MỘT NGÀY MỚI</h1><p>Kỷ luật · Học tập · Lao động · Trở về</p></div>
+      <span className="gm-mark" aria-hidden>ND</span>
+      <div><h1>MỘT NGÀY MỚI</h1><p>New Day Correctional Facility · Tái hòa nhập</p></div>
     </header>
   );
 }
