@@ -105,7 +105,7 @@ function HubView({ s }: { s: GameState }) {
               <div className="wk-empty">
                 <span className="wk-label">Ca đang được giao</span>
                 <p className="wk-big">Chưa có ca</p>
-                <p className="wk-muted">Chọn một công việc bên trái để xem giờ, nơi làm và nhận phân công.</p>
+                <p className="wk-muted">Chọn công việc bên trái để xem giờ, nơi làm, nhận phân công.</p>
               </div>
             )}
           </aside>
@@ -364,7 +364,7 @@ function ToolsView({ s }: { s: GameState }) {
           </div>
           <aside className="wk-side">
             <span className="wk-label">{a.kitIssued ? 'Đang giữ trong ca' : 'Xác nhận nhận'}</span>
-            <p className="wk-text">Dụng cụ chỉ dùng trong phạm vi ca và được trả hoặc bàn giao khi kết thúc.</p>
+            <p className="wk-text">Dụng cụ chỉ dùng trong ca · trả lại khi kết thúc.</p>
             <p className="wk-big sm">{String(w.kit.length).padStart(2, '0')} dụng cụ{w.material ? ' · 01 bộ vật tư' : ''}</p>
             <p className="wk-muted">Có chênh lệch? Bạn có thể yêu cầu kiểm tra phiếu.</p>
             <div className="wk-actions">
@@ -418,9 +418,9 @@ function HandoverView({ s }: { s: GameState }) {
           <aside className="wk-side">
             <span className="wk-label">Tổng kết cá nhân</span>
             <p className="wk-big">{settled ? 'Ca đã hoàn tất' : 'Sẵn sàng bàn giao'}</p>
-            <p className="wk-text">{settled ? `Bạn đã ${w.short.toLowerCase()} và hoàn tất bàn giao theo phân công.` : 'Bàn giao lô (nếu có), trả dụng cụ và kết ca. Thiếu việc vẫn được ghi nhận phần đã làm.'}</p>
+            <p className="wk-text">{settled ? `Bạn đã ${w.short.toLowerCase()} và hoàn tất bàn giao theo phân công.` : 'Bàn giao lô, trả dụng cụ, kết ca · làm thiếu vẫn ghi phần đã làm.'}</p>
             {settled && <Chip tone="ok">Ghi nhận ca: {fmtMoney(a.credit)}</Chip>}
-            <p className="wk-muted">Kết quả học và ca làm được ghi riêng, không tự thay đổi mức án.</p>
+            <p className="wk-muted">Kết quả học, làm ghi riêng · không đổi mức án.</p>
             <div className="wk-actions">
               {!settled ? <button className="btn primary big" disabled={!['active', 'completed'].includes(a.state)} onClick={doIt}>Bàn giao & kết ca</button>
                 : <button className="btn primary big" onClick={() => controller.openScreen('property')}>Xem phiếu bàn giao</button>}

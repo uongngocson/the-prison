@@ -337,7 +337,7 @@ export class GameSession {
       if (sh) s.world.eventCooldowns.closureDay = sharedDay;
       s.world.activeEvent = { id: `closure_${zone}_${day}`, state: 'running', startMinute: s.minute, endMinute: s.minute + 90, actors: ['nam'], zone };
       s.world.eventCooldowns.closure = s.minute + 2 * 1440;
-      notify(this.ctx, `${ZONE_BY_ID[zone].name} tạm đóng 90 phút để bảo trì. Lựa chọn thay thế: ${zone === 'L09' ? 'Sân sinh hoạt' : 'Phòng yên tĩnh'}.`, 'info', 'system');
+      notify(this.ctx, `${ZONE_BY_ID[zone].name} bảo trì 90 phút · thay bằng ${zone === 'L09' ? 'Sân sinh hoạt' : 'Phòng yên tĩnh'}.`, 'info', 'system');
       this.refreshDoors(false);
     }
   }
@@ -642,7 +642,7 @@ export class GameSession {
   previewSleep(wakeAbs: number): string[] {
     const s = this.s;
     const out: string[] = [];
-    for (const b of s.life.bookings) if (['booked', 'waiting'].includes(b.state) && b.start < wakeAbs && b.end > s.minute) out.push(`Lịch hẹn lúc ${fmtClock(b.start)} sẽ bị lỡ (không bị phạt, có thể đặt lại).`);
+    for (const b of s.life.bookings) if (['booked', 'waiting'].includes(b.state) && b.start < wakeAbs && b.end > s.minute) out.push(`Sẽ lỡ hẹn ${fmtClock(b.start)} · không phạt, đặt lại được.`);
     for (let t = Math.ceil(s.minute); t < wakeAbs; t += 1) {
       const m = minuteOfDay(t);
       for (const row of DAILY) if (row.from === m && row.kind !== 'sleep') out.push(`${fmtClock(row.from)} ${row.label}`);
@@ -662,7 +662,7 @@ export class GameSession {
       s.player.mode = 'sleeping';
       s.player.pos = { x: prop.x, y: 0, z: prop.z };
       this.onlineSleep = { bedId, wakeAt: wakeAbs, startMinute: s.minute, actionId };
-      this.exec((ctx) => notify(ctx, `Bạn đi ngủ. Thức dậy lúc ${fmtClock(wakeAbs)} (giờ trại); năng lượng hồi nhanh gấp đôi. Có thể thức dậy bất cứ lúc nào.`, 'info', 'system'));
+      this.exec((ctx) => notify(ctx, `Đi ngủ · dậy lúc ${fmtClock(wakeAbs)}, năng lượng hồi ×2. Dậy sớm lúc nào cũng được.`, 'info', 'system'));
       return { ok: true };
     }
     const hours = (wakeAbs - s.minute) / 60;

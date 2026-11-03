@@ -6,7 +6,7 @@ export interface BotsConfig { enabled: boolean; llm: boolean }
 export interface OnlineConfig { open: boolean; cap: number }
 /** Đóng/mở trang web (bảo trì). */
 export interface SiteConfig { open: boolean; title: string; message: string; reopenAt: string | null }
-export const DEFAULT_SITE: SiteConfig = { open: true, title: 'Đang bảo trì', message: 'Chúng tôi đang nâng cấp trò chơi. Tiến trình của bạn vẫn được giữ nguyên. Vui lòng quay lại sau.', reopenAt: null };
+export const DEFAULT_SITE: SiteConfig = { open: true, title: 'Đang bảo trì', message: 'Đang nâng cấp trò chơi · tiến trình vẫn được giữ. Quay lại sau nhé.', reopenAt: null };
 export function parseSite(v: unknown): SiteConfig {
   const o = (v ?? {}) as Record<string, unknown>;
   const str = (x: unknown, d: string, max: number) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, max) : d);

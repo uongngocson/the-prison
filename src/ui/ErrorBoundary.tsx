@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error(`[ui:${this.props.name}]`, err);
     reportError('ui', err, { boundary: this.props.name });
     const ui = useUI.getState();
-    if (!this.props.silent) ui.toast({ id: `uierr_${this.props.name}`, text: 'Màn hình vừa gặp lỗi và đã được đóng. Tiến trình chơi không bị ảnh hưởng.', severity: 'warning' });
+    if (!this.props.silent) ui.toast({ id: `uierr_${this.props.name}`, text: 'Màn hình gặp lỗi và đã đóng · tiến trình vẫn giữ.', severity: 'warning' });
     // đóng overlay lỗi rồi cho phép mở lại ngay
     if (ui.overlay) ui.open(null);
     setTimeout(() => this.setState({ failed: false }), 50);

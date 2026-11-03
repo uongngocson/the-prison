@@ -52,7 +52,7 @@ function ProfileTab() {
           <dt>Lần giúp đỡ</dt><dd>{s.stats.helps}</dd>
           <dt>Chế độ lưu</dt><dd>Đơn người chơi (không tin cậy cho chế độ nhiều người)</dd>
         </dl>
-        <p className="muted small">Ngoại hình chỉ mang tính thẩm mỹ; đổi trang phục trong Túi đồ.</p>
+        <p className="muted small">Chỉ là ngoại hình · đổi trang phục ở Túi đồ.</p>
       </div>
       <div className="card">
         <h3>Nhu cầu hiện tại</h3>
@@ -80,11 +80,11 @@ function Relations() {
     <div className="split">
       <div className="col">
         <label className="field">Tìm người quen<input type="text" value={q} onChange={(e) => setQ(e.target.value)} /></label>
-        {known.length === 0 && <Empty>Chưa quen ai. Đến gần một người và nhấn tương tác để trò chuyện.</Empty>}
+        {known.length === 0 && <Empty>Chưa quen ai · đến gần và tương tác để làm quen.</Empty>}
         {known.map(([id, rel]) => <button key={id} className="item-row" aria-selected={sel === id} onClick={() => setSel(id)}>{NPC_BY_ID[id].name} <span className="spacer" /><span className="small muted">{relTier(rel)}</span></button>)}
         <h3 style={{ marginTop: 12 }}>Uy tín nhóm</h3>
         {Object.entries(s.reputation).map(([g, v]) => <div key={g} className="small">{GROUP_LABEL[g] ?? g}: <b>{repTier(v.value)}</b>{v.lastCause ? <span className="muted"> · gần nhất: {v.lastCause}</span> : null}</div>)}
-        <p className="small muted">Uy tín nhóm khác với tình bạn từng người, và không ảnh hưởng quyền tối thiểu.</p>
+        <p className="small muted">Uy tín nhóm khác tình bạn từng người.</p>
       </div>
       {def && r && (
         <div className="card">
@@ -100,7 +100,7 @@ function Relations() {
           <h3 style={{ marginTop: 8 }}>Những điều họ biết về bạn</h3>
           {r.recent.length === 0 && <Empty>Chưa có kỷ niệm đáng nhớ.</Empty>}
           {[...r.recent].reverse().map((c, i) => <div key={i} className="small">{fmtDayClock(c.minute)} · {c.text} ({c.delta > 0 ? '+' : ''}{c.delta})</div>)}
-          <p className="small muted">Chỉ hiển thị những việc người này tận mắt chứng kiến hoặc trực tiếp trò chuyện.</p>
+          <p className="small muted">Chỉ những việc người này tận mắt thấy hoặc trò chuyện.</p>
         </div>
       )}
     </div>
@@ -126,7 +126,7 @@ function Skills() {
           </div>
         );
       })}
-      <p className="small muted" style={{ gridColumn: '1 / -1' }}>Kỹ năng không cần tối đa để xem kết thúc chính. Hoạt động lặp nhiều lần trong ngày nhận ít XP hơn (giới hạn mềm).</p>
+      <p className="small muted" style={{ gridColumn: '1 / -1' }}>Không cần kỹ năng tối đa · làm lặp trong ngày nhận ít XP hơn.</p>
     </div>
   );
 }
@@ -146,7 +146,7 @@ function Achievements() {
           <tr key={a.id}><td>{u ? '🏅' : '○'}</td><td><b>{hidden ? 'Thành tựu ẩn' : a.title}</b><div className="small muted">{hidden ? 'Tiếp tục câu chuyện chính để khám phá.' : a.desc}</div></td>
             <td className="small">{u ? <>Mở {fmtDayClock(st!.unlockedAtMinute!)} <Status>cục bộ</Status></> : `${Math.min(st?.counter ?? 0, a.target)}/${a.target}`}</td></tr>); })}
       </tbody></table>
-      <p className="small muted">Thành tựu đơn người chơi được đánh dấu “cục bộ”. Dùng chế độ hỗ trợ/trợ năng không làm mất hiệu lực thành tựu.</p>
+      <p className="small muted">Thành tựu lưu trên máy · dùng trợ năng không mất thành tựu.</p>
     </div>
   );
 }

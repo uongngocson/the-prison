@@ -19,7 +19,7 @@ export interface ItemDef {
 }
 
 export const ITEMS: ItemDef[] = [
-  { id: 'handbook', name: 'Sổ tay sinh hoạt', type: 'document', icon: '📘', stack: 1, actions: ['read'], desc: 'Sổ tay hư cấu: lịch, quyền, cách nhờ hỗ trợ. Mất có thể xem bản sao trong mục Sổ tay.' },
+  { id: 'handbook', name: 'Sổ tay sinh hoạt', type: 'document', icon: '📘', stack: 1, actions: ['read'], desc: 'Lịch, quyền, cách nhờ hỗ trợ · mất thì xem bản sao ở Sổ tay (H).' },
   { id: 'meal_tray', name: 'Khay suất ăn', type: 'food', icon: '🍱', stack: 1, actions: ['eat'], effects: { hunger: 35, mood: 3 }, desc: 'Suất ăn theo bữa. Ăn tại bàn để gặp gỡ mọi người.' },
   { id: 'spare_meal', name: 'Suất dự phòng', type: 'food', icon: '🥪', stack: 2, actions: ['eat'], effects: { hunger: 25 }, essential: true, desc: 'Bánh mì và trái cây cho người lỡ bữa. Miễn phí.' },
   { id: 'fruit', name: 'Trái cây', type: 'food', icon: '🍌', stack: 5, actions: ['eat'], effects: { hunger: 8, mood: 2 }, price: 150, desc: 'Một quả chuối chín.' },

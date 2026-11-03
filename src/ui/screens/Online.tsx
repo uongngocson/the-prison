@@ -71,7 +71,7 @@ export function OnlineLobby() {
         <button className="gm-back" onClick={() => { controller.pendingOnline = null; void gate.close(); set({ screen: 'menu' }); }} aria-label="Quay lại"><Icon name="back" size={20} /></button>
         <div className="gm-avatar" aria-hidden><Icon name="globe" size={32} /></div>
         <h2 id="ol-title">Chơi trực tuyến</h2>
-        <p className="gm-sub">Gặp và trò chuyện real-time với người chơi khác. NPC và lịch sinh hoạt vẫn giả lập như chế độ ngoại tuyến.</p>
+        <p className="gm-sub">Gặp và trò chuyện với người chơi khác theo thời gian thực.</p>
         {!configured ? <p className="gm-note err">Bản cài đặt này chưa bật dịch vụ trực tuyến.</p> : <>
           <CapacityMeter />
           <div className="ol-label">Phân khu</div>
@@ -131,7 +131,7 @@ export function QueueScreen() {
           <div className="q-num"><span>Vị trí</span><b>{admitted ? '✓' : g.position || '—'}</b>{!admitted && <em>/ {total}</em>}</div>
         </div>
         <h2 id="q-title">{admitted ? 'Đang vào phòng…' : 'Máy chủ đang đủ người'}</h2>
-        <p className="gm-sub">{admitted ? 'Chuẩn bị nhân vật của bạn.' : `Tối đa ${g.cap + activeBotCount()} người chơi trực tuyến cùng lúc để giữ trò chuyện mượt. Bạn sẽ tự động vào khi có chỗ trống.`}</p>
+        <p className="gm-sub">{admitted ? 'Chuẩn bị nhân vật của bạn.' : `Tối đa ${g.cap + activeBotCount()} người cùng lúc · tự vào khi có chỗ.`}</p>
         <div className="q-stats">
           <div><span>Phía trước bạn</span><b>{g.ahead}</b></div>
           <div><span>Đang chơi</span><b>{g.playing + activeBotCount()}/{g.cap + activeBotCount()}</b></div>
@@ -140,7 +140,7 @@ export function QueueScreen() {
         <p className="q-waited">Đã chờ {fmtWait(waited)}</p>
         <button className="gm-btn primary" onClick={playOffline} disabled={admitted}>Chơi ngoại tuyến trong lúc chờ</button>
         <button className="gm-btn" onClick={leave}>Rời hàng đợi</button>
-        <p className="ol-rules">Giữ nguyên chỗ trong hàng nếu bạn tải lại trang (trong 30 phút). Khi đến lượt, game tự vào phòng — không cần làm gì thêm.</p>
+        <p className="ol-rules">Tải lại trang vẫn giữ chỗ (30 phút) · đến lượt sẽ tự vào phòng.</p>
       </section>
     </main>
   );
@@ -152,7 +152,7 @@ export function QueueChip({ compact }: { compact?: boolean }) {
   if (g.status !== 'queued' && g.status !== 'checking') return null;
   if (!g.background) return null;
   return (
-    <button className={`ol-chip queue ${compact ? 'compact' : ''}`} onClick={() => useUI.getState().toast({ id: 'queue', text: `Hàng đợi trực tuyến: vị trí ${g.position || '—'}/${g.waiting} · ${g.playing + activeBotCount()}/${g.cap + activeBotCount()} đang chơi${g.etaSec ? ` · ~${fmtWait(g.etaSec)}` : ''}. Rời hàng đợi trong menu Tạm dừng.`, severity: 'info' })} aria-label={`Đang xếp hàng trực tuyến, vị trí ${g.position}`}>
+    <button className={`ol-chip queue ${compact ? 'compact' : ''}`} onClick={() => useUI.getState().toast({ id: 'queue', text: `Hàng đợi trực tuyến: vị trí ${g.position || '—'}/${g.waiting} · ${g.playing + activeBotCount()}/${g.cap + activeBotCount()} đang chơi${g.etaSec ? ` · ~${fmtWait(g.etaSec)}` : ''}. Rời hàng ở menu Tạm dừng.`, severity: 'info' })} aria-label={`Đang xếp hàng trực tuyến, vị trí ${g.position}`}>
       <i aria-hidden />{compact ? `Hàng đợi #${g.position || '…'}` : `Hàng đợi trực tuyến · #${g.position || '…'} / ${g.waiting}`}
     </button>
   );
@@ -266,7 +266,7 @@ function People({ peers, onWhisper }: { peers: PeerView[]; onWhisper: (id: strin
   return (
     <div className="ol-people">
       <div className="ol-person me"><span className="ol-dot" /><b>Bạn</b><em>đang trực tuyến</em></div>
-      {!peers.length && <p className="ol-empty">Chưa có ai khác trong phòng. Mời bạn bè cùng vào phân khu này.</p>}
+      {!peers.length && <p className="ol-empty">Phòng còn trống · mời bạn bè vào cùng.</p>}
       {peers.map((p) => (
         <div key={p.id} className={`ol-person ${p.blocked ? 'blocked' : ''}`}>
           <span className="ol-dot" />

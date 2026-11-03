@@ -121,7 +121,7 @@ function Admission({ s }: { s: GameState }) {
           <div className="adm-actions">
             <button className="btn primary big" onClick={() => { ex((c) => { for (const t of ORIENTATION_TOPICS) if (c.s.life.episode.orientation[t.id] !== 'acknowledged') L.acknowledgeTopic(c, t.id); return L.admissionStep(c, 'orientation'); }); }}>Tiếp tục</button>
           </div>
-          <p className="muted small center">Chạm vào mục để đọc. Xem lại bất cứ lúc nào trong Sổ tay (H).</p>
+          <p className="muted small center">Chạm mục để đọc · xem lại trong Sổ tay (H).</p>
         </div>}
 
         {cur.id === 'property' && <div className="adm-body">
@@ -229,7 +229,7 @@ function Property({ s }: { s: GameState }) {
             {r.lines.map((l, i) => <tr key={i}><td>{l.qty ? `${ITEM_BY_ID[l.itemId]?.icon ?? ''} ${ITEM_BY_ID[l.itemId]?.name ?? l.itemId}` : '—'}</td><td>{l.qty || ''}</td><td className="small">{l.from} → {l.to}</td><td className="small">{l.reason}</td></tr>)}
           </tbody></table>
           {r.state !== 'disputed' && (r.kind === 'deposit' || r.kind === 'inspect') && <button className="btn sm" onClick={() => ex((c) => L.disputeReceipt(c, r.id))}>Báo thiếu / sai — gửi yêu cầu xem xét</button>}
-          {r.state === 'disputed' && <p className="notice small">Đang khiếu nại — theo dõi ở tab Yêu cầu. Lịch sử biên nhận được giữ nguyên.</p>}
+          {r.state === 'disputed' && <p className="notice small">Đang khiếu nại · theo dõi ở tab Yêu cầu.</p>}
         </>}
       </div>
     </div>
@@ -250,7 +250,7 @@ function Store({ s }: { s: GameState }) {
       <div className="card">
         <h3>Tài khoản tín chỉ hư cấu</h3>
         <dl className="kv"><dt>Khả dụng</dt><dd><b>{fmtMoney(L.available(s))}</b></dd><dt>Đang giữ cho đơn</dt><dd>{fmtMoney(acc.reserved)}</dd><dt>Tổng số dư</dt><dd>{fmtMoney(acc.balance)}</dd><dt>Trạng thái</dt><dd>{acc.state === 'settled' ? 'Đã quyết toán' : 'Đang mở'}</dd></dl>
-        <p className="small muted">Không có tiền thật, nạp tiền hay rút tiền. Nguồn: trợ cấp tuần (Thứ Hai), ca làm, người thân (câu chuyện).</p>
+        <p className="small muted">Không có tiền thật · nguồn: trợ cấp thứ Hai, ca làm, người thân.</p>
         <h3>Sao kê</h3>
         <table className="tbl small"><tbody>
           {acc.entries.filter((e) => e.account === 'player').slice(-12).reverse().map((e) => <tr key={e.id}><td>{fmtDayClock(e.minute)}</td><td>{e.reason}</td><td style={{ color: e.direction === 'credit' ? 'var(--positive)' : 'var(--error)' }}>{e.direction === 'credit' ? '+' : '−'}{fmtMoney(e.amount)}</td></tr>)}
@@ -276,7 +276,7 @@ function Store({ s }: { s: GameState }) {
           {q && <button className="btn primary" onClick={() => { const r = ex((c) => L.placeOrder(c, q.id, aid('ord'))); setMsg(r?.ok ? 'Đã đặt hàng.' : r?.message ?? ''); if (r?.ok) { setCart({}); setQuoteId(null); } }}>Xác nhận đặt {fmtMoney(q.total)}</button>}
         </div>
         <p role="status" className="small">{msg}</p>
-        <div className="notice small">Vật dụng thiết yếu (xà phòng, khăn, bàn chải, phong bì, suất dự phòng) luôn nhận miễn phí tại Quầy dịch vụ hoặc quầy giặt — kể cả khi số dư bằng 0.</div>
+        <div className="notice small">Đồ thiết yếu (xà phòng, khăn, bàn chải, phong bì, suất dự phòng) luôn miễn phí ở quầy, kể cả khi hết tiền.</div>
       </div>
     </div>
   );
@@ -295,7 +295,7 @@ function Contacts({ s }: { s: GameState }) {
       <div className="col">
         <h3>Người liên hệ (hư cấu)</h3>
         {s.life.contacts.map((x) => <button key={x.id} className="item-row" aria-selected={cid === x.id} onClick={() => setCid(x.id)}>{x.nameKey}{s.life.correspondence.some((l) => l.contactId === x.id && l.direction === 'incoming' && l.state === 'delivered' && !l.read) ? <span className="badge">thư</span> : null}</button>)}
-        <p className="small muted">Không nhập địa chỉ, số điện thoại hay tên người thật. Không cần micro/camera.</p>
+        <p className="small muted">Không nhập thông tin người thật · không cần micro/camera.</p>
         {unreadIncoming.length > 0 && <p className="notice small">{unreadIncoming.length} thư chưa đọc.</p>}
       </div>
       {c && <div className="card">
@@ -309,7 +309,7 @@ function Contacts({ s }: { s: GameState }) {
         </>}
         {c.channels.includes('call') && <><h3>Hẹn cuộc gọi</h3><BookingPicker serviceId="call" s={s} participant={c.id} /></>}
         {c.channels.includes('visit') && <><h3>Hẹn thăm gặp</h3><BookingPicker serviceId="visit" s={s} participant={c.id} /></>}
-        {c.channels.includes('legal') && <p className="notice small">Liên lạc pháp lý được xử lý riêng tư qua mục Hồ sơ hành trình › Hẹn cố vấn — không qua kiểm tra thư thông thường.</p>}
+        {c.channels.includes('legal') && <p className="notice small">Liên lạc pháp lý: riêng tư qua Hồ sơ › Hẹn cố vấn.</p>}
         <p role="status" className="small">{msg}</p>
         <h3>Thư & cuộc gọi</h3>
         {letters.length === 0 && <Empty>Chưa có.</Empty>}
@@ -354,7 +354,7 @@ function Cases({ s }: { s: GameState }) {
             {cs.state === 'answered' && <><button className="btn" onClick={() => ex((ctx) => L.respondCase(ctx, cs.id, true))}>Chấp nhận phản hồi</button><button className="btn" onClick={() => ex((ctx) => L.respondCase(ctx, cs.id, false))}>Yêu cầu xem xét lại (người độc lập)</button></>}
             {!['resolved', 'withdrawn', 'answered'].includes(cs.state) && <button className="btn ghost" onClick={() => ex((ctx) => L.withdrawCase(ctx, cs.id))}>Rút yêu cầu</button>}
           </div>
-          <p className="small muted">Gửi đơn không bao giờ bị phạt. Rút yêu cầu không xóa lịch sử.</p>
+          <p className="small muted">Gửi đơn không bị phạt · rút đơn vẫn giữ lịch sử.</p>
         </>}
       </div>
     </div>
@@ -370,23 +370,23 @@ function Support({ s }: { s: GameState }) {
     <div className="grid2">
       <div className="card">
         <h3>Nhu cầu chức năng (tùy chọn, riêng tư)</h3>
-        <p className="small muted">Không nhập thông tin y tế thật. Đây là nhu cầu của nhân vật trong game, khác với cài đặt trợ năng giao diện (Cài đặt › Trợ năng).</p>
+        <p className="small muted">Nhu cầu của nhân vật (khác Cài đặt › Trợ năng) · không nhập thông tin y tế thật.</p>
         {FUNCTIONAL_NEEDS.map((n) => <label key={n.id} className="row small"><input type="checkbox" checked={flags.includes(n.id)} onChange={(e) => setFlags(e.target.checked ? [...flags, n.id] : flags.filter((x) => x !== n.id))} />{n.label}<span className="muted">— {n.effect}</span></label>)}
         <button className="btn sm" onClick={() => ex((c) => L.setFunctionalNeeds(c, flags))}>Lưu nhu cầu</button>
         <h3 style={{ marginTop: 12 }}>Chế độ ăn</h3>
         <div className="row">{DIETS.map((d) => <button key={d.id} className={`btn sm ${s.life.diet === d.id ? 'primary' : ''}`} aria-pressed={s.life.diet === d.id} onClick={() => ex((c) => L.setDiet(c, d.id))}>{d.label}</button>)}</div>
         <h3 style={{ marginTop: 12 }}>Sinh hoạt văn hóa / tinh thần</h3>
         <div className="row">{([['opted_in', 'Tham gia sinh hoạt văn hóa'], ['nonreligious', 'Giờ suy ngẫm không tôn giáo'], ['opted_out', 'Không tham gia']] as const).map(([v, l]) => <button key={v} className={`btn sm ${s.life.culturalOptIn === v ? 'primary' : ''}`} aria-pressed={s.life.culturalOptIn === v} onClick={() => ex((c) => L.setCulture(c, v))}>{l}</button>)}</div>
-        <p className="small muted">Lựa chọn này không ảnh hưởng uy tín, kỹ năng hay cách NPC đánh giá bạn.</p>
+        <p className="small muted">Không ảnh hưởng uy tín hay cách NPC nhìn bạn.</p>
       </div>
       <div className="card">
         <h3>Chăm sóc sức khỏe</h3>
-        <p className="small">Không chẩn đoán thật. Kế hoạch nghỉ giúp được miễn trừ ca làm/lớp và điểm danh.</p>
+        <p className="small">Kế hoạch nghỉ · miễn ca làm, lớp và điểm danh.</p>
         {care && <p className="notice small">Kế hoạch: {care.state === 'active' ? `đang hiệu lực${care.restUntilMinute && care.restUntilMinute > s.minute ? ` — nghỉ đến ${fmtDayClock(care.restUntilMinute)}` : ''}` : care.state === 'review_needed' ? 'cần xem lại — hãy đặt hẹn' : care.state}</p>}
         <BookingPicker serviceId="care" s={s} />
         <button className="btn sm" onClick={() => ex((c) => L.submitCase(c, 'care', 0, aid('care')))}>Cần chăm sóc sớm (yêu cầu khẩn)</button>
         <h3 style={{ marginTop: 12 }}>Trò chuyện hỗ trợ</h3>
-        <p className="small">Với điều phối viên Cô Linh hoặc người lắng nghe đồng đẳng (Quân). Có thể từ chối/bỏ qua bất kỳ lúc nào, không bị phạt.</p>
+        <p className="small">Với Cô Linh hoặc người lắng nghe (Quân) · dừng lúc nào cũng được.</p>
         <BookingPicker serviceId="support" s={s} />
         <h3 style={{ marginTop: 12 }}>Lịch hẹn</h3>
         {s.life.bookings.filter((b) => ['care', 'support'].includes(b.kind)).map((b) => <div key={b.id} className="small">{SERVICE_BY_ID[b.serviceId].name} · {fmtDayClock(b.start)} · {bookingState(b.state)} {['booked'].includes(b.state) && <button className="btn sm" onClick={() => ex((c) => L.cancelBooking(c, b.id))}>Hủy</button>}</div>)}
@@ -403,7 +403,7 @@ function Programs({ s }: { s: GameState }) {
       <button className="wk-link" onClick={() => useUI.getState().open('work', { view: 'hub' })}>
         <b>Công việc & phân công</b><span>Vườn rau · Ao cá · Cảnh quan · Xưởng mộc · Vệ sinh khu chung</span><span className="kbd">N</span>
       </button>
-      <p className="small muted">Khóa học và ca làm có lịch, điều khoản và cách tham gia tương đương. Điểm danh khác với XP; buổi vắng có lý do được học bù. Giấy ghi nhận chỉ có giá trị trong game.</p>
+      <p className="small muted">Học và làm tham gia như nhau · vắng có lý do được học bù.</p>
       <table className="tbl"><thead><tr><th>Chương trình</th><th>Lịch</th><th>Điều khoản</th><th>Tiến độ</th><th /></tr></thead><tbody>
         {PROGRAMS.map((p) => { const e = s.life.programs.find((x) => x.programId === p.id); const active = e && ['enrolled', 'in_progress'].includes(e.state); return (
           <tr key={p.id}>
@@ -416,7 +416,7 @@ function Programs({ s }: { s: GameState }) {
           </tr>); })}
       </tbody></table>
       <p role="status" className="small">{msg}</p>
-      <p className="small muted">Đến đúng khu trong giờ học/ca và tương tác với bàn học / bàn làm việc / quầy để tham gia. Không có việc vẫn được ăn uống và nhận vật dụng thiết yếu đầy đủ.</p>
+      <p className="small muted">Đến đúng khu, đúng giờ rồi tương tác với bàn/quầy để tham gia.</p>
     </div>
   );
 }
@@ -427,7 +427,7 @@ function Incidents({ s }: { s: GameState }) {
   const st: Record<string, string> = { reported: 'Đã ghi nhận', notified: 'Đã thông báo — mời trình bày', in_review: 'Đang xem xét', decided: 'Đã quyết định', appealed: 'Đang xem xét lại', overturned: 'Đã hủy quyết định', expired: 'Hết hiệu lực', dismissed: 'Không xử lý' };
   return (
     <div className="col">
-      <p className="small muted">Cáo buộc khác với kết luận. Quyết định dựa trên dữ kiện và lời trình bày — không dựa trên ngoại hình hay uy tín. Không hệ quả nào ảnh hưởng ăn uống, vệ sinh, chăm sóc, liên lạc hay quyền gửi đơn.</p>
+      <p className="small muted">Xét theo dữ kiện và lời trình bày · quyền tối thiểu luôn giữ nguyên.</p>
       <ConflictReports />
       {list.length === 0 && !(s.conflicts ?? []).some((r) => r.incidentId) && <Empty>Không có sự việc nào.</Empty>}
       {list.map((i) => (
@@ -449,7 +449,7 @@ function Transfer({ s }: { s: GameState }) {
   const list = [...s.life.transitions].reverse().filter((t) => t.kind === 'room_move');
   return (
     <div className="col">
-      <p className="small muted">Chuyển phòng giữ nguyên toàn bộ đồ đạc, tài khoản, lịch hẹn và tiến trình. Chỉ hoàn tất khi chỗ mới đã được giữ.</p>
+      <p className="small muted">Chuyển phòng giữ nguyên đồ, tài khoản, lịch hẹn và tiến trình.</p>
       <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => { ex((c) => L.requestRoomMove(c)); setMsg('Đã gửi yêu cầu đổi phòng — theo dõi ở tab Yêu cầu.'); }}>Xin đổi phòng</button>
       <p role="status" className="small">{msg}</p>
       {list.length === 0 && <Empty>Chưa có đề xuất chuyển nơi.</Empty>}
@@ -457,7 +457,7 @@ function Transfer({ s }: { s: GameState }) {
         <div key={t.id} className="card">
           <h3>Chuyển phòng: {bedLabel(t.fromAnchor)} → {bedLabel(t.toAnchor)}</h3>
           <p className="small">Trạng thái: <b>{({ proposed: 'Đề xuất', approved: 'Đã duyệt', packing: 'Đang đóng gói', staged: 'Đã giữ chỗ mới', in_transit: 'Đang chuyển', committed: 'Hoàn tất', cancelled: 'Đã hủy', recovering: 'Đang khôi phục' } as Record<string, string>)[t.state]}</b></p>
-          <p className="small muted">Ảnh hưởng lịch hẹn: không (lịch theo giờ, không theo phòng). Tủ cá nhân đi theo bạn.</p>
+          <p className="small muted">Lịch hẹn không đổi · tủ cá nhân đi theo bạn.</p>
           {t.state === 'proposed' && <div className="row">
             <button className="btn primary" onClick={() => { const r = ex((c) => L.confirmTransition(c, t.id)); setMsg(r?.message ?? ''); }}>Xác nhận đã đóng gói & chuyển</button>
             <button className="btn" onClick={() => ex((c) => L.cancelTransition(c, t.id))}>Không chuyển nữa</button>
@@ -489,7 +489,7 @@ function Release({ s }: { s: GameState }) {
     <div className="grid2">
       <div className="card">
         <h3>Mục tiêu kế hoạch ({n}/6)</h3>
-        <p className="small muted">Chọn những gì thực tế với bạn. Thiếu mục tiêu vẫn được hỗ trợ; không cần kỹ năng tối đa hay tiền.</p>
+        <p className="small muted">Chọn điều thực tế · thiếu mục tiêu vẫn được hỗ trợ.</p>
         {GOALS.map((g) => (
           <label key={g.key} className="field small" style={{ marginBottom: 6 }}>{g.label}
             <select value={plan.goals[g.key] ?? ''} onChange={(e) => ex((c) => L.setPlanGoal(c, g.key, e.target.value || null))}>
@@ -501,7 +501,7 @@ function Release({ s }: { s: GameState }) {
       </div>
       <div className="card">
         <h3>Mốc xem xét theo câu chuyện</h3>
-        <p className="small">{q06 !== 'active' && q06 !== 'completed' ? 'Mốc này mở ra khi bạn đi tới chương cuối của câu chuyện (nhiệm vụ “Hướng về phía trước”).' : eligible ? 'Đã đến mốc — bạn có thể xác nhận rời cơ sở tại Bàn kế hoạch (L18).' : `Mốc xem xét: từ Ngày ${s.life.episode.releaseEligibleDay}. Hôm nay là Ngày ${dayOf(s.minute)}.`}</p>
+        <p className="small">{q06 !== 'active' && q06 !== 'completed' ? 'Mở ở chương cuối (nhiệm vụ “Hướng về phía trước”).' : eligible ? 'Đã đến mốc — bạn có thể xác nhận rời cơ sở tại Bàn kế hoạch (L18).' : `Mốc xem xét: Ngày ${s.life.episode.releaseEligibleDay} · hôm nay Ngày ${dayOf(s.minute)}.`}</p>
         <h3>Quyết toán khi rời</h3>
         <ul className="small">
           <li>Tài sản ký gửi trả lại: {s.inventory.stored.map((x) => ITEM_BY_ID[x.itemId].name).join(', ') || 'không có'}</li>
@@ -511,7 +511,7 @@ function Release({ s }: { s: GameState }) {
         </ul>
         {s.life.episode.state === 'released' ? <Status kind="ok">Đã rời cơ sở</Status> : !confirm
           ? <button className="btn primary" disabled={!eligible || s.player.zone !== 'L18'} onClick={() => setConfirm(true)}>Xác nhận rời cơ sở</button>
-          : <div className="notice"><p>Hành trình sẽ kết thúc và được lưu ở trạng thái “đã rời”. Không thể quay lại vòng sinh hoạt của hành trình này (có thể chơi tự do ở bản sao riêng).</p>
+          : <div className="notice"><p>Hành trình kết thúc và lưu là “đã rời” · vẫn chơi tự do được ở bản sao.</p>
             <div className="row"><button className="btn primary" onClick={() => { const r = ex((c) => L.depart(c)); if (!r?.ok) useUI.getState().toast({ id: 'dep', text: r?.message ?? '', severity: 'warning' }); }}>Tôi đã sẵn sàng</button><button className="btn" onClick={() => setConfirm(false)}>Chưa</button></div></div>}
         {eligible && s.player.zone !== 'L18' && <p className="small muted">Đến Hướng nghiệp & chuẩn bị ra (L18) để xác nhận.</p>}
       </div>

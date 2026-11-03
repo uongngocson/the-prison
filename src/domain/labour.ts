@@ -177,7 +177,7 @@ export function acceptWork(ctx: Ctx, workId: WorkId, winId: 'am' | 'pm', day: nu
   l.assignments.push(a);
   if (l.assignments.length > 40) l.assignments = l.assignments.filter((x, i) => i >= l.assignments.length - 40 || ['assigned', 'active'].includes(x.state));
   receipt(l, s, 'assign', `Nhận ca ${work.title} · ${win.label} ngày ${day} (${fmtClock(a.start)}–${fmtClock(a.end)}).`, a.id);
-  notify(ctx, `Đã nhận ca ${work.title} · ${fmtClock(a.start)}. Nhận dụng cụ tại Kho & kiểm nhận.`, 'success', 'life');
+  notify(ctx, `Nhận ca ${work.title} · ${fmtClock(a.start)} · lấy dụng cụ ở Kho.`, 'success', 'life');
   bump(ctx);
   return { ok: true, message: 'Đã nhận phân công.' };
 }
@@ -195,7 +195,7 @@ export function cancelWork(ctx: Ctx, id: string): LabourResult {
   if (a.state !== 'assigned' || a.kitIssued) return { ok: false, message: 'Ca đã bắt đầu — hãy nhờ hỗ trợ để bàn giao.' };
   a.state = 'cancelled'; a.reason = 'Yêu cầu đổi việc trước giờ ca';
   if (a.workId === 'W08') { const o = orderOf(s, a); if (o && o.stage === 'brief') o.assignmentId = null; }
-  receipt(l, s, 'change', `Đổi việc: hủy ca ${workOf(a).title} trước giờ bắt đầu, không ghi vắng.`, a.id);
+  receipt(l, s, 'change', `Hủy ca ${workOf(a).title} trước giờ · không ghi vắng.`, a.id);
   bump(ctx);
   return { ok: true, message: 'Đã hủy ca. Bạn có thể chọn việc khác.' };
 }
@@ -377,7 +377,7 @@ export function labourCommit(ctx: Ctx, verb: string, p: PropDef | null, params: 
         const b = newBatch(l, s, 'veg', Math.round(qty / 100) * 100, 'g', `harvest:${plot.cycleId}`, a.id, false);
         a.batchIds.push(b.id);
         setStage(plot, 'harvested', s.minute); markTask(a, 'harvest');
-        msg = `Đã thu ${fmtQty(b)} ${CROP.label.toLowerCase()} — mang tới điểm cân tại Kho (L27).`;
+        msg = `Thu ${fmtQty(b)} ${CROP.label.toLowerCase()} · mang tới điểm cân (L27).`;
       }
       break;
     }
@@ -430,7 +430,7 @@ export function labourCommit(ctx: Ctx, verb: string, p: PropDef | null, params: 
       if (s.world.weather !== 'rain' || a.rainFallback) return null;
       a.rainFallback = true;
       for (const t of a.tasks) t.done = true;
-      msg = 'Đã phân loại khay giống trong nhà — ca được ghi nhận như việc ngoài trời.';
+      msg = 'Phân loại khay giống trong nhà · ca vẫn được ghi nhận.';
       break;
     }
     case 'lab_measure': case 'lab_assemble': case 'lab_finish': {
@@ -481,7 +481,7 @@ export function handover(ctx: Ctx, id: string): LabourResult & { summary?: Hando
       if (TRAY_PATTERN.measure.find((x) => x.id === o.measure)?.ok !== true) failed.push(QC_CRITERIA[0]);
       if (TRAY_PATTERN.assemble.find((x) => x.id === o.assemble)?.ok !== true) failed.push(QC_CRITERIA[1]);
       markTask(a, 'submit');
-      if (failed.length) { o.stage = 'rework'; o.failed = failed; qc.push(`${o.id}: cần làm lại — ${failed.join(', ')}. Vật tư sửa được cấp ở ca sau.`); }
+      if (failed.length) { o.stage = 'rework'; o.failed = failed; qc.push(`${o.id}: làm lại ${failed.join(', ')} · vật tư cấp ở ca sau.`); }
       else if (once(l, `tray:${o.id}`)) {
         o.stage = 'accepted'; o.failed = [];
         const b = newBatch(l, s, 'tray', 1, 'count', `tray:${o.id}`, a.id, false);
@@ -552,7 +552,7 @@ export function labourTick(ctx: Ctx) {
     if (s.minute === a.start - 30 && a.state === 'assigned') notify(ctx, `Ca ${work.title} lúc ${fmtClock(a.start)} — ${a.kitIssued ? 'đến khu làm việc' : 'nhận dụng cụ tại Kho (L27)'}.`, 'info', 'life');
     if (a.state === 'assigned' && a.kitIssued && s.minute >= a.start && s.minute < a.end && s.player.zone === work.zone) {
       a.state = 'active'; a.checkInMinute = s.minute; changed = true;
-      notify(ctx, `Bắt đầu ca ${work.title}. Việc đầu tiên: ${a.tasks.find((t) => !t.done)?.label ?? ''}.`, 'success', 'life');
+      notify(ctx, `Bắt đầu ca ${work.title} · việc đầu: ${a.tasks.find((t) => !t.done)?.label ?? ''}.`, 'success', 'life');
     }
     if (s.minute === a.end && (a.state === 'active' || a.state === 'completed')) notify(ctx, 'Hết giờ ca — mang dụng cụ về Kho (L27) để bàn giao.', 'info', 'life');
     if (s.minute >= a.end + 45) {
@@ -560,8 +560,8 @@ export function labourTick(ctx: Ctx) {
       else {
         returnTools(l, s, a, 'Tổ trưởng');
         settle(ctx, a, 'Tổ trưởng bàn giao thay');
-        receipt(l, s, 'handover', `Tổ trưởng nhận bàn giao ca ${work.title} sau giờ; lô chưa kiểm được giữ chờ kiểm.`, a.id);
-        notify(ctx, `Tổ trưởng đã nhận bàn giao ca ${work.title} thay bạn. Không có hình thức xử lý nào.`, 'info', 'life');
+        receipt(l, s, 'handover', `Tổ trưởng nhận bàn giao ca ${work.title} · lô chưa kiểm được giữ lại.`, a.id);
+        notify(ctx, `Tổ trưởng nhận bàn giao ca ${work.title} thay bạn · không xử lý.`, 'info', 'life');
       }
       changed = true;
     }

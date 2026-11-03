@@ -32,21 +32,21 @@ import { SKILL_LABEL, levelOf } from '../domain/core';
 import { clearResume, readResume, writeResume, type ResumeSnapshot } from '../persistence/resume';
 
 const TUTORIAL_TEXT: Record<string, (k: (a: ActionName) => string) => string> = {
-  move: (k) => `Di chuyển bằng ${k('moveForward')}/${k('moveLeft')}/${k('moveBack')}/${k('moveRight')}. Giữ ${k('run')} để chạy.`,
-  look: () => 'Nhấp vào khung hình để điều khiển camera bằng chuột (Esc để thả chuột). Có thể kéo chuột phải nếu trình duyệt chặn khóa con trỏ.',
-  interact: (k) => `Đến gần đồ vật hoặc người có vòng sáng và nhấn ${k('interact')} để tương tác.`,
-  schedule: (k) => `Nhấn ${k('schedule')} hoặc xem bảng lịch để biết giờ ăn, điểm danh và hoạt động.`,
-  journal: (k) => `Nhấn ${k('journal')} để xem nhiệm vụ. ${k('life')}: Đời sống (thư, cửa hàng, yêu cầu...).`,
-  save: (k) => `Game tự lưu mỗi phút. Nhấn ${k('pause')} để lưu thủ công hoặc mở cài đặt.`,
+  move: (k) => `${k('moveForward')}${k('moveLeft')}${k('moveBack')}${k('moveRight')} di chuyển · giữ ${k('run')} để chạy`,
+  look: () => 'Nhấp vào màn hình để xoay camera · Esc để thả chuột',
+  interact: (k) => `Đến gần vòng sáng · ${k('interact')} để tương tác`,
+  schedule: (k) => `${k('schedule')} xem lịch: giờ ăn, điểm danh, hoạt động`,
+  journal: (k) => `${k('journal')} nhiệm vụ · ${k('life')} Đời sống (thư, cửa hàng, yêu cầu)`,
+  save: (k) => `Tự lưu mỗi phút · ${k('pause')} để lưu, cài đặt`,
 };
 
 const TOUCH_TUTORIAL: Record<string, string> = {
-  move: 'Kéo cần điều khiển góc trái để đi; đẩy ra sát mép để chạy.',
-  look: 'Vuốt nửa phải màn hình để xoay camera, chụm hai ngón để thu phóng.',
-  interact: 'Đến gần đồ vật/người có vòng sáng rồi chạm nút ✋ (hoặc chạm nhanh vào màn hình).',
-  schedule: 'Chạm 📅 để xem lịch: giờ ăn, điểm danh và hoạt động.',
-  journal: 'Chạm 📋 để xem nhiệm vụ, 🏠 để mở Đời sống (thư, cửa hàng, yêu cầu...).',
-  save: 'Game tự lưu mỗi phút. Chạm ☰ để lưu thủ công hoặc mở cài đặt.',
+  move: 'Kéo cần trái để đi · đẩy sát mép để chạy',
+  look: 'Vuốt bên phải để xoay · chụm 2 ngón để thu phóng',
+  interact: 'Đến gần vòng sáng · chạm ✋ để tương tác',
+  schedule: '📅 xem lịch: giờ ăn, điểm danh, hoạt động',
+  journal: '📋 nhiệm vụ · 🏠 Đời sống (thư, cửa hàng, yêu cầu)',
+  save: 'Tự lưu mỗi phút · ☰ để lưu, cài đặt',
 };
 
 class Controller {
@@ -129,7 +129,7 @@ class Controller {
     } catch {
       if (!this.recoveryError) {
         this.recoveryError = true;
-        ui.toast({ id: 'resume_fail', text: 'Không ghi được checkpoint khôi phục khi tải lại trang. Hãy lưu thủ công hoặc Xuất file trước khi đóng trang.', severity: 'error', persistent: true });
+        ui.toast({ id: 'resume_fail', text: 'Không lưu được điểm khôi phục · hãy Lưu hoặc Xuất file trước khi đóng trang.', severity: 'error', persistent: true });
       }
     }
   }
@@ -158,9 +158,9 @@ class Controller {
   async onlineAllowed(): Promise<string | null> {
     const cfg = await refreshConfig(15_000);
     gate.setRemoteCap(cfg.online.cap);
-    if (!cfg.online.open) return 'Khu trực tuyến đang tạm đóng để bảo trì. Bạn vẫn có thể chơi ngoại tuyến.';
+    if (!cfg.online.open) return 'Trực tuyến đang bảo trì · vẫn chơi ngoại tuyến được.';
     // CR-TIME-01: phải đo được giờ máy chủ để mọi người cùng một đồng hồ trại
-    if ((await syncServerTime()) === null) return 'Không đồng bộ được giờ với máy chủ. Kiểm tra kết nối mạng rồi thử lại.';
+    if ((await syncServerTime()) === null) return 'Không đồng bộ được giờ · kiểm tra mạng rồi thử lại.';
     const ban = await checkBan();
     if (ban.banned) return `Tài khoản của bạn đang bị khóa chơi trực tuyến${ban.until ? ` đến ${new Date(ban.until).toLocaleString('vi-VN')}` : ''}. Lý do: ${ban.reason}`;
     return null;
@@ -272,7 +272,7 @@ class Controller {
       await step(5);
       view.attachInput();
       view.onAction = (a) => this.onKeyAction(a);
-      view.onContextLost = () => { this.pause(true); useUI.getState().set({ fatal: { title: 'Mất ngữ cảnh đồ họa', message: 'Trình duyệt đã tạm dừng GPU. Tiến trình được giữ; đang thử khôi phục...', code: 'CONTEXT_LOST' } }); };
+      view.onContextLost = () => { this.pause(true); useUI.getState().set({ fatal: { title: 'Mất ngữ cảnh đồ họa', message: 'Mất kết nối đồ họa · tiến trình vẫn giữ, đang khôi phục…', code: 'CONTEXT_LOST' } }); };
       view.onContextRestored = () => { useUI.getState().set({ fatal: null }); };
       session.on((e) => this.onEvent(e.event));
       this.unsubSettings = useSettings.subscribe((x) => { view.applySettings(x.s); session.settings = this.simSettings(x.s); session.ctx.settings = session.settings; audio.setVolumes(x.s.audio); });
@@ -553,7 +553,7 @@ class Controller {
       return true;
     } catch (e) {
       this.saveStatus = 'Lưu thất bại';
-      useUI.getState().toast({ id: 'save_fail', text: `Lưu thất bại: ${(e as Error).message}. Tiến trình vẫn còn trong phiên; hãy thử lại hoặc Xuất file.`, severity: 'error', persistent: true });
+      useUI.getState().toast({ id: 'save_fail', text: `Lưu thất bại: ${(e as Error).message} · thử lại hoặc Xuất file.`, severity: 'error', persistent: true });
       return false;
     } finally { this.saving = false; if (this.session === session && !this.booting) { this.projectHud(); this.checkpoint(); } }
   }
@@ -588,7 +588,7 @@ class Controller {
     fork.life.episode.state = 'archived';
     this.slot = 'slot3';
     await this.boot(fork, false);
-    useUI.getState().toast({ id: 'sandbox', text: 'Chế độ tự do (bản sao riêng, lưu ở Ô lưu 3). Hành trình chính đã khép lại.', severity: 'info', persistent: true });
+    useUI.getState().toast({ id: 'sandbox', text: 'Chơi tự do (bản sao ở Ô lưu 3) · hành trình chính đã khép lại.', severity: 'info', persistent: true });
   }
 
   quitToMenu() {

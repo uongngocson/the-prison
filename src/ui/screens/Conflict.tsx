@@ -80,7 +80,7 @@ export function ConflictOverlay() {
             {c.phase === 'brawl' && <span className="cf-resp">{c.responders.length ? `Đội phản ứng: ${respondersOnScene}/${c.responders.length} đã tới` : 'Đang báo động…'}</span>}
           </header>
           {c.phase === 'tension' && <p className="cf-line">“{c.line}”</p>}
-          {c.phase === 'tension' && c.provokedBy === 'npc' && c.initiator === null && <p className="cf-warn">Ra tay trước = bạn là người khởi xướng. Rời đi, nói chuyện hoặc gọi cán bộ không bị ghi lỗi.</p>}
+          {c.phase === 'tension' && c.provokedBy === 'npc' && c.initiator === null && <p className="cf-warn">Ra tay trước = khởi xướng · rời đi, nói chuyện, gọi cán bộ không bị ghi lỗi.</p>}
           {c.phase === 'brawl' && (
             <div className="cf-meters">
               <div><span>Năng lượng</span><i style={{ width: `${s.needs.energy}%` }} /></div>

@@ -31,16 +31,16 @@ export const SENTENCE_PRESETS: SentencePreset[] = [
   { id: 'VN-T15Y', label: '15 năm', kind: 'term', months: 180, basis: 'single', creditedDays: 90, note: 'Mốc biên: đúng 15 năm không phải "trên 15 năm".', segments: ['intake', 'shu'] },
   { id: 'VN-T20Y', label: '20 năm', kind: 'term', months: 240, basis: 'single', creditedDays: 90, note: 'Nhóm B, không mặc định biệt giam.', segments: ['intake', 'midway', 'shu'] },
   { id: 'VN-T30Y', label: '30 năm · án tổng hợp', kind: 'term', months: 360, basis: 'aggregate', creditedDays: 120, note: 'Ghi rõ án tổng hợp; không phải mức của một tội.', segments: ['intake', 'shu'] },
-  { id: 'VN-LIFE', label: 'Chung thân', kind: 'life', months: null, basis: 'single', creditedDays: 0, note: 'Không có ngày hết án mặc định; kết thúc chương vẫn chơi tiếp được.', segments: ['intake', 'separation_demo', 'shu'] },
+  { id: 'VN-LIFE', label: 'Chung thân', kind: 'life', months: null, basis: 'single', creditedDays: 0, note: 'Không có ngày hết án · hết chương vẫn chơi tiếp.', segments: ['intake', 'separation_demo', 'shu'] },
 ];
 export const PRESET_BY_ID: Record<string, SentencePreset> = Object.fromEntries(SENTENCE_PRESETS.map((p) => [p.id, p]));
 
 export const SEGMENT_INFO: Record<StartSegment, { label: string; desc: string; illustration: boolean }> = {
-  intake: { label: 'Tiếp nhận mới', desc: 'Bắt đầu tại khu tiếp nhận; phân nhóm và bố trí buồng sau khi hoàn tất hồ sơ.', illustration: false },
-  midway: { label: 'Một đoạn giữa hành trình', desc: 'Đã chấp hành 6 năm (kịch bản). Có sự kiện quyết định giảm án và quyết định phân loại trong những ngày đầu.', illustration: true },
-  discipline_demo: { label: 'Minh họa kỷ luật', desc: 'Bản án giữ nguyên; mở đầu bằng quyết định buồng kỷ luật 2 ngày đã có (hư cấu). Có thể xem quyết định và xin xem xét lại.', illustration: true },
-  separation_demo: { label: 'Minh họa bố trí riêng', desc: 'Bố trí riêng để hỗ trợ an toàn (không phải kỷ luật), có hạn xem xét lại.', illustration: true },
-  shu: { label: 'Biệt giam SHU (khắc nghiệt)', desc: 'Ở buồng 23 giờ/ngày · lên 3 cấp để về khu thường.', illustration: true },
+  intake: { label: 'Tiếp nhận mới', desc: 'Bắt đầu ở khu tiếp nhận · xếp nhóm và buồng sau thủ tục.', illustration: false },
+  midway: { label: 'Một đoạn giữa hành trình', desc: 'Đã chấp hành 6 năm · sớm có quyết định giảm án và phân loại lại.', illustration: true },
+  discipline_demo: { label: 'Minh họa kỷ luật', desc: 'Mở đầu bằng 2 ngày buồng kỷ luật · xem quyết định và xin xét lại được.', illustration: true },
+  separation_demo: { label: 'Minh họa bố trí riêng', desc: 'Bố trí riêng vì an toàn (không phải kỷ luật) · có hạn xét lại.', illustration: true },
+  shu: { label: 'Biệt giam SHU (khắc nghiệt)', desc: 'Ở buồng 23 giờ/ngày · lên 3 cấp để về khu thường', illustration: true },
 };
 
 // ---------- Custody schedule (24h, [from,to), không có khoảng trống) ----------
@@ -57,19 +57,19 @@ function scheduleFor(group: 'A' | 'B'): CustodyWindow[] {
   const svcEnd = group === 'A' ? hm(16, 30) : hm(15, 30);
   const afterYard = group === 'A' ? hm(17, 30) : hm(16, 30);
   return [
-    W(0, hm(6), 'night', 'Giờ ở buồng ban đêm'),
-    W(hm(6), hm(7), 'cell', 'Thức dậy, vệ sinh, điểm danh tại buồng'),
+    W(0, hm(6), 'night', 'Ngủ tại buồng'),
+    W(hm(6), hm(7), 'cell', 'Dậy · điểm danh tại buồng'),
     W(hm(7), hm(8), 'activity', 'Bữa sáng', MEAL),
-    W(hm(8), hm(11), 'activity', 'Lao động / học tập theo phân công', WORK_STUDY),
+    W(hm(8), hm(11), 'activity', 'Lao động / học', WORK_STUDY),
     W(hm(11), hm(12), 'activity', 'Bữa trưa', MEAL),
-    W(hm(12), hm(13, 30), 'cell', 'Nghỉ trưa tại buồng'),
-    W(hm(13, 30), svcEnd, 'activity', 'Học tập, dịch vụ, liên lạc', SERVICES),
-    W(yard[0], yard[1], 'activity', 'Sân sinh hoạt / phòng tập', ['L04', 'L09']),
-    ...(group === 'A' ? [] : [W(afterYard, hm(17, 30), 'activity', 'Dịch vụ, liên lạc', SERVICES)]),
+    W(hm(12), hm(13, 30), 'cell', 'Nghỉ trưa'),
+    W(hm(13, 30), svcEnd, 'activity', 'Học · dịch vụ · liên lạc', SERVICES),
+    W(yard[0], yard[1], 'activity', 'Sân / phòng tập', ['L04', 'L09']),
+    ...(group === 'A' ? [] : [W(afterYard, hm(17, 30), 'activity', 'Dịch vụ · liên lạc', SERVICES)]),
     W(hm(17, 30), hm(18, 30), 'activity', 'Bữa tối', MEAL),
-    W(hm(18, 30), hm(19, 30), 'activity', 'Vệ sinh, giặt, liên lạc, sinh hoạt văn hóa', ['L13', 'L16', 'L17']),
-    W(hm(19, 30), hm(22), 'cell', 'Sinh hoạt tại buồng, điểm danh tối 21:30'),
-    W(hm(22), hm(24), 'night', 'Giờ ở buồng ban đêm'),
+    W(hm(18, 30), hm(19, 30), 'activity', 'Vệ sinh · giặt · liên lạc', ['L13', 'L16', 'L17']),
+    W(hm(19, 30), hm(22), 'cell', 'Tại buồng · điểm danh 21:30'),
+    W(hm(22), hm(24), 'night', 'Ngủ tại buồng'),
   ].filter((w) => w.to > w.from).sort((a, b) => a.from - b.from);
 }
 export const CUSTODY_SCHEDULE: Record<'A' | 'B', CustodyWindow[]> = { A: scheduleFor('A'), B: scheduleFor('B') };
@@ -108,13 +108,13 @@ export const REASON_TEXT: Record<string, string> = {
   SEPARATION_ACTIVE: 'Đang ở buồng riêng — dịch vụ phục vụ tại buồng.',
   FAMILY_VISIT_RESTRICTED: 'Tạm thời chưa được gặp người thân.',
   CARE_SERVICE_AT_ROOM: 'Bạn có thể gửi yêu cầu chăm sóc tại đây.',
-  TRANSITION_PENDING: 'Đang chuẩn bị nơi đến. Vị trí hiện tại vẫn được giữ.',
+  TRANSITION_PENDING: 'Đang chuẩn bị nơi đến · giữ chỗ hiện tại.',
   POLICY_REVIEW_REQUIRED: 'Chế độ này chưa sẵn sàng.',
   CHAPTER_ONLY: 'Hoàn thành chương 1 — tiếp tục thụ án.',
   INTAKE_ONLY: 'Hãy hoàn tất tiếp nhận trước khi tới khu khác.',
   OTHER_ROOM: 'Đây là buồng của người khác.',
   RELEASED: 'Bạn đã rời cơ sở.',
-  SHU_ACTIVE: 'Đang biệt giam SHU — chỉ ra khỏi buồng khi được áp giải theo lịch.',
+  SHU_ACTIVE: 'Đang biệt giam · chỉ ra buồng khi được áp giải.',
   SHU_LEVEL: 'Chưa đủ cấp step-down cho đặc quyền này.',
 };
 export const SERVICE_ZONES: ZoneId[] = ['L08', 'L11', 'L12', 'L16', 'L17', 'L13'];
@@ -126,15 +126,15 @@ export type ShuActivity = 'rec' | 'shower' | 'group';
 export interface ShuWindow { from: number; to: number; kind: ShuActivity | 'cell' | 'night'; label: string; minLevel: 1 | 2 | 3; days: 'all' | 'odd' | 'even' }
 const SW = (from: number, to: number, kind: ShuWindow['kind'], label: string, minLevel: 1 | 2 | 3 = 1, days: ShuWindow['days'] = 'all'): ShuWindow => ({ from, to, kind, label, minLevel, days });
 export const SHU_SCHEDULE: ShuWindow[] = [
-  SW(0, hm(6), 'night', 'Đêm — đèn buồng mờ, kiểm tra mỗi 30 phút'),
-  SW(hm(6), hm(9), 'cell', 'Kiểm đếm tại cửa buồng · bữa sáng qua khe cửa'),
-  SW(hm(9), hm(10), 'rec', 'Thể dục 1 giờ trong cũi (áp giải)'),
-  SW(hm(10), hm(14), 'cell', 'Ở buồng · bữa trưa qua khe cửa'),
-  SW(hm(14), hm(14, 30), 'shower', 'Tắm (cách ngày, áp giải)', 1, 'odd'),
-  SW(hm(14, 30), hm(15), 'cell', 'Ở buồng'),
-  SW(hm(15), hm(16), 'group', 'Sinh hoạt nhóm trong cũi trị liệu', 2, 'even'),
-  SW(hm(16), hm(22), 'cell', 'Ở buồng · bữa tối qua khe cửa · kiểm đếm 21:00'),
-  SW(hm(22), hm(24), 'night', 'Đêm — đèn buồng mờ, kiểm tra mỗi 30 phút'),
+  SW(0, hm(6), 'night', 'Đêm · kiểm tra 30 phút/lần'),
+  SW(hm(6), hm(9), 'cell', 'Kiểm đếm · bữa sáng qua khe cửa'),
+  SW(hm(9), hm(10), 'rec', 'Thể dục trong cũi'),
+  SW(hm(10), hm(14), 'cell', 'Tại buồng · bữa trưa'),
+  SW(hm(14), hm(14, 30), 'shower', 'Tắm (ngày lẻ)', 1, 'odd'),
+  SW(hm(14, 30), hm(15), 'cell', 'Tại buồng'),
+  SW(hm(15), hm(16), 'group', 'Sinh hoạt nhóm (cũi)', 2, 'even'),
+  SW(hm(16), hm(22), 'cell', 'Tại buồng · bữa tối · kiểm đếm 21:00'),
+  SW(hm(22), hm(24), 'night', 'Đêm · kiểm tra 30 phút/lần'),
 ];
 export interface ShuLevel { level: 1 | 2 | 3; title: string; days: number; privileges: string[] }
 /** Chương trình step-down: giữ kỷ luật đủ số ngày để lên cấp; vi phạm → về cấp 1. */

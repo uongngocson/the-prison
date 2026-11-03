@@ -26,7 +26,8 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
   let line = '';
   for (const w of words) { const t = line ? `${line} ${w}` : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
   if (line) lines.push(line);
-  return lines.slice(0, 3);
+  if (lines.length > 2) { lines.length = 2; lines[1] = lines[1].replace(/\s*\S*$/, '') + '…'; }
+  return lines;
 }
 
 interface Avatar { h: Humanoid; tag: ReturnType<typeof textPlane>; bubble: ReturnType<typeof textPlane>; bubbleText: string; tagText: string; anchor: TransformNode }
@@ -64,13 +65,19 @@ export class RemotePlayers {
       const pose = (POSES.has(p.pose as Pose) ? p.pose : 'idle') as Pose;
       a.h.animate(dt, pose === 'idle' && moving > 0.3 ? 'walk' : pose, moving, reducedMotion);
       a.anchor.position.set(p.pos.x, 0, p.pos.z);
+      // kích thước trên màn hình gần như cố định: gần camera thì thu nhỏ (trước đây phình to che kín màn hình), quá sát thì ẩn
+      const dCam = Math.hypot(p.pos.x - cam.x, p.pos.z - cam.z);
+      const sc = Math.max(0.3, Math.min(1, dCam / LABEL_REF_DIST));
+      a.tag.mesh.scaling.setAll(sc); a.bubble.mesh.scaling.setAll(sc);
+      a.tag.mesh.position.y = 2.0 + 0.12 * sc; a.bubble.mesh.position.y = 2.1 + 0.42 * sc;
+      a.tag.mesh.setEnabled(dCam > 1.4);
       // tên
       const tagText = `${p.meta.name}`;
       if (tagText !== a.tagText) { a.tagText = tagText; this.drawTag(a.tag.tex, tagText); }
       // bong bóng lời
       const bubble = p.bubble && p.bubble.until > now && !blocked(id) ? p.bubble.text : '';
       if (bubble !== a.bubbleText) { a.bubbleText = bubble; if (bubble) this.drawBubble(a.bubble.tex, bubble); }
-      a.bubble.mesh.setEnabled(!!bubble);
+      a.bubble.mesh.setEnabled(!!bubble && dCam > 1.4);
     }
   }
 
@@ -87,9 +94,9 @@ export class RemotePlayers {
   private create(id: string, p: Peer): Avatar {
     const h = new Humanoid(this.scene, `rp_${id}`, p.meta.look, stripe(p.meta.outfit ?? p.meta.look.outfit ?? 0));
     const anchor = new TransformNode(`rpa_${id}`, this.scene);
-    const tag = textPlane(this.scene, `rptag_${id}`, 1.6, 0.32);
+    const tag = textPlane(this.scene, `rptag_${id}`, 1.1, 0.22);
     tag.mesh.parent = anchor; tag.mesh.position.y = 2.18;
-    const bubble = textPlane(this.scene, `rpbub_${id}`, 2.4, 0.9);
+    const bubble = textPlane(this.scene, `rpbub_${id}`, 1.7, 0.56);
     bubble.mesh.parent = anchor; bubble.mesh.position.y = 2.75; bubble.mesh.setEnabled(false);
     const a: Avatar = { h, tag, bubble, bubbleText: '', tagText: '', anchor };
     this.avatars.set(id, a);
@@ -111,7 +118,7 @@ export class RemotePlayers {
     const ctx = tex.getContext() as CanvasRenderingContext2D;
     const { width: W, height: H } = tex.getSize();
     ctx.clearRect(0, 0, W, H);
-    const fs = Math.round(H * 0.17);
+    const fs = Math.round(H * 0.24);
     ctx.font = `600 ${fs}px "Noto Sans", "Segoe UI", sans-serif`;
     const lines = wrap(ctx, text, W * 0.86);
     const bh = lines.length * fs * 1.25 + fs * 0.9;
@@ -127,3 +134,5 @@ export class RemotePlayers {
   disposeAll() { for (const a of this.avatars.values()) this.dispose(a); this.avatars.clear(); this.selfBubble?.mesh.dispose(); this.selfBubble = null; }
 }
 const POS_SPEED = 3; // hệ số chuyển khoảng cách còn lại → tốc độ animation đi bộ
+/** Khoảng cách camera (m) mà nhãn tên/bong bóng hiển thị đủ kích thước; gần hơn thì thu nhỏ tương ứng. */
+const LABEL_REF_DIST = 7;

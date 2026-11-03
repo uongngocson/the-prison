@@ -24,7 +24,7 @@ export function SavesPanel() {
   useEffect(() => { void refresh(); if (cloud.configured()) cloud.user().then(setUser).catch(() => setUser(null)); }, []);
   const meta = (e?: SaveEnvelope) => e ? `${e.meta.name} · Ngày ${e.meta.day} ${fmtClock(e.meta.minute)} · ${e.meta.zone} · thế hệ ${e.meta.generation} · ${new Date(e.savedAt).toLocaleString('vi-VN')}${e.meta.ended ? ' · đã kết thúc' : ''}` : 'Trống';
   return (
-    <Panel title="Quản lý save" onClose={close} footer="Mỗi ô giữ 2 thế hệ gần nhất; nếu bản mới nhất lỗi sẽ dùng bản trước. Save đơn người chơi luôn là “không tin cậy”.">
+    <Panel title="Quản lý save" onClose={close} footer="Mỗi ô giữ 2 bản gần nhất · bản mới lỗi thì dùng bản trước.">
       <h3>Trên thiết bị này</h3>
       <table className="tbl"><tbody>
         {slots.map((s) => (
@@ -70,8 +70,8 @@ function CloudSection({ onMsg, list, setList }: { onMsg: (m: string) => void; li
       const env = await encodeSave(structuredClone(s), { name: s.character.name, day: Math.floor(s.minute / 1440) + 1, minute: s.minute, zone: s.player.zone, chapter: s.chapter, lineageId: s.lineageId, generation: s.generation, ended: s.ended });
       const head = (list ?? []).find((x) => x.lineage_id === s.lineageId && x.slot === 1);
       const r = await cloud.upload(env, 1, head ? head.revision : null, crypto.randomUUID());
-      if (r.ok) onMsg(`Đã đồng bộ (bản sửa đổi ${r.revision}). Chỉ báo thành công sau khi máy chủ xác nhận.`);
-      else onMsg(r.conflict ? `Xung đột: ${r.message} Hãy tải bản đám mây để so sánh, hoặc lưu bản này vào ô khác.` : `Lỗi: ${r.message}`);
+      if (r.ok) onMsg(`Đã đồng bộ (bản ${r.revision}).`);
+      else onMsg(r.conflict ? `Lệch bản lưu: ${r.message} · tải bản đám mây để so, hoặc lưu sang ô khác.` : `Lỗi: ${r.message}`);
       setList(await cloud.list());
     } catch (e) { onMsg((e as Error).message); } finally { setBusy(false); }
   };
@@ -89,7 +89,7 @@ function CloudSection({ onMsg, list, setList }: { onMsg: (m: string) => void; li
 
 function GamepadStatus() {
   const gp = useDevice((d) => d.gamepad);
-  return <p className="small muted">{gp ? `Đã kết nối: ${gp}` : 'Chưa phát hiện tay cầm — cắm hoặc kết nối Bluetooth rồi bấm một nút bất kỳ.'} Sơ đồ nút có trong Sổ tay › Cảm ứng & tay cầm.</p>;
+  return <p className="small muted">{gp ? `Đã kết nối: ${gp}` : 'Chưa thấy tay cầm · cắm hoặc kết nối Bluetooth rồi bấm một nút.'} Sơ đồ nút có trong Sổ tay › Cảm ứng & tay cầm.</p>;
 }
 
 export function SettingsPanel() {
@@ -106,7 +106,7 @@ export function SettingsPanel() {
       e.preventDefault(); e.stopPropagation();
       if (e.code === 'Escape' && listening !== 'pause') { setListening(null); return; }
       const other = (Object.keys(st.controls.bindings) as ActionName[]).find((k) => k !== listening && st.controls.bindings[k] === e.code);
-      if (other) { setConflict(`Phím ${keyLabel(e.code)} đang dùng cho “${ACTION_LABEL[other]}”. Đã hoán đổi hai phím.`); set((x) => { x.controls.bindings[other] = x.controls.bindings[listening]; x.controls.bindings[listening] = e.code; }); }
+      if (other) { setConflict(`Đã đổi chỗ với “${ACTION_LABEL[other]}” (phím ${keyLabel(e.code)}).`); set((x) => { x.controls.bindings[other] = x.controls.bindings[listening]; x.controls.bindings[listening] = e.code; }); }
       else { setConflict(''); set((x) => { x.controls.bindings[listening] = e.code; }); }
       setListening(null);
     };
@@ -125,7 +125,7 @@ export function SettingsPanel() {
     <Panel title="Cài đặt" onClose={() => { if (!listening) close(); }} tabs={<Tabs label="Nhóm cài đặt" value={tab} onChange={(t) => setUI({ settingsTab: t })} tabs={[{ id: 'graphics', label: 'Đồ họa' }, { id: 'audio', label: 'Âm thanh' }, { id: 'controls', label: 'Điều khiển' }, { id: 'access', label: 'Trợ năng & lối chơi' }]} />}>
       {tab === 'graphics' && <div className="col" style={{ maxWidth: 620 }}>
         <div className="row">{(['auto', 'low', 'medium', 'high'] as const).map((p) => <button key={p} className={`btn sm ${st.graphics.preset === p ? 'primary' : ''}`} aria-pressed={st.graphics.preset === p} onClick={() => set((x) => { x.graphics.preset = p; })}>{{ auto: 'Tự động', low: 'Thấp', medium: 'Trung bình', high: 'Cao' }[p]}</button>)}</div>
-        <p className="small muted">Thấp: tắt bóng đổ, giảm độ phân giải. Cao: bóng đổ ngoài sân 2048 lọc mềm, tỉ lệ điểm ảnh màn hình cao.</p>
+        <p className="small muted">Thấp: tắt bóng, giảm độ nét · Cao: bóng mềm, độ nét cao.</p>
         {slider('Tỉ lệ độ phân giải', st.graphics.resolutionScale, (v) => set((x) => { x.graphics.resolutionScale = v; }), 0.5, 1, 0.05)}
         {toggle('Bóng đổ ngoài trời', st.graphics.shadows, (v) => set((x) => { x.graphics.shadows = v; }), 'Bóng nhân vật dưới nắng ở sân sinh hoạt')}
         <p className="small muted">WebGPU chưa bật trong bản này (mặc định WebGL2). FPS hiện tại: {controller.view ? Math.round(controller.view.fps()) : '—'}</p>
@@ -167,11 +167,11 @@ export function SettingsPanel() {
         {toggle('Tương phản cao', st.access.highContrast, (v) => set((x) => { x.access.highContrast = v; }))}
         {toggle('HUD tối giản', st.access.hudMinimal, (v) => set((x) => { x.access.hudMinimal = v; }), 'Vẫn hiển thị lỗi lưu và nhiệm vụ chính')}
         {toggle('Gợi ý hướng dẫn', st.access.tutorialHints, (v) => set((x) => { x.access.tutorialHints = v; }))}
-        {toggle('Nội dung xung đột (ẩu đả)', st.access.conflicts, (v) => set((x) => { x.access.conflicts = v; }), 'Bạn tù có thể gây sự; cán bộ phản ứng, đưa vào SHU. Không máu, không vũ khí')}
+        {toggle('Nội dung xung đột (ẩu đả)', st.access.conflicts, (v) => set((x) => { x.access.conflicts = v; }), 'Gây sự, ẩu đả, vào SHU · không máu, không vũ khí')}
         {toggle('Nhu cầu nhẹ', st.access.lightNeeds, (v) => set((x) => { x.access.lightNeeds = v; }), 'Nhu cầu giảm chậm 50%, không ảnh hưởng thành tựu')}
         {toggle('Hoàn tất tự động hoạt động', st.access.autoComplete, (v) => set((x) => { x.access.autoComplete = v; }), 'Rút ngắn ăn, tắm, tập; không cần thao tác lặp')}
         <div className="row" style={{ justifyContent: 'space-between' }}>Độ dài một ngày game<span className="row">{([48, 72] as const).map((d) => <button key={d} className={`btn sm ${st.access.dayLength === d ? 'primary' : ''}`} aria-pressed={st.access.dayLength === d} onClick={() => set((x) => { x.access.dayLength = d; })}>{d} phút thực</button>)}</span></div>
-        <p className="small muted" style={{ marginTop: 2 }}>Áp dụng khi chơi ngoại tuyến. Phòng trực tuyến dùng giờ chung của phân khu.</p>
+        <p className="small muted" style={{ marginTop: 2 }}>Chỉ khi chơi ngoại tuyến · trực tuyến dùng giờ chung.</p>
         <button className="btn sm" onClick={() => reset('access')}>Khôi phục mặc định nhóm này</button>
         <Status>Thay đổi được áp dụng ngay và lưu trên thiết bị này.</Status>
       </div>}

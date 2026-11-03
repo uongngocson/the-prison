@@ -83,14 +83,14 @@ export function Inventory() {
     if (verb === 'equip') { s.equipped.outfit = s.equipped.outfit === st.uid ? null : st.uid; return s.equipped.outfit ? `Đã mặc ${def.name}.` : 'Đã thay về đồng phục.'; }
     if (verb === 'read') {
       if (st.itemId === 'handbook') { useUI.getState().open('handbook'); return; }
-      return 'Hãy ngồi tại bàn đọc, ghế hoặc giường rồi chọn “Đọc sách” để đọc (có thời lượng).';
+      return 'Ngồi ở bàn, ghế hoặc giường rồi chọn “Đọc sách”.';
     }
   });
   const moveTo = (to: 'bag' | 'locker') => act(() => (moveStack(controller.session!.ctx, tab, sel!, to) ? (setSel(null), `Đã chuyển sang ${to === 'bag' ? 'túi' : 'tủ'}.`) : 'Không đủ chỗ — vật phẩm được giữ nguyên.'));
   return (
     <Panel title={`Túi đồ (${used}/12)`} onClose={close} tabs={<Tabs label="Kho" value={tab} onChange={(t) => { setTab(t); setSel(null); }} tabs={[
       { id: 'bag', label: 'Túi' }, { id: 'locker', label: atLocker ? 'Tủ cá nhân' : 'Tủ cá nhân (xem)' }, { id: 'mailbox', label: 'Hộp nhận đồ', badge: s.inventory.mailbox.length }, { id: 'stored', label: 'Tài sản ký gửi' },
-    ]} />} footer={<>Phím mũi tên chọn ô · Enter hành động · Không cần kéo thả. {tab === 'stored' && 'Tài sản ký gửi chỉ xem — nhận lại khi rời cơ sở (biên nhận ở Đời sống › Tài sản).'}</>}>
+    ]} />} footer={<>Phím mũi tên chọn ô · Enter hành động · Không cần kéo thả. {tab === 'stored' && 'Chỉ xem · nhận lại khi rời cơ sở (Đời sống › Tài sản).'}</>}>
       <div className="split3">
         <div className="small muted mobile-hide">
           <p>{tab === 'bag' && 'Đồ mang theo. 12 ô.'}{tab === 'locker' && (atLocker ? 'Tủ trong phòng của bạn — chuyển đồ qua lại tự do.' : 'Đến tủ cá nhân trong phòng để chuyển đồ.')}{tab === 'mailbox' && 'Phần thưởng/đồ khi túi đầy được giữ ở đây, không bị mất.'}{tab === 'stored' && 'Đồ ký gửi khi tiếp nhận.'}</p>
@@ -193,7 +193,7 @@ export function MapPanel() {
   const KZ = 1.0; // z −36…32 (gồm khu lao động) vừa khung 72
   const sz = (zz: number) => (34 - zz) * KZ;
   return (
-    <Panel title="Bản đồ (sơ đồ hư cấu)" onClose={close}>
+    <Panel title="Bản đồ" onClose={close}>
       <div className="split map">
         <div className="list" role="listbox" aria-label="Danh sách khu">
           {[...ZONES].sort((a, b) => Number(known(b.id)) - Number(known(a.id))).map((x) => (
@@ -218,7 +218,7 @@ export function MapPanel() {
             <p className="small"><b>Giờ mở:</b> {zoneHoursLabel(sel)} · <b>Trạng thái:</b> {open(sel) ? <Status kind="ok">Mở</Status> : <Status kind="warn">Đóng</Status>}</p>
             <p className="small">{route}</p>
             <button className="btn" disabled={sel === s.player.zone} onClick={() => { useUI.getState().set({ waypoint: sel, overlay: null }); }}>Đặt điểm đến trên HUD</button>
-            <p className="muted small">Không có dịch chuyển nhanh — hãy đi bộ theo hành lang chính.</p>
+            <p className="muted small">Không có dịch chuyển · đi theo hành lang chính.</p>
           </div>
         </div>
       </div>
@@ -236,7 +236,7 @@ export function SchedulePanel() {
   const todaysPrograms = s.life.programs.filter((e) => ['enrolled', 'in_progress'].includes(e.state)).map((e) => PROGRAMS.find((p) => p.id === e.programId)!).filter((p) => p.days.includes(dayOfWeek(s.minute)));
   const bookings = s.life.bookings.filter((b) => ['booked', 'waiting'].includes(b.state)).sort((a, b) => a.start - b.start);
   return (
-    <Panel title={`Lịch sinh hoạt — ${WEEKDAY_LABEL[dayOfWeek(s.minute)]}, Ngày ${day}`} onClose={close} footer={controller.session?.shared ? 'Giờ chung của phân khu trực tuyến: mọi người chơi cùng một lịch. Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.' : 'Giờ trong game. Một ngày game ≈ 48 phút thực (đổi trong Cài đặt). Hầu hết hoạt động là tự chọn; điểm danh có miễn trừ khi có lịch hẹn được phép.'}>
+    <Panel title={`Lịch sinh hoạt — ${WEEKDAY_LABEL[dayOfWeek(s.minute)]}, Ngày ${day}`} onClose={close} footer={controller.session?.shared ? 'Giờ chung của phân khu · đa số hoạt động tự chọn; có lịch hẹn thì được miễn điểm danh.' : '1 ngày game ≈ 48 phút thực (đổi trong Cài đặt) · đa số hoạt động tự chọn; có lịch hẹn thì được miễn điểm danh.'}>
       <table className="tbl sched">
         <thead><tr><th>Giờ</th><th>Hoạt động</th><th>Nơi</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
         <tbody>
@@ -253,7 +253,7 @@ export function SchedulePanel() {
       <div className="grid2" style={{ marginTop: 16 }}>
         <div className="card">
           <h3>Lịch cá nhân hôm nay</h3>
-          {todaysPrograms.length === 0 && <Empty>Chưa có khóa học/ca làm hôm nay. Đăng ký ở Đời sống › Học tập & công việc.</Empty>}
+          {todaysPrograms.length === 0 && <Empty>Hôm nay chưa có lớp/ca · đăng ký ở Đời sống › Học & làm.</Empty>}
           {todaysPrograms.map((p) => <div key={p.id} className="small">{fmtClock(p.from)}–{fmtClock(p.to)} · {p.name} · {ZONE_BY_ID[p.zone].name}</div>)}
           {[1, 3, 5].includes(dayOfWeek(s.minute)) && <div className="small">19:00–20:30 · Nhóm đọc sách · Thư viện (tự chọn)</div>}
           <div className="small">16:00–17:00 · Buổi tập nhóm ngoài sân (khi không mưa)</div>
@@ -278,14 +278,14 @@ export function Handbook() {
   const articles = useMemo(() => {
     const ctl = (Object.keys(bindings) as ActionName[]).map((k) => `${ACTION_LABEL[k]}: ${keyLabel(bindings[k])}`).join(' · ');
     return [
-      { id: 'controls', title: 'Điều khiển', body: `${ctl}. Nhấp vào khung hình để khóa chuột điều khiển camera; Esc để thả chuột/mở menu. Cuộn chuột để chỉnh khoảng cách camera. Phím số 2–4 chọn hành động phụ ở lời nhắc.` },
-      { id: 'touch', title: 'Cảm ứng & tay cầm', body: 'Màn hình cảm ứng: cần điều khiển ảo ở góc dưới bên trái (đẩy ra mép để chạy), vuốt nửa phải màn hình để xoay camera, chụm/mở hai ngón để thu phóng, chạm nhanh để tương tác; nút ✋ thực hiện hành động chính, thanh biểu tượng phía trên mở lịch, nhiệm vụ, bản đồ, túi, đời sống, hồ sơ. Có chế độ thuận tay trái và chỉnh cỡ cần điều khiển trong Cài đặt › Điều khiển. Tay cầm (chuẩn Xbox/PlayStation): cần trái di chuyển, cần phải xoay camera, A tương tác, B hủy/đóng, X tua nhanh, Y đời sống, LB bản đồ, RB nhiệm vụ, Back lịch, Start tạm dừng, D-pad lên/xuống túi/hồ sơ, bấm cần trái chạy, bấm cần phải cúi. Trong menu dùng D-pad để di chuyển, A chọn, B quay lại.' },
-      { id: 'interact', title: 'Tương tác', body: 'Đến gần đồ vật/người có vòng sáng vàng. Lời nhắc ở giữa màn hình cho biết hành động, thời lượng (phút game) và lý do nếu chưa dùng được. Hành động có thời lượng sẽ tua nhanh thời gian; có thể tua hết (F) hoặc hủy trước khi xong (Q) — hủy không nhận kết quả.' },
-      { id: 'needs', title: 'Nhu cầu', body: 'Năng lượng, No bụng, Vệ sinh, Tâm trạng (0–100, cao là tốt). Ăn +35 no bụng, ngủ +8 năng lượng/giờ, tắm +60 vệ sinh. Chỉ số thấp chỉ gợi ý nhẹ và giảm tối đa 15% hiệu quả hoạt động — không chết, không khóa nhiệm vụ. Có thể bật “Nhu cầu nhẹ” trong Cài đặt.' },
-      { id: 'save', title: 'Lưu game', body: 'Tự lưu mỗi phút khi có thay đổi, khi sang ngày mới và khi hoàn thành nhiệm vụ. Có 3 ô lưu thủ công; mỗi ô giữ 2 thế hệ gần nhất. Xuất file để sao lưu ngoài trình duyệt.' },
+      { id: 'controls', title: 'Điều khiển', body: `${ctl}. Nhấp màn hình để xoay camera · Esc thả chuột/mở menu · cuộn chuột để zoom · phím 2–4 chọn hành động phụ.` },
+      { id: 'touch', title: 'Cảm ứng & tay cầm', body: 'Cảm ứng: cần trái để đi (sát mép = chạy) · vuốt phải xoay camera · chụm 2 ngón zoom · ✋ tương tác · thanh trên mở lịch, nhiệm vụ, bản đồ, túi, đời sống, hồ sơ · tay trái và cỡ cần ở Cài đặt › Điều khiển. Tay cầm: cần trái đi · cần phải camera · A tương tác · B hủy · X tua · Y đời sống · LB bản đồ · RB nhiệm vụ · Back lịch · Start tạm dừng · D-pad túi/hồ sơ · L3 chạy · R3 cúi. Trong menu: D-pad chọn, A xác nhận, B quay lại.' },
+      { id: 'interact', title: 'Tương tác', body: 'Đến gần vòng sáng vàng · lời nhắc ghi hành động, thời lượng và lý do nếu chưa dùng được. Hành động có thời lượng tự tua nhanh · F tua hết · Q hủy (không nhận kết quả).' },
+      { id: 'needs', title: 'Nhu cầu', body: 'Năng lượng, No bụng, Vệ sinh, Tâm trạng (0–100, cao là tốt) · ăn +35, ngủ +8/giờ, tắm +60. Chỉ số thấp giảm tối đa 15% hiệu quả · không chết, không khóa nhiệm vụ. Có “Nhu cầu nhẹ” trong Cài đặt.' },
+      { id: 'save', title: 'Lưu game', body: 'Tự lưu mỗi phút, khi sang ngày và khi xong nhiệm vụ · 3 ô lưu tay, mỗi ô giữ 2 bản gần nhất · Xuất file để sao lưu ngoài.' },
       ...ORIENTATION_TOPICS.map((t) => ({ id: t.id, title: t.title, body: t.body })),
       { id: 'fiction', title: 'Về mô hình hư cấu', body: `${POLICY_PROFILE.jurisdictionLabel}. Quyền tối thiểu trong game: ${POLICY_PROFILE.rightsFloor.join(', ')}. ${POLICY_PROFILE.reviewStatus}.` },
-      { id: 'access', title: 'Trợ năng', body: 'Phụ đề luôn bật cho thông báo quan trọng; chỉnh cỡ chữ phụ đề, giảm chuyển động, tương phản cao, hoàn tất tự động hoạt động, ngày dài 72 phút, đổi phím — trong Cài đặt › Điều khiển & Trợ năng. Nhu cầu cá nhân của nhân vật (đi lại, nghe, ngôn ngữ...) chọn ở Đời sống › Chăm sóc.' },
+      { id: 'access', title: 'Trợ năng', body: 'Phụ đề luôn bật cho thông báo quan trọng · cỡ phụ đề, giảm chuyển động, tương phản cao, tự hoàn tất, ngày 72 phút, đổi phím ở Cài đặt › Trợ năng · nhu cầu riêng của nhân vật ở Đời sống › Chăm sóc.' },
     ];
   }, [bindings]);
   const shown = articles.filter((a) => !q || (a.title + a.body).toLowerCase().includes(q.toLowerCase()));
@@ -319,11 +319,11 @@ export function SleepPanel() {
   return (
     <Panel title="Ngủ" onClose={close} width="narrow">
       {controller.session?.shared
-        ? <p>Đang chơi trực tuyến: giờ trại <b>không tua</b>. Nhân vật ngủ theo giờ chung, năng lượng hồi nhanh gấp đôi (khoảng 16/giờ); thức dậy bất cứ lúc nào.</p>
-        : <p>Chọn giờ thức dậy. Thời gian sẽ trôi nhanh; năng lượng hồi khoảng 8/giờ.</p>}
+        ? <p>Đang chơi trực tuyến: giờ trại <b>không tua</b> · ngủ theo giờ chung, hồi ~16 năng lượng/giờ, dậy lúc nào cũng được.</p>
+        : <p>Chọn giờ dậy · thời gian tua nhanh, hồi ~8 năng lượng/giờ.</p>}
       <div className="row">{options.map((t) => <button key={t} className={`btn sm ${wake === t ? 'primary' : ''}`} aria-pressed={wake === t} onClick={() => setWake(t)}>{fmtDayClock(t)}</button>)}</div>
       <p className="small muted">Ngủ {((wake - s.minute) / 60).toFixed(1)} giờ.</p>
-      {preview.length > 0 && !controller.session?.shared && <div className="notice small"><b>Sẽ bỏ qua:</b><ul>{preview.map((p, i) => <li key={i}>{p}</li>)}</ul>Điểm danh khi đang ngủ trên giường tại khu phòng ở được tính là có mặt.</div>}
+      {preview.length > 0 && !controller.session?.shared && <div className="notice small"><b>Sẽ bỏ qua:</b><ul>{preview.map((p, i) => <li key={i}>{p}</li>)}</ul>Đang ngủ ở giường mình vẫn tính có mặt điểm danh.</div>}
       <div className="row" style={{ marginTop: 8 }}>
         <button className="btn primary" onClick={() => { const r = controller.session!.sleep(bed, wake); if (!r.ok) useUI.getState().toast({ id: 'sl', text: r.message!, severity: 'warning' }); controller.bump(); close(); }}>Ngủ</button>
         <button className="btn" onClick={close}>Hủy</button>
@@ -338,7 +338,7 @@ export function ScenePanel() {
   const lines = (p.lines ?? '').split('\n');
   const [i, setI] = useState(0);
   return (
-    <Panel title={p.title ?? 'Cảnh'} onClose={close} width="mid" footer="Phụ đề toàn bộ — không cần micro, camera hay âm thanh. Nội dung riêng tư không hiển thị cho người khác.">
+    <Panel title={p.title ?? 'Cảnh'} onClose={close} width="mid" footer="Có phụ đề đầy đủ · không cần micro, camera hay âm thanh.">
       <div aria-live="polite">{lines.slice(0, i + 1).map((l, k) => <p key={k} style={{ fontSize: 18 }}>{l}</p>)}</div>
       <div className="row">
         {i < lines.length - 1 ? <button className="btn primary" onClick={() => setI(i + 1)} data-autofocus>Tiếp tục</button> : <button className="btn primary" onClick={close} data-autofocus>Kết thúc</button>}
@@ -384,10 +384,10 @@ export function NewsPanel() {
         {ev && <li>Đang diễn ra: {ev.id.startsWith('reading') ? 'Nhóm đọc sách tại Thư viện' : ev.id.startsWith('group_ex') ? 'Buổi tập nhóm ngoài sân' : `Tạm đóng ${ZONE_BY_ID[ev.zone].name} để bảo trì`} (đến {fmtClock(ev.endMinute)}).</li>}
         {closures.map(([id, d]) => <li key={id}>{ZONE_BY_ID[id.replace('door_', '') as ZoneId].name}: {d.reason}</li>)}
         {outages.map((f) => <li key={f.id}>Thiết bị tạm ngưng: {f.affected.join(', ')} — {f.fallback}.</li>)}
-        <li>Nhóm đọc sách: tối Thứ Ba, Thứ Năm, Thứ Bảy 19:00 tại Thư viện.</li>
-        <li>Cửa hàng nội bộ nhận đơn Thứ Hai, Thứ Tư, Thứ Sáu. Nhận hàng sáng hôm sau.</li>
+        <li>Nhóm đọc sách · T3, T5, T7 lúc 19:00 · Thư viện.</li>
+        <li>Cửa hàng nhận đơn T2, T4, T6 · nhận hàng sáng hôm sau.</li>
         <li>Lớp Nấu ăn tập thể sáng Thứ Bảy tại Nhà bếp.</li>
-        <li>Vật dụng thiết yếu luôn có thể nhận miễn phí tại Quầy dịch vụ hoặc quầy giặt.</li>
+        <li>Đồ thiết yếu luôn miễn phí ở Quầy dịch vụ hoặc quầy giặt.</li>
       </ul>
     </Panel>
   );
@@ -397,7 +397,7 @@ export function MenuBoardPanel() {
   return (
     <Panel title="Thực đơn hôm nay" onClose={close} width="narrow">
       {MEALS.map((m) => <p key={m.id}><b>{m.label} ({fmtClock(m.from)}–{fmtClock(m.to)}):</b> {MENU[m.id][s.life.diet]}</p>)}
-      <p className="small muted">Theo chế độ ăn bạn đã chọn. Món hết sẽ có món thay thế tương đương. Đổi chế độ ăn ở Đời sống › Chăm sóc.</p>
+      <p className="small muted">Theo chế độ ăn của bạn · hết món có món thay · đổi ở Đời sống › Chăm sóc.</p>
     </Panel>
   );
 }

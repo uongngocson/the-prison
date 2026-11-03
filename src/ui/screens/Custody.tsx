@@ -253,7 +253,7 @@ export function VnChapterCard() {
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <h3>Chương 1</h3>
-      <p className="small muted">Kết thúc chương không phải mãn hạn — bạn vẫn tiếp tục thụ án.</p>
+      <p className="small muted">Kết thúc chương ≠ mãn hạn · vẫn tiếp tục thụ án.</p>
       {c.chapter.state !== 'active' ? <Status kind="ok">Đã kết thúc chương</Status>
         : <button className="btn primary" disabled={!chapterEligible(s)} onClick={() => {
           const r = controller.exec<{ ok: boolean; message: string }>((ctx) => closeChapter(ctx));

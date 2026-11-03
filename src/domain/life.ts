@@ -101,7 +101,7 @@ export function admissionStep(ctx: Ctx, step: AdmissionStep, params: { familyCon
     }
     case 'housing': {
       const vn = s.experienceMode === 'vn_custody' ? custodyHooks.placementBed?.(ctx) ?? null : null;
-      if (s.experienceMode === 'vn_custody' && !vn) return { ok: false, message: 'Chưa có buồng tương thích với quyết định phân loại — vị trí hiện tại được giữ (NO_COMPATIBLE_ROOM).' };
+      if (s.experienceMode === 'vn_custody' && !vn) return { ok: false, message: 'Chưa có buồng phù hợp nhóm · giữ chỗ hiện tại.' };
       assignHousing(ctx, vn ? vn.bed : PLAYER_START_BED, vn ? vn.reason : 'Phân chỗ ban đầu, gần lối đi chung');
       ep.state = 'admitted';
       s.flags.admission_complete = true;
@@ -203,7 +203,7 @@ export function refreshStaff(ctx: Ctx, onDuty: Record<string, string | null>) {
     if (c.assignedActor && c.assignedActor !== now && prev[c.assignedRole] === c.assignedActor) {
       const fromName = NPCS.find((n) => n.id === c.assignedActor)?.name ?? c.assignedActor;
       c.assignedActor = now ?? undefined;
-      c.history.push({ minute: s.minute, actorRole: c.assignedRole, text: `Bàn giao ca: ${fromName} → ${now ? NPCS.find((n) => n.id === now)?.name : 'vai trò trực thay (ngoài màn hình)'}`, state: c.state });
+      c.history.push({ minute: s.minute, actorRole: c.assignedRole, text: `Bàn giao ca: ${fromName} → ${now ? NPCS.find((n) => n.id === now)?.name : 'người trực thay'}`, state: c.state });
     }
   }
   s.life.staff.lastHandoverMinute = s.minute;
@@ -246,7 +246,7 @@ export function quote(ctx: Ctx, lines: { itemId: string; qty: number }[]): { ok:
   for (const l of lines) {
     const def = ITEM_BY_ID[l.itemId];
     if (!def || !def.price || !Number.isInteger(l.qty) || l.qty < 1 || l.qty > 99) return { ok: false, message: 'Mặt hàng hoặc số lượng không hợp lệ.' };
-    if ((s.world.stock[l.itemId] ?? 0) < l.qty) return { ok: false, message: `${def.name}: hết hàng hoặc không đủ số lượng (còn ${s.world.stock[l.itemId] ?? 0}).` };
+    if ((s.world.stock[l.itemId] ?? 0) < l.qty) return { ok: false, message: `${def.name}: không đủ hàng (còn ${s.world.stock[l.itemId] ?? 0}).` };
     if ((s.life.weeklyQuota[l.itemId] ?? 0) + l.qty > 5) return { ok: false, message: `${def.name}: vượt hạn mức 5/tuần.` };
     out.push({ itemId: l.itemId, qty: l.qty, unitPrice: def.price });
   }
@@ -263,14 +263,14 @@ export function placeOrder(ctx: Ctx, quoteId: string, actionId: string): { ok: b
   if (!q) return { ok: false, message: 'Báo giá không tồn tại.' };
   if (q.expiresMinute <= s.minute) return { ok: false, message: 'Báo giá đã hết hạn — hãy tạo báo giá mới.' };
   if (!ORDER_DAYS.includes(dayOfWeek(s.minute))) return { ok: false, message: 'Hôm nay không nhận đơn. Ngày đặt hàng: Thứ Hai, Thứ Tư, Thứ Sáu.' };
-  if (available(s) < q.total) return { ok: false, message: `Không đủ số dư khả dụng (${fmtMoney(available(s))}). Vật dụng thiết yếu vẫn nhận miễn phí tại quầy.` };
+  if (available(s) < q.total) return { ok: false, message: `Không đủ số dư (${fmtMoney(available(s))}) · đồ thiết yếu vẫn miễn phí ở quầy.` };
   for (const l of q.lines) if ((s.world.stock[l.itemId] ?? 0) < l.qty) return { ok: false, message: `${ITEM_BY_ID[l.itemId].name} vừa hết hàng.` };
   for (const l of q.lines) { s.world.stock[l.itemId] -= l.qty; s.life.weeklyQuota[l.itemId] = (s.life.weeklyQuota[l.itemId] ?? 0) + l.qty; }
   s.life.account.reserved += q.total;
   const readyDay = dayOf(s.minute) + 1;
   s.life.orders.push({ id: lid(ctx, 'od'), quoteId, lines: q.lines, total: q.total, state: 'preparing', createdMinute: s.minute, readyMinute: (readyDay - 1) * MIN_PER_DAY + hm(8), sourceActionId: actionId, history: [`${fmtDayClock(s.minute)}: Đã giữ ${fmtMoney(q.total)}, chuẩn bị hàng`] });
   s.life.quotes = s.life.quotes.filter((x) => x.id !== quoteId);
-  notify(ctx, `Đặt hàng thành công. Nhận tại Quầy dịch vụ từ 08:00 ngày ${readyDay}. Chưa trừ tiền cho tới khi nhận hàng.`, 'success', 'life');
+  notify(ctx, `Đã đặt hàng · nhận ở Quầy dịch vụ từ 08:00 ngày ${readyDay} (trừ tiền khi nhận).`, 'success', 'life');
   changed(ctx, 'orders');
   return { ok: true };
 }
@@ -307,7 +307,7 @@ export function collectOrders(ctx: Ctx): number {
 export function freeEssentials(ctx: Ctx): string {
   const s = ctx.s;
   const day = dayOf(s.minute);
-  if (!once(s, `essentials:${day}`)) return 'Hôm nay bạn đã nhận vật dụng thiết yếu. Nếu thiếu gấp, hãy báo nhân viên.';
+  if (!once(s, `essentials:${day}`)) return 'Hôm nay đã nhận đồ thiết yếu · thiếu gấp thì báo nhân viên.';
   const given: ReceiptLine[] = [];
   const ensure = (id: string, want: number) => {
     const have = countItem(s, id, ['bag', 'locker']);
@@ -397,7 +397,7 @@ export function completeBooking(ctx: Ctx, b: Booking, outcome: string) {
     plan.nextReview = s.minute + 3 * MIN_PER_DAY;
     changeNeed(ctx, 'energy', 15, 'Chăm sóc & nghỉ');
     changeNeed(ctx, 'mood', 5, 'Được chăm sóc');
-    notify(ctx, 'Kế hoạch nghỉ 24 giờ: được miễn trừ ca làm/lớp học và điểm danh không bị tính vắng.', 'info', 'life');
+    notify(ctx, 'Nghỉ 24 giờ · miễn ca làm, lớp học; điểm danh không tính vắng.', 'info', 'life');
   }
   if (b.kind === 'support' || b.kind === 'culture') changeNeed(ctx, 'mood', 8, b.kind === 'support' ? 'Trò chuyện hỗ trợ' : 'Sinh hoạt văn hóa');
   changed(ctx, 'bookings');
@@ -412,7 +412,7 @@ export function sendLetter(ctx: Ctx, contactId: string, topicId: string, actionI
   if (!removeItem(ctx, 'envelope', 1, ['bag', 'locker'])) {
     const week = Math.floor((dayOf(s.minute) - 1) / 7);
     const usedFree = s.life.sourceKeys.filter((k) => k.startsWith(`free_env:${week}:`)).length;
-    if (usedFree >= 2) return { ok: false, message: 'Hết phong bì. Mua tại cửa hàng hoặc nhận cấp phát thiết yếu ở quầy dịch vụ.' };
+    if (usedFree >= 2) return { ok: false, message: 'Hết phong bì · mua ở cửa hàng hoặc nhận ở quầy dịch vụ.' };
     once(s, `free_env:${week}:${usedFree}`);
   }
   const delay = ctx.rng.next() < 0.15 ? 180 : 0;
@@ -451,7 +451,7 @@ export function submitCase(ctx: Ctx, factGroup: keyof typeof CASE_FACTS | CaseCa
     history: [{ minute: s.minute, actorRole: 'player', text: 'Đã gửi yêu cầu — có biên nhận.', state: 'submitted' }], parentCaseId, incidentRef, sourceActionId: dedupKey, minute: s.minute,
   };
   s.life.cases.push(c);
-  notify(ctx, `Đã nhận yêu cầu “${fact.label}”. Mã ${c.id.slice(-6).toUpperCase()}. Hạn phản hồi: ${fmtDayClock(due)}.`, 'info', 'life');
+  notify(ctx, `Đã nhận yêu cầu “${fact.label}” · mã ${c.id.slice(-6).toUpperCase()} · trả lời trước ${fmtDayClock(due)}.`, 'info', 'life');
   changed(ctx, 'cases');
   return c;
 }
@@ -505,8 +505,8 @@ function resolveCaseOutcome(ctx: Ctx, c: ServiceCase) {
       inc.state = overturn ? 'overturned' : 'decided';
       inc.history.push({ minute: s.minute, actorRole: 'reviewer', text: overturn ? 'Quyết định được hủy bỏ sau xem xét độc lập; quyền lợi được khôi phục.' : 'Quyết định được giữ nguyên; lý do đã được giải thích đầy đủ.', state: 'resolved' });
       if (overturn) { s.life.privileges.recreationRestrictedUntil = 0; custodyHooks.incidentOverturned?.(ctx, inc); }
-      c.response = overturn ? 'Xem xét lại: hủy quyết định, khôi phục quyền lợi.' : 'Xem xét lại: giữ nguyên quyết định. Bạn có thể trao đổi thêm với cố vấn hồ sơ.';
-    } else c.response = 'Đã xem xét lại bởi cán bộ độc lập. Phản hồi ban đầu được giải thích chi tiết hơn và ghi nhận ý kiến của bạn.';
+      c.response = overturn ? 'Xem xét lại: hủy quyết định, khôi phục quyền lợi.' : 'Xét lại: giữ nguyên · có thể hỏi thêm cố vấn hồ sơ.';
+    } else c.response = 'Cán bộ độc lập đã xét lại · giải thích rõ hơn và ghi nhận ý kiến của bạn.';
     c.state = 'answered';
     c.history.push(rec(c.response));
   } else {
@@ -525,7 +525,7 @@ function resolveCaseOutcome(ctx: Ctx, c: ServiceCase) {
       if (f && f.state !== 'resolved') { f.state = 'assigned'; f.dueMinute = Math.min(f.dueMinute, s.minute + 180); }
     }
   }
-  notify(ctx, `Có phản hồi cho yêu cầu ${c.id.slice(-6).toUpperCase()}. Xem tại Đời sống › Yêu cầu.`, 'info', 'life');
+  notify(ctx, `Yêu cầu ${c.id.slice(-6).toUpperCase()} có phản hồi · Đời sống › Yêu cầu.`, 'info', 'life');
   changed(ctx, 'cases');
 }
 
@@ -538,7 +538,7 @@ export function reportIncident(ctx: Ctx, ruleId: string, fact: string, canonical
     canonicalKey, minute: s.minute, dueMinute: s.minute + 720,
   };
   s.life.incidents.push(inc);
-  notify(ctx, `Thông báo ghi nhận sự việc: ${fact}. Bạn có thể trình bày trước ${fmtDayClock(inc.dueMinute)} (Đời sống › Sự việc).`, 'warning', 'life', true);
+  notify(ctx, `Ghi nhận sự việc: ${fact} · trình bày trước ${fmtDayClock(inc.dueMinute)} (Đời sống › Sự việc).`, 'warning', 'life', true);
   changed(ctx, 'incidents');
 }
 export const RESPONSE_OPTIONS: { id: string; label: string }[] = [
@@ -577,7 +577,7 @@ function advanceIncidents(ctx: Ctx) {
         // VN policy ladder handled by custody module (khiển trách / cảnh cáo / buồng kỷ luật có thời hạn).
       } else {
         inc.state = 'decided';
-        inc.decision = 'Nhắc nhở; tạm hạn chế đăng ký hoạt động giải trí buổi tối 1 ngày. Không ảnh hưởng ăn uống, vệ sinh, chăm sóc, liên lạc hay quyền gửi đơn.';
+        inc.decision = 'Nhắc nhở · hạn chế giải trí tối 1 ngày. Quyền tối thiểu giữ nguyên.';
         inc.consequence = { privilege: 'evening_recreation', untilMinute: s.minute + MIN_PER_DAY };
         s.life.privileges.recreationRestrictedUntil = s.minute + MIN_PER_DAY;
       }
@@ -601,9 +601,9 @@ export function rollCallResolve(ctx: Ctx, rcId: string, present: boolean, busy: 
     const weekStart = (Math.floor((day - 1) / 7)) * 7 + 1;
     const prior = s.life.attendance.filter((a) => a.outcome === 'absent' && dayOf(a.minute) >= weekStart).length;
     if (prior === 0) {
-      notify(ctx, 'Bạn vắng điểm danh. Lần đầu trong tuần chỉ được nhắc. Lịch điểm danh có ở bảng lịch (K).', 'warning', 'life');
+      notify(ctx, 'Vắng điểm danh · lần đầu trong tuần chỉ nhắc. Xem lịch (K).', 'warning', 'life');
     } else {
-      reportIncident(ctx, 'roll_call', `Vắng ${rcId === 'roll_am' ? 'điểm danh sáng' : 'điểm danh tối'} ngày ${day} khi không có lịch được phép`, `rollcall:${key}`, 0.9);
+      reportIncident(ctx, 'roll_call', `Vắng ${rcId === 'roll_am' ? 'điểm danh sáng' : 'điểm danh tối'} ngày ${day} (không có phép)`, `rollcall:${key}`, 0.9);
     }
   }
   pushBounded(s.life.attendance, { key, minute: s.minute, outcome }, 60);
@@ -618,7 +618,7 @@ export function enroll(ctx: Ctx, programId: string): { ok: boolean; message: str
   const ex = s.life.programs.find((e) => e.programId === programId);
   if (ex && ['enrolled', 'in_progress', 'waitlisted'].includes(ex.state)) return { ok: true, message: 'Bạn đã đăng ký.' };
   const activeWork = s.life.programs.filter((e) => e.kind === 'work' && ['enrolled', 'in_progress'].includes(e.state));
-  if (p.kind === 'work' && activeWork.length >= 1) return { ok: false, message: 'Mỗi người nhận tối đa một phân công lao động. Hãy rút phân công hiện tại trước.' };
+  if (p.kind === 'work' && activeWork.length >= 1) return { ok: false, message: 'Chỉ nhận 1 phân công · rút phân công hiện tại trước.' };
   const conflict = s.life.programs.find((e) => ['enrolled', 'in_progress'].includes(e.state) && PROGRAM_BY_ID[e.programId].days.some((d) => p.days.includes(d)) && PROGRAM_BY_ID[e.programId].from < p.to && p.from < PROGRAM_BY_ID[e.programId].to);
   if (conflict) return { ok: false, message: `Trùng giờ với ${PROGRAM_BY_ID[conflict.programId].name}.` };
   if (ex) { ex.state = 'enrolled'; } else s.life.programs.push({ programId, kind: p.kind, state: 'enrolled', completedUnits: [], attendance: [], credits: 0 });
@@ -728,7 +728,7 @@ export function reportFault(ctx: Ctx, fixtureId: string): string {
   submitCase(ctx, 'maintenance', 0, `maint:${key}`, key);
   s.flags.fault_reported = true;
   changed(ctx, 'facility');
-  return `Đã báo hỏng. Thợ bảo trì dự kiến xử lý trước ${fmtClock(f.dueMinute)}. Tạm thời: ${f.fallback}.`;
+  return `Đã báo hỏng · sửa trước ${fmtClock(f.dueMinute)}. Tạm dùng: ${f.fallback}.`;
 }
 function advanceFacility(ctx: Ctx) {
   const s = ctx.s;
@@ -765,7 +765,7 @@ export function runInspection(ctx: Ctx) {
     if (l.to === 'stored') s.inventory.stored.push({ uid: `st_${l.itemId}_${day}`, itemId: l.itemId, qty: l.qty, provenance: 'inspection' });
   }
   addReceipt(ctx, 'inspect', lines.length ? 'stored' : 'committed', lines.length ? lines : [{ itemId: 'handbook', qty: 0, from: 'cell', to: 'cell', reason: 'Kiểm tra định kỳ: không có thay đổi' }], `inspect:${day}`);
-  notify(ctx, lines.length ? `Kiểm tra phòng định kỳ: ${lines.length} thay đổi, xem biên nhận tại Đời sống › Tài sản.` : 'Kiểm tra phòng định kỳ: không có thay đổi. Biên nhận đã lưu.', 'info', 'life');
+  notify(ctx, lines.length ? `Kiểm tra phòng: ${lines.length} thay đổi · Đời sống › Tài sản.` : 'Kiểm tra phòng định kỳ: không có thay đổi. Biên nhận đã lưu.', 'info', 'life');
 }
 
 // ======================= F56 Room move =======================
@@ -875,7 +875,7 @@ export function lifeTick(ctx: Ctx) {
       l.state = 'delivered';
       l.minute = s.minute;
       const contact = s.life.contacts.find((c) => c.id === l.contactId);
-      notify(ctx, `Có thư hồi âm từ ${contact?.nameKey ?? 'liên hệ'}. Đọc tại Đời sống › Liên lạc.`, 'success', 'life');
+      notify(ctx, `Thư hồi âm từ ${contact?.nameKey ?? 'liên hệ'} · Đời sống › Liên lạc.`, 'success', 'life');
       changed(ctx, 'letters');
     }
   }
@@ -885,7 +885,7 @@ export function lifeTick(ctx: Ctx) {
       // unavailable contact (seeded) → reschedule offer, never charge
       if ((b.kind === 'call' || b.kind === 'visit') && ctx.rng.next() < (b.kind === 'visit' ? 0.15 : 0.08)) {
         b.state = b.kind === 'visit' ? 'missed' : 'rescheduled';
-        b.reason = b.kind === 'visit' ? 'Khách thăm không đến được (hư cấu). Bạn có thể đặt lại lịch hoặc viết thư.' : 'Liên hệ bận, cuộc gọi cần đổi lịch. Không mất lượt.';
+        b.reason = b.kind === 'visit' ? 'Khách thăm không đến được · đặt lại lịch hoặc viết thư.' : 'Liên hệ bận, cuộc gọi cần đổi lịch. Không mất lượt.';
         notify(ctx, b.reason, 'warning', 'life', true);
         changed(ctx, 'bookings');
         continue;
@@ -915,7 +915,7 @@ export function lifeTick(ctx: Ctx) {
   if (day >= 2 && day % 7 === 5 && m >= hm(10)) runInspection(ctx);
   if (day >= 3 && m >= hm(15) && !s.flags.facility_drill_note && day % 4 === 3) {
     s.flags.facility_drill_note = true;
-    notify(ctx, 'Thông báo: khu vực sân có thể đóng tạm khi thời tiết xấu. Lựa chọn thay thế: phòng tập.', 'info', 'life');
+    notify(ctx, 'Sân có thể đóng khi thời tiết xấu · thay bằng Phòng tập.', 'info', 'life');
   }
   // Care plan review
   for (const p of s.life.support) if (p.kind === 'care' && p.state === 'active' && p.nextReview && s.minute >= p.nextReview) { p.state = 'review_needed'; changed(ctx, 'support'); }

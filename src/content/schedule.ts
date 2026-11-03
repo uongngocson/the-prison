@@ -7,18 +7,18 @@ import { hm } from '../domain/util';
 export interface ScheduleRow { id: string; from: number; to: number; label: string; zones: ZoneId[]; kind: 'routine' | 'meal' | 'activity' | 'rest' | 'rollcall' | 'sleep'; optional: boolean; hint: string }
 
 export const DAILY: ScheduleRow[] = [
-  { id: 'wake', from: hm(6), to: hm(6, 30), label: 'Thức dậy & vệ sinh', zones: ['L02', 'L13'], kind: 'routine', optional: true, hint: 'Rửa mặt, tắm nhanh ở khu vệ sinh.' },
-  { id: 'roll_am', from: hm(6, 30), to: hm(6, 45), label: 'Điểm danh sáng', zones: ['L02'], kind: 'rollcall', optional: false, hint: 'Có mặt tại khu phòng ở. Có miễn trừ khi đang có lịch hẹn được phép.' },
-  { id: 'breakfast', from: hm(7), to: hm(8, 30), label: 'Bữa sáng', zones: ['L05'], kind: 'meal', optional: true, hint: 'Nhận suất tại quầy, chọn chỗ ngồi.' },
-  { id: 'morning_work', from: hm(8, 30), to: hm(11, 30), label: 'Lao động / Học tập', zones: ['L10', 'L06', 'L14', 'L07'], kind: 'activity', optional: true, hint: 'Theo phân công hoặc khóa đã đăng ký. Không bắt buộc nếu chưa nhận phân công.' },
+  { id: 'wake', from: hm(6), to: hm(6, 30), label: 'Thức dậy & vệ sinh', zones: ['L02', 'L13'], kind: 'routine', optional: true, hint: 'Rửa mặt, tắm nhanh.' },
+  { id: 'roll_am', from: hm(6, 30), to: hm(6, 45), label: 'Điểm danh sáng', zones: ['L02'], kind: 'rollcall', optional: false, hint: 'Có mặt ở khu ở · có lịch hẹn thì được miễn.' },
+  { id: 'breakfast', from: hm(7), to: hm(8, 30), label: 'Bữa sáng', zones: ['L05'], kind: 'meal', optional: true, hint: 'Nhận suất ở quầy.' },
+  { id: 'morning_work', from: hm(8, 30), to: hm(11, 30), label: 'Lao động / Học tập', zones: ['L10', 'L06', 'L14', 'L07'], kind: 'activity', optional: true, hint: 'Theo phân công/khóa học · chưa nhận thì không bắt buộc.' },
   { id: 'lunch', from: hm(11, 30), to: hm(13), label: 'Bữa trưa', zones: ['L05'], kind: 'meal', optional: true, hint: 'Đến muộn vẫn có suất dự phòng.' },
   { id: 'siesta', from: hm(13), to: hm(14), label: 'Nghỉ trưa', zones: ['L02'], kind: 'rest', optional: true, hint: 'Nghỉ ngơi hoặc đọc sách.' },
-  { id: 'afternoon', from: hm(14), to: hm(15, 30), label: 'Thư viện / Lớp / Dịch vụ', zones: ['L07', 'L14', 'L15', 'L11', 'L16'], kind: 'activity', optional: true, hint: 'Mượn sách, học, đặt hàng, gửi thư, nộp đơn.' },
-  { id: 'yard', from: hm(15, 30), to: hm(17, 30), label: 'Sân sinh hoạt / Phòng tập', zones: ['L04', 'L09'], kind: 'activity', optional: true, hint: 'Đi bộ, tập luyện, trò chuyện. Mưa thì chuyển vào phòng tập.' },
+  { id: 'afternoon', from: hm(14), to: hm(15, 30), label: 'Thư viện / Lớp / Dịch vụ', zones: ['L07', 'L14', 'L15', 'L11', 'L16'], kind: 'activity', optional: true, hint: 'Sách, lớp, đặt hàng, thư, nộp đơn.' },
+  { id: 'yard', from: hm(15, 30), to: hm(17, 30), label: 'Sân sinh hoạt / Phòng tập', zones: ['L04', 'L09'], kind: 'activity', optional: true, hint: 'Đi bộ, tập, trò chuyện · mưa thì vào phòng tập.' },
   { id: 'dinner', from: hm(17, 30), to: hm(19), label: 'Bữa tối', zones: ['L05'], kind: 'meal', optional: true, hint: 'Bữa ăn cuối ngày.' },
-  { id: 'evening', from: hm(19), to: hm(21, 30), label: 'Sinh hoạt nhẹ & liên lạc', zones: ['L02', 'L07', 'L17', 'L16', 'L13'], kind: 'activity', optional: true, hint: 'Nhóm đọc, giờ yên tĩnh, gọi điện đã hẹn, giặt đồ.' },
-  { id: 'roll_pm', from: hm(21, 30), to: hm(21, 45), label: 'Điểm danh tối', zones: ['L02'], kind: 'rollcall', optional: false, hint: 'Có mặt tại khu phòng ở.' },
-  { id: 'night', from: hm(22), to: hm(24), label: 'Giờ ngủ', zones: ['L02'], kind: 'sleep', optional: true, hint: 'Hoạt động yên tĩnh vẫn được phép. Ngủ để hồi năng lượng.' },
+  { id: 'evening', from: hm(19), to: hm(21, 30), label: 'Sinh hoạt nhẹ & liên lạc', zones: ['L02', 'L07', 'L17', 'L16', 'L13'], kind: 'activity', optional: true, hint: 'Nhóm đọc, yên tĩnh, gọi điện, giặt đồ.' },
+  { id: 'roll_pm', from: hm(21, 30), to: hm(21, 45), label: 'Điểm danh tối', zones: ['L02'], kind: 'rollcall', optional: false, hint: 'Có mặt ở khu ở.' },
+  { id: 'night', from: hm(22), to: hm(24), label: 'Giờ ngủ', zones: ['L02'], kind: 'sleep', optional: true, hint: 'Ngủ để hồi năng lượng · hoạt động yên tĩnh vẫn được.' },
 ];
 
 export const MEALS: { id: 'breakfast' | 'lunch' | 'dinner'; from: number; to: number; label: string }[] = [

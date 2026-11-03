@@ -34,7 +34,7 @@ export interface QuestDef {
 export const QUESTS: QuestDef[] = [
   {
     id: 'Q01', kind: 'main', title: 'Làm quen ngày mới', giver: 'tu',
-    summary: 'Ngày đầu ở khu phòng ở. Tìm hiểu lịch sinh hoạt và gặp người hướng dẫn.',
+    summary: 'Ngày đầu ở khu ở · xem lịch và gặp người hướng dẫn.',
     autoStart: { flag: 'admission_complete' },
     objectives: [
       { id: 'o1', text: 'Nói chuyện với Tư — bạn cùng phòng', match: { talk: 'tu' }, where: 'L02', npc: 'tu' },
@@ -44,7 +44,7 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { xp: [['focus', 20]], trust: [['hoa', 5]] },
     recap: 'Bạn đã biết lịch sinh hoạt, đường tới nhà ăn và làm quen Bác Hòa.',
-    alternative: 'Nếu mất Sổ tay, bản sao luôn có trong mục Sổ tay (H). Không cần đúng giờ để hoàn thành.',
+    alternative: 'Mất Sổ tay thì xem bản sao (H) · không cần đúng giờ.',
     abandonable: false,
   },
   {
@@ -58,12 +58,12 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { xp: [['communication', 10]], trust: [['hoa', 5]], rep: [['community', 3]] },
     recap: 'Bạn đã có một bữa ăn cùng mọi người và hẹn Bác Hòa ra sân.',
-    alternative: 'Đến muộn vẫn có suất dự phòng tại quầy. Không cần đúng bữa nào cụ thể.',
+    alternative: 'Đến muộn vẫn có suất dự phòng · bữa nào cũng được.',
     abandonable: false,
   },
   {
     id: 'Q03', kind: 'main', title: 'Cùng đi một vòng', giver: 'hoa', autoStart: { afterQuest: 'Q02' },
-    summary: 'Bác Hòa rủ đi bộ quanh sân. Đi qua các mốc và chọn cách kết thúc buổi chiều.',
+    summary: 'Bác Hòa rủ đi bộ quanh sân · qua các mốc rồi chọn cách kết thúc.',
     objectives: [
       { id: 'o1', text: 'Gặp Bác Hòa ở Sân sinh hoạt (hoặc Phòng tập khi mưa)', match: { talk: 'hoa' }, npc: 'hoa' },
       { id: 'o2', text: 'Đi qua mốc đi bộ 1', match: { act: 'touch_track', target: 'track_0' }, where: 'L04' },
@@ -73,8 +73,8 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { trust: [['hoa', 5]] },
     rewardByChoice: { key: 'ending', map: { exercise: { xp: [['fitness', 10]], mood: 5 }, talk: { xp: [['communication', 10]], mood: 5 } } },
-    recap: 'Một vòng sân và một cuộc trò chuyện. Ngày mai sẽ có những lựa chọn mới.',
-    alternative: 'Nếu sân đóng hoặc trời mưa, gặp Bác Hòa ở Phòng tập; các mốc được tính ở đó.',
+    recap: 'Một vòng sân, một cuộc trò chuyện · mai có lựa chọn mới.',
+    alternative: 'Sân đóng hoặc mưa: gặp Bác Hòa ở Phòng tập (vẫn tính mốc).',
     abandonable: false,
   },
   {
@@ -88,7 +88,7 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { xp: [['focus', 15]], chapter: 2, credits: 500 },
     recap: 'Bạn đã có một kế hoạch tuần và bắt đầu thực hiện.',
-    alternative: 'Có thể chọn khóa học thay vì công việc. Buổi vắng có lý do được học bù.',
+    alternative: 'Chọn khóa học thay công việc cũng được · vắng có lý do được học bù.',
     abandonable: false,
   },
   {
@@ -101,7 +101,7 @@ export const QUESTS: QuestDef[] = [
     ],
     reward: { xp: [['communication', 10]], mood: 8 },
     recap: 'Những lá thư và cuộc gọi giúp khoảng cách bớt xa.',
-    alternative: 'Nếu cuộc gọi bị đổi lịch, đặt lại lịch hoặc gửi thêm thư — nhiệm vụ không thất bại.',
+    alternative: 'Cuộc gọi bị dời thì đặt lại hoặc viết thư · không thất bại.',
     abandonable: false,
   },
   {
@@ -111,11 +111,11 @@ export const QUESTS: QuestDef[] = [
       { id: 'o1', text: 'Gặp Anh Phong ở Hướng nghiệp & chuẩn bị ra', match: { talk: 'phong' }, where: 'L18', npc: 'phong' },
       { id: 'o2', text: 'Chọn ít nhất 3 mục tiêu kế hoạch (nơi ở, việc làm, học tập...)', match: { pred: 'planGoals3' } },
       { id: 'o3', text: 'Chờ mốc xem xét theo câu chuyện (Ngày 7 trở đi)', match: { pred: 'storyMilestone' } },
-      { id: 'o4', text: 'Xác nhận tại bàn kế hoạch (rời cơ sở, hoặc kết thúc chương nếu vẫn còn án)', match: { pred: 'chapterClosed' }, where: 'L18' },
+      { id: 'o4', text: 'Xác nhận ở bàn kế hoạch (rời cơ sở hoặc kết thúc chương)', match: { pred: 'chapterClosed' }, where: 'L18' },
     ],
     reward: { chapter: 3 },
     recap: 'Hành trình khép lại với một kế hoạch cho những ngày tiếp theo.',
-    alternative: 'Kế hoạch thiếu mục tiêu vẫn có hỗ trợ; không cần kỹ năng tối đa hay tiền.',
+    alternative: 'Kế hoạch chưa đủ vẫn được hỗ trợ · không cần kỹ năng tối đa hay tiền.',
     abandonable: false,
   },
   // ---------- Side quests ----------
@@ -201,7 +201,7 @@ export const QUESTS: QuestDef[] = [
   },
   {
     id: 'S08', kind: 'side', title: 'Không cần đôi co', giver: 'long', autoStart: { day: 2 },
-    summary: 'Long đòi bạn đưa đồ ăn vặt. Bạn có thể từ chối, rời đi hoặc nhờ hỗ trợ.',
+    summary: 'Long đòi đồ ăn vặt · từ chối, rời đi hoặc nhờ hỗ trợ.',
     objectives: [
       { id: 'o1', text: 'Gặp Long (anh ta tìm bạn ở hành lang hoặc sân)', match: { talk: 'long' }, npc: 'long' },
       { id: 'o2', text: 'Giải quyết theo cách của bạn (từ chối / nhờ cán bộ / hòa giải)', match: { pred: 'longResolved' } },

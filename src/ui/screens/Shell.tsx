@@ -51,7 +51,7 @@ export function Landing() {
         <div className="home-cta" id="cta">
           <button className="btn primary lg" disabled={!cap.ok} onClick={() => set({ screen: 'menu' })} data-autofocus>▶ Chơi ngay</button>
         </div>
-        {!cap.ok && <p className="home-warn" role="alert">Trình duyệt không hỗ trợ WebGL2 — hãy cập nhật trình duyệt để chơi.</p>}
+        {!cap.ok && <p className="home-warn" role="alert">Trình duyệt chưa hỗ trợ WebGL2 · hãy cập nhật để chơi.</p>}
       </section>
       <SloganTicker />
 
@@ -66,7 +66,7 @@ export function Landing() {
       )}
       {modal === 'about' && (
         <Panel title="Giới thiệu" onClose={() => setModal(null)} width="mid">
-          <p>Mô phỏng đời sống 3D trong một cơ sở cải huấn <b>hư cấu</b> theo phong cách Mỹ: sinh hoạt, học tập, lao động, giữ liên lạc với gia đình và chuẩn bị ngày trở về. Không có vũ khí, vượt ngục hay tiền thật. Có thể xảy ra ẩu đả và bị đưa vào biệt giam (tắt được trong Cài đặt).</p>
+          <p>Mô phỏng đời sống 3D trong một cơ sở cải huấn <b>hư cấu</b> phong cách Mỹ: sinh hoạt, học, làm, giữ liên lạc gia đình, chuẩn bị ngày về. Không vũ khí, vượt ngục hay tiền thật · có ẩu đả và biệt giam (tắt được).</p>
           <dl className="kv small">
             <dt>Nội dung</dt><dd>18 khu · 60 nhân vật · 18 nhiệm vụ</dd>
             <dt>Thiết bị</dt><dd>Máy tính, máy tính bảng, điện thoại, tay cầm</dd>
@@ -134,7 +134,7 @@ export function Auth() {
               {state === 'sent' && <p className="gm-note ok" role="status">Đã gửi! Mở email trên thiết bị này để đăng nhập.</p>}
               {state === 'error' && <p className="gm-note err" role="alert">{msg || 'Không gửi được, thử lại sau.'}</p>}
             </form>
-          ) : <p className="gm-note">Đồng bộ đám mây chưa bật. Bạn vẫn chơi đầy đủ và có thể xuất/nhập file save.</p>}
+          ) : <p className="gm-note">Chưa bật đồng bộ đám mây · vẫn chơi đủ, xuất/nhập file save được.</p>}
           <div className="gm-or"><span>hoặc</span></div>
           <button className="gm-btn" onClick={() => set({ screen: 'menu' })} data-autofocus>Chơi ngay không cần tài khoản</button>
         </>}
@@ -277,7 +277,7 @@ export function Ending() {
         {e.text.map((t, i) => <p key={i} style={{ fontSize: 18 }} className={rm ? '' : ''}>{t}</p>)}
         <h3 style={{ marginTop: 16 }}>Tổng kết hành trình</h3>
         <ul>{e.summary.map((s) => <li key={s}>{s}</li>)}</ul>
-        <p className="muted small">Hành trình đã được lưu ở trạng thái kết thúc (không quay lại vòng sinh hoạt). Bạn có thể bắt đầu bản sao riêng để tiếp tục khám phá tự do.</p>
+        <p className="muted small">Hành trình đã lưu ở trạng thái kết thúc · có thể chơi tự do ở bản sao.</p>
         <div className="row">
           <button className="btn primary" onClick={() => controller.quitToMenu()} data-autofocus>Về menu chính</button>
           <button className="btn" onClick={() => controller.sandboxFork()}>Chơi tự do (bản sao riêng)</button>

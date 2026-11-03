@@ -138,7 +138,7 @@ export function verbsFor(s: GameState, p: PropDef, autoComplete: boolean): VerbO
       const zoneOk = zoneOpen(s, p.zone) && !(p.zone === 'L04' && s.world.weather === 'rain');
       // F52: hệ quả chỉ chạm tới đặc quyền tùy chọn (giải trí buổi tối), không bao giờ tới quyền tối thiểu
       const restricted = s.life.privileges.recreationRestrictedUntil > s.minute && m >= hm(19);
-      const reason = !zoneOk ? 'Khu đang đóng' : restricted ? 'Tạm hạn chế giải trí buổi tối (xem Đời sống › Sự việc, có thể xin xem xét lại)' : s.needs.energy < 8 ? 'Quá mệt — hãy nghỉ trước' : undefined;
+      const reason = !zoneOk ? 'Khu đang đóng' : restricted ? 'Đang hạn chế giải trí tối (xem Đời sống › Sự việc)' : s.needs.energy < 8 ? 'Quá mệt — hãy nghỉ trước' : undefined;
       out.push(ACT('exercise', 'Tập luyện', autoComplete ? 10 : 30, zoneOk && !restricted && s.needs.energy >= 8, reason));
       break;
     }
@@ -306,8 +306,8 @@ export function commitAction(ctx: Ctx, verb: string, p: PropDef | null, actionId
       const b = activeBookingAt(s, kind, zone, true);
       if (!b) return 'Không còn lịch hẹn hợp lệ.';
       const lines = kind === 'call' ? CALL_LINES[b.participant ?? ''] ?? ['...'] : kind === 'visit' ? VISIT_LINES[b.participant ?? ''] ?? ['...'] : kind === 'legal'
-        ? ['Cố vấn: Hồ sơ của bạn đang ở giai đoạn thi hành bình thường (hư cấu).', 'Cố vấn: Mốc xem xét tiếp theo theo câu chuyện là từ Ngày 7. Không có công thức “ngoan là được ra”.', 'Cố vấn: Bạn có thể gửi yêu cầu bất kỳ lúc nào; thông tin buổi hẹn là riêng tư.']
-        : ['Nhân viên y tế: Mình trao đổi một chút về giấc ngủ và năng lượng nhé.', 'Nhân viên y tế: Tôi không đưa ra chẩn đoán. Tôi đề xuất kế hoạch nghỉ 24 giờ và hẹn xem lại.', 'Nhân viên y tế: Ca làm/lớp học trong thời gian nghỉ được miễn trừ.'];
+        ? ['Cố vấn: Hồ sơ của bạn đang ở giai đoạn thi hành bình thường (hư cấu).', 'Cố vấn: Mốc xem xét tiếp theo là Ngày 7 · không có chuyện “ngoan là được ra”.', 'Cố vấn: Gửi yêu cầu lúc nào cũng được · buổi hẹn được giữ riêng tư.']
+        : ['Nhân viên y tế: Mình trao đổi một chút về giấc ngủ và năng lượng nhé.', 'Y tế: Đề xuất nghỉ 24 giờ và hẹn xem lại (không chẩn đoán).', 'Nhân viên y tế: Ca làm/lớp học trong thời gian nghỉ được miễn trừ.'];
       completeBooking(ctx, b, kind === 'call' || kind === 'visit' ? 'Cuộc trò chuyện ấm áp' : 'Đã trao đổi');
       ctx.emit({ type: 'openScreen', screen: 'scene', params: { title: kind === 'call' ? 'Cuộc gọi (chỉ phụ đề)' : kind === 'visit' ? 'Thăm gặp' : kind === 'legal' ? 'Buổi hẹn cố vấn (riêng tư)' : 'Buổi hẹn chăm sóc (riêng tư)', lines: lines.join('\n') } });
       break;

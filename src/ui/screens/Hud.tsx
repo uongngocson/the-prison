@@ -97,7 +97,7 @@ export function Hud() {
               {!v.enabled && v.reason && <span className="reason">({v.reason})</span>}
             </div>
           ))}
-          {focus.verbs.length > 1 && <div className="small muted">{touch ? 'Chạm “Chọn” để làm hành động khác' : 'Phím số 2–4 hoặc nhấp để chọn hành động khác'}</div>}
+          {focus.verbs.length > 1 && <div className="small muted">{touch ? 'Chạm “Chọn” để xem thêm' : 'Phím 2–4: hành động khác'}</div>}
         </div>
       )}
       {hud.mode === 'seated' && !hidden && !touch && <div className="prompt box small" style={{ bottom: '16%' }}>Đang ngồi — di chuyển hoặc <Key action="cancel" /> để đứng dậy</div>}
@@ -173,14 +173,14 @@ export function Dialogue() {
 
 /** CR-TIME-01: dấu “giờ chung” khi đang theo đồng hồ của phòng trực tuyến. */
 export function SharedBadge() {
-  return <span className="clock-shared" title="Giờ chung của phân khu trực tuyến — mọi người chơi cùng thấy. “Ngày” là số ngày của riêng bạn trong trại." aria-label="Giờ chung trực tuyến">⟳ Giờ chung</span>;
+  return <span className="clock-shared" title="Giờ chung của phân khu · “Ngày” là ngày riêng của bạn." aria-label="Giờ chung trực tuyến">⟳ Giờ chung</span>;
 }
 /** Đang ngủ khi trực tuyến (D4): đồng hồ không tua — hiện giờ thức và nút thức dậy. */
 export function SleepBanner({ wake }: { wake: string }) {
   return (
     <div className="sleep-banner box" role="status">
       <div><b>Đang ngủ</b> · thức dậy lúc {wake} (giờ trại)</div>
-      <div className="small muted">Năng lượng hồi nhanh gấp đôi. Bạn có thể rời máy, quay lại sau.</div>
+      <div className="small muted">Năng lượng hồi ×2 · có thể rời máy.</div>
       <button className="btn sm primary" onClick={() => { controller.session?.wakeUp(); controller.bump(); }}>Thức dậy</button>
     </div>
   );

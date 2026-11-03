@@ -92,7 +92,7 @@ class OnlineClient {
             await ch.track(this.meta!);
             useOnline.getState().set({ status: 'online' });
             try { ss()?.setItem(ROOM_KEY, roomId); } catch { /* ignore */ }
-            this.system(`Bạn đã vào ${ROOMS.find((r) => r.id === roomId)?.name ?? roomId}. Hãy trò chuyện lịch sự — NPC vẫn sinh hoạt như bình thường.`);
+            this.system(`Đã vào ${ROOMS.find((r) => r.id === roomId)?.name ?? roomId} · trò chuyện lịch sự nhé.`);
             resolve(true);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             if (useOnline.getState().status === 'online') useOnline.getState().set({ status: 'reconnecting' });

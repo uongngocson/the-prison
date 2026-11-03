@@ -77,7 +77,7 @@ export function startPlayerConflict(ctx: Ctx, npcId: string): boolean {
 export function startNpcConflict(ctx: Ctx, npcId: string): boolean {
   if (canConflict(ctx, npcId)) return false;
   begin(ctx, npcId, 'npc', PROVOKE_LINES[ctx.rng.int(0, PROVOKE_LINES.length - 1)]);
-  notify(ctx, `${NPC_BY_ID[npcId].name} đang gây sự với bạn. Ra tay trước sẽ bị xem là người khởi xướng.`, 'warning', 'life');
+  notify(ctx, `${NPC_BY_ID[npcId].name} gây sự · ra tay trước = người khởi xướng.`, 'warning', 'life');
   return true;
 }
 
@@ -149,7 +149,7 @@ export function conflictChoose(ctx: Ctx, choice: ConflictChoice): string | null 
       c.alarm = true; // cán bộ tới hiện trường nhưng chưa có ẩu đả → không báo động nằm sấp
       const npcFault = c.provokedBy === 'npc';
       if (npcFault) holdNpc(s, c.npcId, s.minute + MIN_PER_DAY);
-      end(ctx, c, 'reported', npcFault ? `Cán bộ tới tách hai người. ${name} bị đưa đi làm việc — bạn không bị ghi vi phạm.` : 'Cán bộ tới nhắc nhở cả hai. Không ai bị ghi vi phạm lần này.');
+      end(ctx, c, 'reported', npcFault ? `Cán bộ tách hai người · ${name} bị đưa đi, bạn không bị ghi lỗi.` : 'Cán bộ nhắc nhở cả hai · không ai bị ghi lỗi.');
       return 'ok';
     }
     if (choice === 'shove' || choice === 'strike') {
@@ -199,7 +199,7 @@ export function conflictStep(ctx: Ctx) {
     const arrived = c.responders.length > 0 && c.responders.every((id) => { const r = s.npcs[id]; return r && !r.absent && r.path.length === 0; });
     if ((arrived && t >= sec(CONFLICT_TIMING.brawlMin)) || t >= sec(CONFLICT_TIMING.brawlMax)) {
       setPhase(ctx, c, 'restrain');
-      notify(ctx, 'Cán bộ: "Nằm xuống! Tay ra sau lưng!"', 'warning', 'life');
+      notify(ctx, 'Cán bộ: “Nằm xuống! Tay ra sau lưng!”', 'warning', 'life');
     }
     return;
   }
@@ -208,7 +208,7 @@ export function conflictStep(ctx: Ctx) {
       c.sprayed = true; c.complied = true;
       changeNeed(ctx, 'mood', -8, 'Bị xịt hơi cay'); changeNeed(ctx, 'energy', -10, 'Bị xịt hơi cay');
       log(c, 'Không chấp hành lệnh — bị xịt hơi cay (OC) và khống chế.');
-      notify(ctx, 'Không chấp hành lệnh: bị xịt hơi cay và khống chế.', 'warning', 'life');
+      notify(ctx, 'Không chấp hành · bị xịt hơi cay và khống chế.', 'warning', 'life');
     }
     if (c.complied && t >= sec(1.4)) { setPhase(ctx, c, 'escort'); notify(ctx, 'Còng tay · áp giải tới Khu biệt giam (SHU).', 'info', 'life'); }
     return;
@@ -228,7 +228,7 @@ function raiseAlarm(ctx: Ctx, c: ConflictState) {
   const s = ctx.s;
   c.alarm = true;
   log(c, 'Báo động: "All inmates — GET DOWN!"');
-  notify(ctx, `BÁO ĐỘNG tại ${ZONE_BY_ID[c.zone].name}: "All inmates — GET DOWN!"`, 'error', 'life');
+  notify(ctx, `BÁO ĐỘNG · ${ZONE_BY_ID[c.zone].name} · GET DOWN!`, 'error', 'life');
   // đội phản ứng: xuất hiện ở rìa khu (cửa hoặc 8 m quanh hiện trường) và chạy tới
   c.responders = RESPONDER_IDS.slice(0, 4);
   c.responders.forEach((id, i) => {
@@ -260,7 +260,7 @@ function finishEscort(ctx: Ctx, c: ConflictState) {
     facts: [
       { text: `Ẩu đả với ${name} tại ${ZONE_BY_ID[c.zone].name} lúc ${fmtClock(minuteOfDay(c.startedMinute))}`, provenance: `Camera ${c.zone}`, confidence: 0.95 },
       { text: c.initiator === 'player' ? 'Hình ảnh cho thấy bạn ra tay trước.' : `Hình ảnh cho thấy ${name} ra tay trước.`, provenance: 'Trích xuất camera', confidence: 0.9 },
-      { text: `Số đòn của bạn: ${c.playerStrikes} · của ${name}: ${c.npcStrikes}${c.escaped ? ' · bạn có thoát ra' : ''}`, provenance: 'Báo cáo đội phản ứng', confidence: 0.85 },
+      { text: `Đòn: bạn ${c.playerStrikes} · ${name} ${c.npcStrikes}${c.escaped ? ' · bạn đã thoát ra' : ''}`, provenance: 'Báo cáo đội phản ứng', confidence: 0.85 },
       ...(c.sprayed ? [{ text: 'Không chấp hành lệnh nằm xuống — phải dùng hơi cay.', provenance: 'Báo cáo đội phản ứng', confidence: 0.95 }] : []),
     ],
     responses: [], history: [{ minute: s.minute, actorRole: 'shift_commander', text: 'Lập biên bản vi phạm, tách riêng chờ điều tra (Ad-Seg).', state: 'submitted' }],
@@ -280,7 +280,7 @@ function finishEscort(ctx: Ctx, c: ConflictState) {
   s.player.mode = 'grounded';
   for (const id of c.responders) { const r = s.npcs[id]; if (r) { r.absent = true; r.path = []; r.activity = 'idle'; } }
   s.conflict = null;
-  notify(ctx, `Biên bản ${rec.reportNo}: tách riêng ở SHU chờ điều tra. Điều trần lúc ${fmtDayClock(hearingAt)}. Y tế đã kiểm tra: không chấn thương nặng.`, 'warning', 'life', true);
+  notify(ctx, `Biên bản ${rec.reportNo} · tách riêng ở SHU chờ điều tra · điều trần ${fmtDayClock(hearingAt)}. Y tế: không chấn thương nặng.`, 'warning', 'life', true);
   ctx.emit({ type: 'flag', key: 'conflict', value: false });
 }
 
@@ -303,13 +303,13 @@ export function conflictMinute(ctx: Ctx) {
     const vn = isVN(s);
     let text: string;
     if (v === 'self_defense') {
-      text = `Điều trần ${r.reportNo}: xác định TỰ VỆ (${name} ra tay trước, bạn trả lại ${r.playerStrikes} đòn). Không ghi vi phạm — trở về khu thường.`;
+      text = `Điều trần ${r.reportNo}: TỰ VỆ (${name} ra tay trước, bạn trả ${r.playerStrikes} đòn) · không ghi lỗi, về khu thường.`;
       if (vn) adSegResolve(ctx, r.id, null, text); else releaseHold(ctx, 'Kết luận tự vệ — trở về khu ở');
       if (s.npcHolds?.[r.npcId]) s.npcHolds[r.npcId].untilMinute = s.minute + SHU_DAYS.initiator * MIN_PER_DAY;
       if (inc) { inc.state = 'dismissed'; inc.decision = text; }
     } else {
       const days = vn ? SHU_DAYS[v] : STORY_HOLD_DAYS[v];
-      text = `Điều trần ${r.reportNo}: ${v === 'initiator' ? 'bạn là NGƯỜI KHỞI XƯỚNG' : 'ẨU ĐẢ QUA LẠI'}${r.sprayed ? ', thêm lỗi không chấp hành lệnh' : ''}. ${vn ? `Biệt giam SHU ${days} ngày (chương trình step-down).` : `Giữ ở SHU thêm ${days} ngày.`}`;
+      text = `Điều trần ${r.reportNo}: ${v === 'initiator' ? 'KHỞI XƯỚNG' : 'ẨU ĐẢ QUA LẠI'}${r.sprayed ? ' + không chấp hành lệnh' : ''}. ${vn ? `SHU ${days} ngày (step-down).` : `Giữ ở SHU thêm ${days} ngày.`}`;
       if (vn) adSegResolve(ctx, r.id, days + (r.sprayed ? 1 : 0), text);
       else if (s.hold) s.hold.untilMinute = s.minute + (days + (r.sprayed ? 1 : 0)) * MIN_PER_DAY;
       if (s.npcHolds?.[r.npcId]) s.npcHolds[r.npcId].untilMinute = s.minute + (v === 'mutual' ? SHU_DAYS.mutual : 1) * MIN_PER_DAY;

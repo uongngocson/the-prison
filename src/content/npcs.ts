@@ -57,7 +57,7 @@ const staff: [string, string, StaffRole, string, 'day' | 'late' | 'night', strin
   ['nam', 'Chú Năm', 'maintenance', 'L03', 'day', 'Thợ bảo trì', 'Sửa vòi nước, bóng đèn, cửa kẹt.'],
   ['linh', 'Cô Linh', 'facilitator', 'L17_staff_0', 'day', 'Điều phối sinh hoạt văn hóa', 'Tổ chức giờ yên tĩnh, nhóm trò chuyện, sinh hoạt văn hóa tự chọn.'],
   ['hoa_s', 'Anh Hòa Bình', 'property_clerk', 'L18_staff_1', 'day', 'Phụ trách tài sản', 'Lưu giữ và hoàn trả tài sản ký gửi.'],
-  ['reyes', 'Sĩ quan Reyes', 'residential', 'L28_staff_0', 'day', 'Sĩ quan khu biệt giam (SHU)', 'Trực khu SHU: còng tay qua khe cửa trước mỗi lần áp giải, kiểm tra buồng mỗi 30 phút.'],
+  ['reyes', 'Sĩ quan Reyes', 'residential', 'L28_staff_0', 'day', 'Sĩ quan khu biệt giam (SHU)', 'Trực SHU · còng tay khi áp giải, kiểm tra buồng mỗi 30 phút.'],
   // đội phản ứng khẩn cấp (CERT): chỉ xuất hiện khi có báo động ẩu đả
   ['cert_1', 'Sĩ quan Miller', 'residential', 'L28_staff_0', 'day', 'Đội phản ứng khẩn cấp', 'Có mặt trong vài giây khi có báo động; khống chế và áp giải.'],
   ['cert_2', 'Sĩ quan Garcia', 'residential', 'L28_staff_0', 'day', 'Đội phản ứng khẩn cấp', 'Có mặt trong vài giây khi có báo động; khống chế và áp giải.'],

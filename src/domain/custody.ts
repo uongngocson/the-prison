@@ -442,14 +442,14 @@ function onIncidentDecided(ctx: Ctx, inc: IncidentReview): boolean {
   const recent = c.disciplineHistory.filter((h) => s.minute - h.minute < 30 * MIN_PER_DAY).length;
   const level: 'reprimand' | 'warning' | 'confinement' = recent === 0 ? 'reprimand' : recent === 1 ? 'warning' : 'confinement';
   c.disciplineHistory.push({ minute: s.minute, level, incidentId: inc.id });
-  if (level === 'reprimand') inc.decision = 'Khiển trách (hư cấu). Không ảnh hưởng ăn uống, vệ sinh, chăm sóc, liên lạc hay quyền khiếu nại.';
-  else if (level === 'warning') inc.decision = 'Cảnh cáo (hư cấu). Không chuyển buồng; quyền tối thiểu giữ nguyên.';
+  if (level === 'reprimand') inc.decision = 'Khiển trách · quyền tối thiểu giữ nguyên.';
+  else if (level === 'warning') inc.decision = 'Cảnh cáo · không chuyển buồng, quyền tối thiểu giữ nguyên.';
   else {
     const order = issueOrder(ctx, { kind: 'discipline_confinement', reasonCode: 'REPEATED_VIOLATION', issuerRole: 'facility_head', sourceDecisionId: inc.id, startMinute: s.minute, reviewAtMinute: null, endMinute: s.minute + 3 * MIN_PER_DAY, roomId: null, returnHousingRef: null, supersedes: null, note: 'Vi phạm lặp lại trong 30 ngày (trình tự rút gọn của game).' });
     if (order) {
-      issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'IN_DISCIPLINE_CELL', issuerRole: 'facility_head', sourceDecisionId: inc.id, startMinute: s.minute, reviewAtMinute: order.endMinute, endMinute: order.endMinute! + 2 * MIN_PER_DAY, roomId: null, returnHousingRef: null, supersedes: null, note: 'Không gặp người thân khi ở buồng kỷ luật; xem xét lại sau khi hết lệnh (hư cấu).' });
-      inc.decision = `Buồng kỷ luật 3 ngày (đến ${fmtDayClock(order.endMinute!)}), có dịch vụ tại buồng và quyền xin xem xét lại.`;
-    } else inc.decision = 'Cảnh cáo — chưa đủ điều kiện thực hiện buồng kỷ luật (không có chỗ phù hợp).';
+      issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'IN_DISCIPLINE_CELL', issuerRole: 'facility_head', sourceDecisionId: inc.id, startMinute: s.minute, reviewAtMinute: order.endMinute, endMinute: order.endMinute! + 2 * MIN_PER_DAY, roomId: null, returnHousingRef: null, supersedes: null, note: 'Tạm không thăm gặp khi ở buồng kỷ luật · xét lại khi hết lệnh.' });
+      inc.decision = `Buồng kỷ luật 3 ngày (đến ${fmtDayClock(order.endMinute!)}) · dịch vụ tại buồng, được xin xét lại.`;
+    } else inc.decision = 'Cảnh cáo · chưa có buồng kỷ luật trống.';
   }
   inc.consequence = undefined;
   journal(ctx, 'discipline_decision', level.toUpperCase(), inc.decision, `disc:${inc.id}`);
@@ -498,9 +498,9 @@ export function shuNextWindow(s: GameState): { label: string; at: number } {
   return { label: 'Ở buồng', at: s.minute + 60 };
 }
 const SHU_ACT_TEXT: Record<ShuActivity, string> = {
-  rec: 'Giờ thể dục: 60 phút một mình trong cũi lưới. Hít thở, chạy tại chỗ, nhìn lên giếng trời.',
-  shower: 'Giờ tắm: 15 phút trong buồng tắm có song chắn, sĩ quan đứng ngoài cửa.',
-  group: 'Sinh hoạt nhóm: mỗi người ngồi trong một cũi trị liệu, người điều phối dẫn buổi trò chuyện về kiểm soát cảm xúc.',
+  rec: 'Giờ thể dục · 60 phút một mình trong cũi.',
+  shower: 'Giờ tắm · 15 phút, có sĩ quan đứng ngoài.',
+  group: 'Sinh hoạt nhóm · mỗi người một cũi, chủ đề kiểm soát cảm xúc.',
 };
 function startShu(ctx: Ctx) {
   const s = ctx.s;
@@ -511,11 +511,11 @@ function startShu(ctx: Ctx) {
     kind: 'restrictive_housing', reasonCode: life ? 'SHU_LIFE_HIGH_SECURITY' : 'SHU_SECURITY_REVIEW', issuerRole: 'classification_board', sourceDecisionId: 'scenario:shu',
     startMinute: s.minute, reviewAtMinute: life ? s.minute + SHU_LIFE_REVIEW_DAYS * MIN_PER_DAY : null, endMinute: life ? null : s.minute + shuTotalDays() * MIN_PER_DAY,
     roomId: null, returnHousingRef: null, supersedes: null,
-    note: life ? 'Chung thân — biệt giam an ninh tối đa, không có ngày ra SHU cố định; xét lại định kỳ (kịch bản hư cấu).' : 'Biệt giam an ninh tối đa theo chương trình step-down 3 cấp (kịch bản hư cấu).',
+    note: life ? 'Chung thân · biệt giam tối đa, không có ngày ra cố định, xét lại định kỳ.' : 'Biệt giam tối đa · chương trình step-down 3 cấp.',
   });
   if (!o) return;
-  issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'SHU_NON_CONTACT', issuerRole: 'facility_head', sourceDecisionId: 'scenario:shu', startMinute: s.minute, reviewAtMinute: null, endMinute: null, roomId: null, returnHousingRef: null, supersedes: null, note: 'Trong SHU chỉ gặp người thân không tiếp xúc (qua kính) — tạm khóa thăm gặp trực tiếp.' });
-  notify(ctx, `Bạn bị đưa vào khu biệt giam SHU (${SHU_LEVELS[0].title}). Ở buồng 23 giờ/ngày; giữ kỷ luật để lên cấp.`, 'warning', 'life', true);
+  issueOrder(ctx, { kind: 'family_visit_restriction', reasonCode: 'SHU_NON_CONTACT', issuerRole: 'facility_head', sourceDecisionId: 'scenario:shu', startMinute: s.minute, reviewAtMinute: null, endMinute: null, roomId: null, returnHousingRef: null, supersedes: null, note: 'SHU: chỉ gặp người thân qua kính.' });
+  notify(ctx, `Vào SHU · ${SHU_LEVELS[0].title} · 23 giờ/ngày trong buồng, giữ kỷ luật để lên cấp.`, 'warning', 'life', true);
 }
 function endShu(ctx: Ctx, o: CustodyOrder, why: string) {
   const c = ctx.s.custody!;
@@ -542,10 +542,10 @@ function shuTick(ctx: Ctx) {
   }
   // 2) chung thân: xét lại định kỳ — chỉ chuyển khu khi đã hoàn thành cấp 3
   if (o.endMinute === null && o.reviewAtMinute !== null && s.minute >= o.reviewAtMinute) {
-    if (sh.level === 3 && s.minute - sh.levelSinceMinute >= SHU_LEVELS[2].days * MIN_PER_DAY) { endShu(ctx, o, 'Hội đồng xét lại: hoàn thành step-down, chuyển về khu thường (án chung thân vẫn tiếp tục).'); return; }
+    if (sh.level === 3 && s.minute - sh.levelSinceMinute >= SHU_LEVELS[2].days * MIN_PER_DAY) { endShu(ctx, o, 'Xét lại: hoàn thành step-down · về khu thường (vẫn thụ án chung thân).'); return; }
     o.reviewAtMinute = s.minute + SHU_LIFE_REVIEW_DAYS * MIN_PER_DAY;
-    journal(ctx, 'shu_review', 'SHU_RETAIN', `Xét lại định kỳ: tiếp tục biệt giam (đang ở cấp ${sh.level}). Lần xét tiếp ${fmtDayClock(o.reviewAtMinute)}.`, `shu_rv:${s.minute}`);
-    notify(ctx, `Xét lại định kỳ: tiếp tục biệt giam. Lần xét tiếp ${fmtDayClock(o.reviewAtMinute)}.`, 'warning', 'life');
+    journal(ctx, 'shu_review', 'SHU_RETAIN', `Xét lại: giữ biệt giam (cấp ${sh.level}) · lần sau ${fmtDayClock(o.reviewAtMinute)}.`, `shu_rv:${s.minute}`);
+    notify(ctx, `Xét lại: giữ biệt giam · lần sau ${fmtDayClock(o.reviewAtMinute)}.`, 'warning', 'life');
   }
   // 3) hoạt động ngoài buồng theo lịch (hiệu ứng một lần mỗi ngày)
   const act = shuActivityNow(s);
@@ -564,7 +564,7 @@ function shuTick(ctx: Ctx) {
     changeNeed(ctx, 'mood', -2, 'Biệt giam: cô lập trong buồng');
   }
   // 5) kiểm đếm tại cửa buồng
-  if (m === hm(6, 15) || m === hm(21)) notify(ctx, 'Kiểm đếm: đứng dậy ở cửa buồng để sĩ quan nhìn qua ô kính hẹp.', 'info', 'life');
+  if (m === hm(6, 15) || m === hm(21)) notify(ctx, 'Kiểm đếm · đứng ở cửa buồng.', 'info', 'life');
 }
 /** Sau ẩu đả (chế độ Thụ án): tách vào SHU dạng Ad-Seg chờ điều tra — mọi người tham gia đều bị tách, kể cả người tự vệ. */
 export function adSegForConflict(ctx: Ctx, conflictId: string, hearingAt: number): boolean {
@@ -577,7 +577,7 @@ export function adSegForConflict(ctx: Ctx, conflictId: string, hearingAt: number
   const o = issueOrder(ctx, {
     kind: 'restrictive_housing', reasonCode: 'ADSEG_PENDING_INVESTIGATION', issuerRole: 'shift_commander', sourceDecisionId: `conflict:${conflictId}`,
     startMinute: s.minute, reviewAtMinute: hearingAt, endMinute: hearingAt + 120, roomId: null, returnHousingRef: null, supersedes: null,
-    note: 'Tách riêng chờ điều tra sau ẩu đả (Ad-Seg) — chưa phải kết luận vi phạm.',
+    note: 'Tách riêng chờ điều tra (Ad-Seg) · chưa kết luận.',
   });
   return !!o;
 }
@@ -659,8 +659,8 @@ export function custodyTick(ctx: Ctx) {
   const rd = releaseDay(c.judgment);
   if (c.releaseState === 'serving' && rd !== null && day >= rd && once(c, 'release_due')) {
     c.releaseState = 'release_due';
-    journal(ctx, 'release_due', 'TERM_END_REACHED', `Đến mốc hết hạn chấp hành án theo kịch bản (${fmtDate(termEndDate(c.judgment)!)}).`);
-    notify(ctx, 'Đã mãn hạn! Đến khu Chuẩn bị ra (L18) để rời cơ sở.', 'success', 'life', true);
+    journal(ctx, 'release_due', 'TERM_END_REACHED', `Hết hạn chấp hành án (${fmtDate(termEndDate(c.judgment)!)}).`);
+    notify(ctx, 'Mãn hạn! Đến L18 để rời cơ sở.', 'success', 'life', true);
   }
   // 2) housing/movement reconciliation
   refreshGrants(ctx);
@@ -675,7 +675,7 @@ export function custodyTick(ctx: Ctx) {
       ensureGrant(ctx, 'return', home.zone, s.minute, s.minute + 45, `return:${day}:${m}`);
     } else if (home && (!ret || s.minute >= ret.validUntilMinute || s.player.mode === 'sleeping')) {
       escortToRoom(ctx, home, shuEsc ? 'Áp giải trong SHU (còng tay qua khe cửa)' : 'Cán bộ hỗ trợ về buồng (không ghi nhận vi phạm)');
-      notify(ctx, shuEsc ? `Còng tay qua khe cửa — sĩ quan áp giải bạn tới ${home.label}.` :'Đã được đưa về buồng.', 'info', 'life');
+      notify(ctx, shuEsc ? `Còng tay · áp giải tới ${home.label}.` :'Đã được đưa về buồng.', 'info', 'life');
     }
   } else if (playerOk) {
     for (const g of c.grants) if (g.purpose === 'return' && g.state === 'active') {
@@ -713,7 +713,7 @@ function scenarioEvents(ctx: Ctx) {
     const j = c.judgment;
     j.amendments.push({ version: j.version + 1, minute: s.minute, kind: 'reduction', months: 30, decisionRef: 'scenario:reduction-1', note: 'Quyết định giảm thời hạn chấp hành án 30 tháng (kịch bản hư cấu).', supersedes: j.version });
     j.version++;
-    journal(ctx, 'judgment_amended', 'REDUCTION', 'Có quyết định giảm 30 tháng (kịch bản). Bản án đã tuyên giữ nguyên trong hồ sơ.');
+    journal(ctx, 'judgment_amended', 'REDUCTION', 'Được giảm 30 tháng · bản án gốc vẫn lưu hồ sơ.');
     notify(ctx, 'Bạn được giảm án! Xem trong Chế độ (G).', 'info', 'life', true);
   }
   if (day >= 2 && m >= hm(9) && c.sourceKeys.includes('midway:reduction') && once(c, 'midway:reclass')) {
