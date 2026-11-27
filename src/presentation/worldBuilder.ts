@@ -380,7 +380,6 @@ export async function buildWorld(scene: Scene, onProgress: (f: number) => void =
     const seed = hash32(p.id);
     switch (p.kind) {
       case 'bed': {
-      case 'bed': {
         if (p.zone === 'L28') {
           // Biệt giam: bệ nằm bê tông đúc liền tường, đệm mỏng, chăn len xám
           pbox(p, p.w, 0.45, p.d, 0, 0.225, 0, '#a19e96');
